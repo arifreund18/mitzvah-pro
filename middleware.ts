@@ -8,8 +8,31 @@ function barBeniOrigin(): string | null {
   return process.env.BAR_BENI_ORIGIN?.replace(/\/$/, '') ?? null
 }
 
+/** Paths that belong to the event app (bar-beni), not the landing. */
+function barBeniPublicPath(pathname: string): string | null {
+  if (pathname.startsWith('/admin')) return `/BarBeni${pathname}`
+
+  if (pathname === '/en' || pathname.startsWith('/en/')) {
+    return `/BarBeni${pathname}`
+  }
+
+  const ptEvent = pathname.match(
+    /^\/pt\/(invite|rsvp|card|std|privacy|terms)(\/|$)/,
+  )
+  if (ptEvent) return `/BarBeni${pathname}`
+
+  return null
+}
+
 export default function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
+
+  const barBeniPath = barBeniPublicPath(pathname)
+  if (barBeniPath) {
+    const url = request.nextUrl.clone()
+    url.pathname = barBeniPath
+    return NextResponse.redirect(url)
+  }
 
   if (pathname === '/BarBeni' || pathname.startsWith('/BarBeni/')) {
     const origin = barBeniOrigin()
@@ -28,5 +51,16 @@ export default function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/', '/pt', '/pt/:path*', '/BarBeni', '/BarBeni/:path*', '/api/:path*'],
+  matcher: [
+    '/',
+    '/en',
+    '/en/:path*',
+    '/pt',
+    '/pt/:path*',
+    '/admin',
+    '/admin/:path*',
+    '/BarBeni',
+    '/BarBeni/:path*',
+    '/api/:path*',
+  ],
 }

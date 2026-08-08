@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { Button } from '@/components/ui/Button'
 
-const CONTACT_API = '/api/contact'
+const CONTACT_API = '/BarBeni/api/platform/contact'
 
 export function PlatformContactForm() {
   const t = useTranslations('contact.form')
@@ -26,8 +26,9 @@ export function PlatformContactForm() {
         message: form.get('message'),
       }),
     })
+    const data = (await res.json().catch(() => null)) as { ok?: boolean } | null
     setLoading(false)
-    if (!res.ok) {
+    if (!res.ok || !data?.ok) {
       setError(t('error'))
       return
     }
