@@ -1,8 +1,5 @@
 {
   "framework": "nextjs",
   "buildCommand": "npm run build",
-  "installCommand": "npm install --legacy-peer-deps",
-  "redirects": [
-    { "source": "/en", "destination": "/", "permanent": false }
-  ]
+  "installCommand": "npm install --legacy-peer-deps"
 }
