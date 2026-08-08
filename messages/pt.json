@@ -1,0 +1,112 @@
+{
+  "meta": {
+    "title": "Mitzvah.pro — Convites e sites boutique para Bar & Bat Mitzvah",
+    "description": "Save the date, convites digitais e site completo para sua festa de Bar ou Bat Mitzvah. Nossa equipe personaliza tudo para você."
+  },
+  "nav": {
+    "features": "Funcionalidades",
+    "howItWorks": "Como funciona",
+    "pricing": "Planos",
+    "contact": "Fale conosco"
+  },
+  "hero": {
+    "eyebrow": "Boutique digital para Bar & Bat Mitzvah",
+    "title": "Convites e sites que honram",
+    "titleHighlight": "cada celebração",
+    "subtitle": "Inspirado no melhor do Evite e Paperless Post — save the date animado, convites digitais elegantes e um site completo para sua festa. Nossa equipe cuida de cada detalhe.",
+    "ctaPrimary": "Começar conversa",
+    "ctaSecondary": "Ver planos"
+  },
+  "features": {
+    "title": "Tudo que sua festa precisa",
+    "subtitle": "Uma plataforma completa — do primeiro save the date ao último RSVP confirmado.",
+    "items": {
+      "std": {
+        "title": "Save the Date animado",
+        "desc": "Envelope digital com abertura elegante — como Paperless Post, feito para a sua família."
+      },
+      "invite": {
+        "title": "Convites personalizados",
+        "desc": "Cartão digital com selo de cera, QR code e link único por família convidada."
+      },
+      "rsvp": {
+        "title": "RSVP inteligente",
+        "desc": "Confirmações online, escolha de refeição, restrições alimentares e lembretes automáticos."
+      },
+      "site": {
+        "title": "Site do evento",
+        "desc": "Programação, hotéis, galeria de fotos, FAQ e tudo que os convidados precisam saber."
+      },
+      "guests": {
+        "title": "Gestão de convidados",
+        "desc": "Painel admin para importar listas, enviar convites e acompanhar respostas em tempo real."
+      },
+      "calendar": {
+        "title": "Adicionar ao calendário",
+        "desc": "Um clique para Google Calendar, Apple Calendar ou download de arquivo .ics."
+      }
+    }
+  },
+  "howItWorks": {
+    "title": "Como funciona",
+    "subtitle": "Você não monta nada sozinho — nossa equipe personaliza o site inteiro para a sua família.",
+    "steps": {
+      "1": { "title": "Conversa inicial", "desc": "Você nos conta sobre o celebrante, o estilo e a data." },
+      "2": { "title": "Design sob medida", "desc": "Nossa equipe cria o visual, textos e fluxo do convite." },
+      "3": { "title": "Revisão e ajustes", "desc": "Você aprova cada detalhe antes de enviar aos convidados." },
+      "4": { "title": "Lançamento", "desc": "Save the date, convites e site no ar — prontos para celebrar." }
+    }
+  },
+  "pricing": {
+    "title": "Planos",
+    "subtitle": "Dois níveis de serviço — ambos com personalização completa pela nossa equipe.",
+    "popular": "Mais popular",
+    "price": "Sob consulta",
+    "cta": "Solicitar orçamento",
+    "plans": {
+      "mitzvah": {
+        "name": "Mitzvah",
+        "tagline": "Elegante e completo no nosso domínio",
+        "domain": "sua-familia.mitzvah.pro",
+        "perks": [
+          "Save the date + convite digital + site do evento",
+          "RSVP com painel admin completo",
+          "Subdomínio exclusivo em mitzvah.pro",
+          "Multilingual",
+          "Lembretes automáticos por email",
+          "Personalização visual pela nossa equipe"
+        ]
+      },
+      "signature": {
+        "name": "Mitzvah Signature",
+        "tagline": "Seu domínio, sua marca",
+        "domain": "noahbarmitzvah.com",
+        "perks": [
+          "Tudo do plano Mitzvah",
+          "Domínio próprio (ex: celebracao.com)",
+          "Configuração de DNS e SSL incluída",
+          "Email personalizado @seudominio.com",
+          "Prioridade no suporte e revisões extras",
+          "Experiência white-label para convidados"
+        ]
+      }
+    }
+  },
+  "contact": {
+    "title": "Fale conosco",
+    "subtitle": "Conte sobre a celebração e responderemos com um plano sob medida. Sem compromisso.",
+    "forwardNote": "Emails enviados para este endereço são encaminhados à nossa equipe.",
+    "form": {
+      "name": "Seu nome",
+      "email": "Seu email",
+      "message": "Conte sobre a celebração, data prevista e o que vocês imaginam...",
+      "send": "Enviar mensagem",
+      "sending": "Enviando...",
+      "sent": "Mensagem enviada! Nossa equipe responde em breve.",
+      "error": "Não foi possível enviar. Tente novamente ou escreva diretamente para mitzvah@mitzvah.pro."
+    }
+  },
+  "footer": {
+    "tagline": "Convites boutique para Bar & Bat Mitzvah"
+  }
+}
