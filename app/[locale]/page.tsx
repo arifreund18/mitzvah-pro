@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import { createTranslator } from 'next-intl'
 import { PlatformContactForm } from '@/components/mitzvah/PlatformContactForm'
 import { PlatformLanguageSwitcher } from '@/components/mitzvah/PlatformLanguageSwitcher'
-import { getMessages, isLocale, type Locale } from '@/lib/i18n'
+import { getMessages, isLocale, isRtlLocale, type Locale } from '@/lib/i18n'
 import { MITZVAH_CONTACT_EMAIL } from '@/lib/contact'
 
 const FEATURE_KEYS = ['std', 'invite', 'rsvp', 'site', 'guests', 'calendar'] as const
@@ -102,7 +102,11 @@ export default async function PlatformPage({
   }))
 
   return (
-    <div className="bg-[#0b1020] text-white">
+    <div
+      className="bg-[#0b1020] text-white"
+      lang={locale}
+      dir={isRtlLocale(locale) ? 'rtl' : 'ltr'}
+    >
       <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(ellipse_at_top,_rgba(0,212,255,0.18),_transparent_55%)]" />
       <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(ellipse_at_bottom_right,_rgba(255,45,120,0.12),_transparent_50%)]" />
 
@@ -162,7 +166,7 @@ export default async function PlatformPage({
           <p className="mx-auto mt-4 max-w-xl text-center text-white/60">{t('howItWorks.subtitle')}</p>
           <div className="mt-16 grid gap-8 md:grid-cols-2 lg:grid-cols-4">
             {STEP_KEYS.map((key) => (
-              <div key={key} className="text-center md:text-left">
+              <div key={key} className="text-center md:text-start">
                 <span className="font-display text-4xl font-bold text-cyan-400/40">{key}</span>
                 <h3 className="mt-2 text-lg font-semibold">{t(`howItWorks.steps.${key}.title`)}</h3>
                 <p className="mt-2 text-sm text-white/60">{t(`howItWorks.steps.${key}.desc`)}</p>

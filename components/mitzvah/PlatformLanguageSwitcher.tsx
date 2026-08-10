@@ -6,6 +6,8 @@ import { localeHref, type Locale } from '@/lib/i18n'
 const locales: { code: Locale; label: string; Flag: typeof FlagUs }[] = [
   { code: 'en', label: 'English', Flag: FlagUs },
   { code: 'pt', label: 'Português', Flag: FlagBr },
+  { code: 'es', label: 'Español', Flag: FlagMx },
+  { code: 'he', label: 'עברית', Flag: FlagIl },
 ]
 
 export function PlatformLanguageSwitcher({
@@ -96,6 +98,36 @@ function FlagBr({ className }: { className?: string }) {
       <path
         fill="#fff"
         d="M280 252c0-44 36-80 80-80 28 0 53 14 68 36-18-8-38-12-58-12-66 0-120 54-120 120s54 120 120 120c20 0 40-4 58-12-15 22-40 36-68 36-44 0-80-36-80-80z"
+      />
+    </svg>
+  )
+}
+
+function FlagMx({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 21 14" className={className} aria-hidden>
+      <path fill="#006847" d="M0 0h7v14H0z" />
+      <path fill="#fff" d="M7 0h7v14H7z" />
+      <path fill="#ce1126" d="M14 0h7v14h-7z" />
+      <circle cx="10.5" cy="7" r="2.2" fill="#8b4513" />
+      <path
+        fill="#006847"
+        d="M10.5 5.2c.7.4 1.1 1.1 1.1 1.8s-.4 1.4-1.1 1.8c-.7-.4-1.1-1.1-1.1-1.8s.4-1.4 1.1-1.8z"
+      />
+    </svg>
+  )
+}
+
+function FlagIl({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 22 16" className={className} aria-hidden>
+      <path fill="#fff" d="M0 0h22v16H0z" />
+      <path fill="#0038b8" d="M0 2.2h22v1.8H0zm0 9.8h22v1.8H0z" />
+      <path
+        fill="none"
+        stroke="#0038b8"
+        strokeWidth="0.7"
+        d="M11 4.6 12.7 9.6H8.3L11 4.6zM11 11.4 9.3 6.4h4.4L11 11.4z"
       />
     </svg>
   )

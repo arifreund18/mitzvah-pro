@@ -27,9 +27,14 @@ section[id] {
 body {
   background: var(--color-bg-primary);
   color: var(--color-text-primary);
-  font-family: var(--font-inter), system-ui, sans-serif;
+  font-family: var(--font-inter), var(--font-hebrew), system-ui, sans-serif;
 }
 
 .font-display {
-  font-family: var(--font-playfair), Georgia, serif;
+  font-family: var(--font-playfair), var(--font-hebrew), Georgia, serif;
+}
+
+[lang='he'],
+[lang='he'] .font-display {
+  font-family: var(--font-hebrew), system-ui, sans-serif;
 }

@@ -1,5 +1,6 @@
 import { NextIntlClientProvider } from 'next-intl'
 import { notFound } from 'next/navigation'
+import { DocumentLocale } from '@/components/mitzvah/DocumentLocale'
 import { getMessages, isLocale, LOCALES } from '@/lib/i18n'
 
 export function generateStaticParams() {
@@ -19,6 +20,7 @@ export default async function PlatformLocaleLayout({
 
   return (
     <NextIntlClientProvider locale={locale} messages={messages}>
+      <DocumentLocale locale={locale} />
       {children}
     </NextIntlClientProvider>
   )
