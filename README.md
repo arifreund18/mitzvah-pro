@@ -2,6 +2,10 @@
 
 Landing comercial e proxy para sites de eventos.
 
+## Documentação
+
+- [`docs/MELHORIAS.md`](docs/MELHORIAS.md) — planos e estratégias de produto (dashboard, template BarBeni, wizard)
+
 ## Scripts
 
 ```bash
