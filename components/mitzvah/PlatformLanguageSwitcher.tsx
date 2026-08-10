@@ -10,6 +10,10 @@ const locales: { code: Locale; label: string; Flag: typeof FlagUs }[] = [
   { code: 'he', label: 'עברית', Flag: FlagIl },
 ]
 
+function persistLocaleCookie(locale: Locale) {
+  document.cookie = `NEXT_LOCALE=${locale}; Path=/; SameSite=Lax; Max-Age=31536000`
+}
+
 export function PlatformLanguageSwitcher({
   locale,
   className,
@@ -33,6 +37,7 @@ export function PlatformLanguageSwitcher({
             title={label}
             aria-label={label}
             aria-current={active ? 'true' : undefined}
+            onClick={() => persistLocaleCookie(code)}
             className={cn(
               'flex h-8 w-10 items-center justify-center rounded-lg transition',
               active
