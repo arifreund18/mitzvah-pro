@@ -239,6 +239,7 @@ export type WizardUi = {
   subtitle: string
   parentsMessage: string
   about: string
+  honoreeBio: string
   moment: string
   remove: string
   title: string
@@ -248,16 +249,21 @@ export type WizardUi = {
   addMoment: string
   parking: string
   hotels: string
+  walking: string
+  mapUrl: string
+  addPlace: string
   notes: string
   addHotel: string
   heroUrl: string
   heroUpload: string
   gallery: string
   showStd: string
+  stdEmailHint: string
   message: string
   envelopeLabel: string
   greeting: string
   inviteBody: string
+  inviteEmailHint: string
   hostLine: string
   seal: string
   sealHint: string
@@ -332,6 +338,7 @@ const WIZARD_UI: Record<EventLocale, WizardUi> = {
     subtitle: 'Subtítulo',
     parentsMessage: 'Mensagem dos pais',
     about: 'Sobre a celebração',
+    honoreeBio: 'Sobre o celebrante',
     moment: 'Momento',
     remove: 'Remover',
     title: 'Título',
@@ -341,16 +348,21 @@ const WIZARD_UI: Record<EventLocale, WizardUi> = {
     addMoment: '+ Adicionar momento',
     parking: 'Estacionamento',
     hotels: 'Hotéis',
+    walking: 'Tempo a pé',
+    mapUrl: 'Link do mapa',
+    addPlace: '+ Lugar (o que fazer)',
     notes: 'Notas',
     addHotel: '+ Hotel',
     heroUrl: 'Foto hero (URL)',
     heroUpload: 'Ou envie uma foto hero',
     gallery: 'Galeria (uma URL por linha)',
-    showStd: 'Mostrar Save the Date',
+    showStd: 'Ativar email de Save the Date',
+    stdEmailHint: 'Este email vai para os convidados. Não entra no site do evento.',
     message: 'Mensagem',
     envelopeLabel: 'Rótulo do envelope',
     greeting: 'Saudação',
     inviteBody: 'Texto do convite',
+    inviteEmailHint: 'O convite é um email com o cartão e o selo. O site do evento é outra peça.',
     hostLine: 'Linha da família',
     seal: 'Selo / logo',
     sealHint: 'Envie uma imagem para usar como logo no convite. Sem imagem, o texto aparece no selo.',
@@ -377,14 +389,14 @@ const WIZARD_UI: Record<EventLocale, WizardUi> = {
     steps: {
       basics: { title: 'Celebração', subtitle: 'Quem honramos, quando e onde.' },
       branding: { title: 'Visual', subtitle: 'Tema e cores — o preview muda na hora.' },
-      story: { title: 'Textos', subtitle: 'Headline, subtítulo e mensagem da família.' },
+      story: { title: 'Textos', subtitle: 'Boas-vindas, sobre a celebração e o celebrante.' },
       schedule: { title: 'Programação', subtitle: 'Cerimônia, recepção e horários.' },
-      venues: { title: 'Locais & hotéis', subtitle: 'Dress code, estacionamento e hospedagem.' },
+      venues: { title: 'Locais & hotéis', subtitle: 'Dress code, hospedagem e o que fazer na cidade.' },
       media: { title: 'Fotos', subtitle: 'Hero e galeria (URL ou upload local).' },
-      saveTheDate: { title: 'Save the Date', subtitle: 'Envelope digital e mensagem.' },
-      invitation: { title: 'Convite', subtitle: 'Cartão, selo e texto do convite.' },
-      rsvp: { title: 'RSVP', subtitle: 'Prazo, refeições e acompanhante.' },
       faq: { title: 'FAQ', subtitle: 'Perguntas que os convidados sempre fazem.' },
+      rsvp: { title: 'RSVP', subtitle: 'Prazo, refeições e acompanhante.' },
+      saveTheDate: { title: 'Save the Date', subtitle: 'Email enviado aos convidados — não é página do site.' },
+      invitation: { title: 'Convite', subtitle: 'Email do cartão com selo, enviado à lista.' },
       guestsBootstrap: { title: 'Convidados', subtitle: 'Lista inicial — RSVPs entram depois.' },
       domain: { title: 'Publicação', subtitle: 'Slug local /e/sua-familia e SEO.' },
       review: { title: 'Revisão', subtitle: 'Checklist e publicar o site.' },
@@ -446,6 +458,7 @@ const WIZARD_UI: Record<EventLocale, WizardUi> = {
     subtitle: 'Subtitle',
     parentsMessage: 'Parents’ message',
     about: 'About the celebration',
+    honoreeBio: 'About the honoree',
     moment: 'Moment',
     remove: 'Remove',
     title: 'Title',
@@ -455,16 +468,21 @@ const WIZARD_UI: Record<EventLocale, WizardUi> = {
     addMoment: '+ Add moment',
     parking: 'Parking',
     hotels: 'Hotels',
+    walking: 'Walking time',
+    mapUrl: 'Map link',
+    addPlace: '+ Place (things to do)',
     notes: 'Notes',
     addHotel: '+ Hotel',
     heroUrl: 'Hero photo (URL)',
     heroUpload: 'Or upload a hero photo',
     gallery: 'Gallery (one URL per line)',
-    showStd: 'Show Save the Date',
+    showStd: 'Enable Save the Date email',
+    stdEmailHint: 'This email goes to guests. It is not a page on the event website.',
     message: 'Message',
     envelopeLabel: 'Envelope label',
     greeting: 'Greeting',
     inviteBody: 'Invitation text',
+    inviteEmailHint: 'The invitation is an email with the card and seal. The event website is a separate piece.',
     hostLine: 'Host line',
     seal: 'Seal / logo',
     sealHint: 'Upload an image to use as the invitation logo. Without an image, the text appears on the seal.',
@@ -491,14 +509,14 @@ const WIZARD_UI: Record<EventLocale, WizardUi> = {
     steps: {
       basics: { title: 'Celebration', subtitle: 'Who we honor, when and where.' },
       branding: { title: 'Look', subtitle: 'Theme and colors — the preview updates instantly.' },
-      story: { title: 'Copy', subtitle: 'Headline, subtitle, and family message.' },
+      story: { title: 'Copy', subtitle: 'Welcome, about the celebration, and the honoree.' },
       schedule: { title: 'Schedule', subtitle: 'Ceremony, reception, and times.' },
-      venues: { title: 'Venues & hotels', subtitle: 'Dress code, parking, and lodging.' },
+      venues: { title: 'Venues & hotels', subtitle: 'Dress code, lodging, and things to do.' },
       media: { title: 'Photos', subtitle: 'Hero and gallery (URL or local upload).' },
-      saveTheDate: { title: 'Save the Date', subtitle: 'Digital envelope and message.' },
-      invitation: { title: 'Invitation', subtitle: 'Card, seal, and invitation text.' },
-      rsvp: { title: 'RSVP', subtitle: 'Deadline, meals, and plus-one.' },
       faq: { title: 'FAQ', subtitle: 'Questions guests always ask.' },
+      rsvp: { title: 'RSVP', subtitle: 'Deadline, meals, and plus-one.' },
+      saveTheDate: { title: 'Save the Date', subtitle: 'Email sent to guests — not a page on the site.' },
+      invitation: { title: 'Invitation', subtitle: 'Email with the sealed card, sent to the list.' },
       guestsBootstrap: { title: 'Guests', subtitle: 'Starter list — RSVPs arrive later.' },
       domain: { title: 'Publish', subtitle: 'Local slug /e/your-family and SEO.' },
       review: { title: 'Review', subtitle: 'Checklist and publish the site.' },
@@ -560,6 +578,7 @@ const WIZARD_UI: Record<EventLocale, WizardUi> = {
     subtitle: 'Subtítulo',
     parentsMessage: 'Mensaje de los padres',
     about: 'Sobre la celebración',
+    honoreeBio: 'Sobre el celebrante',
     moment: 'Momento',
     remove: 'Quitar',
     title: 'Título',
@@ -569,16 +588,21 @@ const WIZARD_UI: Record<EventLocale, WizardUi> = {
     addMoment: '+ Agregar momento',
     parking: 'Estacionamiento',
     hotels: 'Hoteles',
+    walking: 'Tiempo a pie',
+    mapUrl: 'Enlace del mapa',
+    addPlace: '+ Lugar (qué hacer)',
     notes: 'Notas',
     addHotel: '+ Hotel',
     heroUrl: 'Foto hero (URL)',
     heroUpload: 'O sube una foto hero',
     gallery: 'Galería (una URL por línea)',
-    showStd: 'Mostrar Save the Date',
+    showStd: 'Activar email de Save the Date',
+    stdEmailHint: 'Este email se envía a los invitados. No es una página del sitio.',
     message: 'Mensaje',
     envelopeLabel: 'Etiqueta del sobre',
     greeting: 'Saludo',
     inviteBody: 'Texto de la invitación',
+    inviteEmailHint: 'La invitación es un email con la tarjeta y el sello. El sitio del evento es otra pieza.',
     hostLine: 'Línea de la familia',
     seal: 'Sello / logo',
     sealHint: 'Sube una imagen para usarla como logo en la invitación. Sin imagen, aparece el texto del sello.',
@@ -605,14 +629,14 @@ const WIZARD_UI: Record<EventLocale, WizardUi> = {
     steps: {
       basics: { title: 'Celebración', subtitle: 'A quién honramos, cuándo y dónde.' },
       branding: { title: 'Visual', subtitle: 'Tema y colores — la vista previa cambia al instante.' },
-      story: { title: 'Textos', subtitle: 'Titular, subtítulo y mensaje de la familia.' },
+      story: { title: 'Textos', subtitle: 'Bienvenida, sobre la celebración y el celebrante.' },
       schedule: { title: 'Programa', subtitle: 'Ceremonia, recepción y horarios.' },
-      venues: { title: 'Lugares y hoteles', subtitle: 'Dress code, estacionamiento y hospedaje.' },
+      venues: { title: 'Lugares y hoteles', subtitle: 'Dress code, hospedaje y qué hacer.' },
       media: { title: 'Fotos', subtitle: 'Hero y galería (URL o carga local).' },
-      saveTheDate: { title: 'Save the Date', subtitle: 'Sobre digital y mensaje.' },
-      invitation: { title: 'Invitación', subtitle: 'Tarjeta, sello y texto.' },
-      rsvp: { title: 'RSVP', subtitle: 'Fecha límite, comidas y acompañante.' },
       faq: { title: 'FAQ', subtitle: 'Preguntas frecuentes de los invitados.' },
+      rsvp: { title: 'RSVP', subtitle: 'Fecha límite, comidas y acompañante.' },
+      saveTheDate: { title: 'Save the Date', subtitle: 'Email a los invitados — no es una página del sitio.' },
+      invitation: { title: 'Invitación', subtitle: 'Email de la tarjeta con sello, enviado a la lista.' },
       guestsBootstrap: { title: 'Invitados', subtitle: 'Lista inicial — los RSVP llegan después.' },
       domain: { title: 'Publicación', subtitle: 'Slug local /e/tu-familia y SEO.' },
       review: { title: 'Revisión', subtitle: 'Checklist y publicar el sitio.' },
@@ -674,6 +698,7 @@ const WIZARD_UI: Record<EventLocale, WizardUi> = {
     subtitle: 'תת־כותרת',
     parentsMessage: 'מסר מההורים',
     about: 'על החגיגה',
+    honoreeBio: 'על החוגג/ת',
     moment: 'רגע',
     remove: 'הסרה',
     title: 'כותרת',
@@ -683,16 +708,21 @@ const WIZARD_UI: Record<EventLocale, WizardUi> = {
     addMoment: '+ הוספת רגע',
     parking: 'חניה',
     hotels: 'מלונות',
+    walking: 'זמן הליכה',
+    mapUrl: 'קישור למפה',
+    addPlace: '+ מקום (מה לעשות)',
     notes: 'הערות',
     addHotel: '+ מלון',
     heroUrl: 'תמונת הירו (URL)',
     heroUpload: 'או העלאת תמונת הירו',
     gallery: 'גלריה (כתובת אחת בכל שורה)',
-    showStd: 'הצגת שמרו את התאריך',
+    showStd: 'הפעלת אימייל Save the Date',
+    stdEmailHint: 'האימייל נשלח לאורחים. זה לא עמוד באתר האירוע.',
     message: 'הודעה',
     envelopeLabel: 'תווית המעטפה',
     greeting: 'ברכה',
     inviteBody: 'טקסט ההזמנה',
+    inviteEmailHint: 'ההזמנה היא אימייל עם כרטיס וחותם. אתר האירוע הוא דבר נפרד.',
     hostLine: 'שורת המשפחה',
     seal: 'חותם / לוגו',
     sealHint: 'העלו תמונה ללוגו בהזמנה. בלי תמונה מופיע הטקסט על החותם.',
@@ -719,14 +749,14 @@ const WIZARD_UI: Record<EventLocale, WizardUi> = {
     steps: {
       basics: { title: 'החגיגה', subtitle: 'את מי מכבדים, מתי ואיפה.' },
       branding: { title: 'מראה', subtitle: 'ערכת נושא וצבעים — התצוגה מתעדכנת מיד.' },
-      story: { title: 'טקסטים', subtitle: 'כותרת, תת־כותרת ומסר המשפחה.' },
+      story: { title: 'טקסטים', subtitle: 'ברכה, על החגיגה ועל החוגג/ת.' },
       schedule: { title: 'לוח זמנים', subtitle: 'טקס, קבלת פנים ושעות.' },
-      venues: { title: 'מקומות ומלונות', subtitle: 'קוד לבוש, חניה ולינה.' },
+      venues: { title: 'מקומות ומלונות', subtitle: 'קוד לבוש, לינה ומה לעשות.' },
       media: { title: 'תמונות', subtitle: 'הירו וגלריה.' },
-      saveTheDate: { title: 'שמרו את התאריך', subtitle: 'מעטפה דיגיטלית והודעה.' },
-      invitation: { title: 'הזמנה', subtitle: 'כרטיס, חותם וטקסט.' },
-      rsvp: { title: 'RSVP', subtitle: 'דדליין, ארוחות ומלווה.' },
       faq: { title: 'שאלות', subtitle: 'מה שהאורחים תמיד שואלים.' },
+      rsvp: { title: 'RSVP', subtitle: 'דדליין, ארוחות ומלווה.' },
+      saveTheDate: { title: 'שמרו את התאריך', subtitle: 'אימייל לאורחים — לא עמוד באתר.' },
+      invitation: { title: 'הזמנה', subtitle: 'אימייל הכרטיס עם חותם, נשלח לרשימה.' },
       guestsBootstrap: { title: 'אורחים', subtitle: 'רשימה ראשונית — RSVP מגיע אחר כך.' },
       domain: { title: 'פרסום', subtitle: 'סלאג מקומי ו־SEO.' },
       review: { title: 'סקירה', subtitle: 'צ׳קליסט ופרסום האתר.' },

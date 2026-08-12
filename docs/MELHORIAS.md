@@ -11,10 +11,12 @@ Atualizado em: 2026-08-12
 |------------|----------|---------------------------|
 | **P0** | Auth simples + dashboard CRUD de eventos | ✅ `/dashboard` |
 | **P0** | Persistência EventConfig (JSON local) | ✅ `data/platform.json` |
-| **P0** | Template BarBeni config-driven | ✅ `components/template/EventSite.tsx` |
-| **P0** | Wizard passo a passo com **preview ao vivo** | ✅ `/dashboard/events/[id]/wizard` |
+| **P0** | Template BarBeni config-driven | ✅ site público (hero, countdown, welcome, about, programação, FAQ, hotéis, o que fazer, galeria, RSVP, contato) |
+| **P0** | Wizard passo a passo com **preview ao vivo** | ✅ site no preview; STD/convite como **email** |
 | **P0** | Publish do site do evento | ✅ `/e/[slug]` |
-| **P0** | RSVP público + lista de convidados | ✅ `/e/[slug]` + `/dashboard/events/[id]/guests` |
+| **P0** | RSVP público + lista de convidados | ✅ site + dashboard do evento |
+| **P0** | Emails STD e convite | ✅ templates + envio no dashboard (Resend ou marca local) |
+| **P0** | Dashboard do evento (estilo Bar-Beni admin) | ✅ `/dashboard/events/[id]` |
 | **P1** | Inventário fiel do repo `bar-beni` (paridade 1:1) | ⏳ pendente (template inspirado) |
 | **P1** | Multi-tenant (orgs, papéis, isolamento) | ⏳ senha única de studio |
 | **P1** | Preview token / subdomain `*.mitzvah.pro` | ⏳ path local `/e/slug` |
@@ -27,7 +29,7 @@ Atualizado em: 2026-08-12
 | **P2** | i18n completo do conteúdo do evento (N idiomas) | ⏳ idioma/RTL do site; textos únicos |
 | **P2** | Unificar APIs de contato | ⏳ |
 
-**Como usar a versão local:** `/dashboard/login` (senha `mitzvah`) → Novo evento → wizard. O painel direito atualiza na hora. Publicar abre `/e/{slug}`. Evento demo: `/e/beni`.
+**Como usar a versão local:** `/dashboard/login` (senha `mitzvah`) → Novo evento → wizard. O site atualiza à direita. Save the Date e convite são emails (preview no wizard; envio no dashboard do evento). Publicar abre `/e/{slug}`. Demo: `/e/beni`.
 
 ---
 
@@ -494,5 +496,6 @@ Requisitos:
 
 | Data | Mudança |
 |------|---------|
+| 2026-08-12 | Template BarBeni: site sem STD/convite; emails STD+convite; dashboard do evento com envio e RSVP |
 | 2026-08-12 | Versão local P0: dashboard, template BarBeni, wizard com preview ao vivo, publish `/e/[slug]`, RSVP |
 | 2026-08-10 | Criação: épico Dashboard + Template BarBeni + Wizard; issue #3 |

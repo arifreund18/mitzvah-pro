@@ -10,6 +10,9 @@ export type EventLocale = (typeof EVENT_LOCALES)[number]
 export const EVENT_STATUSES = ['draft', 'published', 'archived'] as const
 export type EventStatus = (typeof EVENT_STATUSES)[number]
 
+export const PLACE_CATEGORIES = ['restaurant', 'shopping', 'museum', 'park', 'other'] as const
+export type PlaceCategory = (typeof PLACE_CATEGORIES)[number]
+
 export const WIZARD_STEP_IDS = [
   'basics',
   'branding',
@@ -17,10 +20,10 @@ export const WIZARD_STEP_IDS = [
   'schedule',
   'venues',
   'media',
+  'faq',
+  'rsvp',
   'saveTheDate',
   'invitation',
-  'rsvp',
-  'faq',
   'guestsBootstrap',
   'domain',
   'review',
@@ -39,6 +42,17 @@ export type Hotel = {
   id: string
   name: string
   url: string
+  notes: string
+  walking: string
+  mapUrl: string
+}
+
+export type LocalPlace = {
+  id: string
+  name: string
+  category: PlaceCategory
+  url: string
+  mapUrl: string
   notes: string
 }
 
@@ -71,12 +85,19 @@ export type EventConfig = {
     subtitle: string
     parentsMessage: string
     about: string
+    honoreeBio: string
   }
   schedule: { items: ScheduleItem[] }
   venues: {
     dressCode: string
     parking: string
     hotels: Hotel[]
+  }
+  places: LocalPlace[]
+  contact: {
+    phone: string
+    email: string
+    whatsapp: string
   }
   media: {
     heroUrl: string
@@ -121,6 +142,9 @@ export type Guest = {
   dietary: string
   message: string
   createdAt: string
+  token: string
+  stdSentAt: string | null
+  inviteSentAt: string | null
 }
 
 export type WizardProgress = {

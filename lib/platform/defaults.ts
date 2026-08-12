@@ -41,6 +41,7 @@ export function createDefaultConfig(partial?: {
       subtitle: copy.subtitle,
       parentsMessage: '',
       about: '',
+      honoreeBio: '',
     },
     schedule: {
       items: [
@@ -64,6 +65,12 @@ export function createDefaultConfig(partial?: {
       dressCode: '',
       parking: '',
       hotels: [],
+    },
+    places: [],
+    contact: {
+      phone: '',
+      email: '',
+      whatsapp: '',
     },
     media: {
       heroUrl: '',
@@ -140,12 +147,31 @@ export function createSeedEvent(): PlatformEvent {
   ]
   config.venues.dressCode = 'Esporte fino / elegante'
   config.venues.parking = 'Valet no local da recepção'
+  config.story.honoreeBio =
+    'Beni ama música, futebol e viajar. Completa 13 anos e sobe à Torah cercado de família e amigos.'
+  config.contact = {
+    phone: '',
+    email: 'mitzvah@mitzvah.pro',
+    whatsapp: '',
+  }
   config.venues.hotels = [
     {
       id: uid(),
       name: 'Hotel exemplo',
       url: 'https://mitzvah.pro',
       notes: 'Bloco de quartos sob consulta',
+      walking: '8 min',
+      mapUrl: '',
+    },
+  ]
+  config.places = [
+    {
+      id: uid(),
+      name: 'Restaurante do bairro',
+      category: 'restaurant',
+      url: '',
+      mapUrl: '',
+      notes: 'Italiano casual, bom para o almoço de sexta.',
     },
   ]
   config.saveTheDate.message = 'Reserve o shabat de 14 de novembro — Bar Mitzvah do Beni'

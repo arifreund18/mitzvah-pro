@@ -2,6 +2,7 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { createDefaultConfig, createSeedEvent } from './defaults'
 import { slugify, uid } from './ids'
+import { normalizeConfig, normalizeEvent, normalizeGuest } from './normalize'
 import type {
   EventConfig,
   EventLocale,
@@ -27,7 +28,7 @@ async function tryRead(file: string): Promise<PlatformStore | null> {
     const raw = await readFile(file, 'utf8')
     const parsed = JSON.parse(raw) as PlatformStore
     if (!parsed || !Array.isArray(parsed.events)) return emptyStore()
-    return parsed
+    return { events: parsed.events.map((event) => normalizeEvent(event)) }
   } catch {
     return null
   }
@@ -158,7 +159,7 @@ export async function updateEvent(
     const store = await loadStore()
     const event = store.events.find((item) => item.id === id)
     if (!event) return null
-    if (patch.config) event.config = patch.config
+    if (patch.config) event.config = normalizeConfig(patch.config)
     if (patch.wizard) {
       event.wizard = {
         currentStep: (patch.wizard.currentStep ?? event.wizard.currentStep) as WizardStepId,
@@ -219,17 +220,17 @@ export async function deleteEvent(id: string): Promise<boolean> {
 
 export async function addGuest(
   eventId: string,
-  guest: Omit<Guest, 'id' | 'createdAt'>,
+  guest: Partial<Guest> & { familyName: string },
 ): Promise<Guest | null> {
   return withLock(async () => {
     const store = await loadStore()
     const event = store.events.find((item) => item.id === eventId)
     if (!event) return null
-    const record: Guest = {
+    const record = normalizeGuest({
       ...guest,
       id: uid(),
       createdAt: new Date().toISOString(),
-    }
+    })
     event.guests.push(record)
     event.updatedAt = record.createdAt
     await saveStore(store)
@@ -242,9 +243,32 @@ export async function replaceGuests(eventId: string, guests: Guest[]): Promise<P
     const store = await loadStore()
     const event = store.events.find((item) => item.id === eventId)
     if (!event) return null
-    event.guests = guests
+    event.guests = guests.map((guest) => normalizeGuest(guest))
     event.updatedAt = new Date().toISOString()
     await saveStore(store)
     return event
+  })
+}
+
+export async function markMailSent(
+  eventId: string,
+  kind: 'std' | 'invite',
+  guestIds?: string[],
+): Promise<{ event: PlatformEvent; sent: number } | null> {
+  return withLock(async () => {
+    const store = await loadStore()
+    const event = store.events.find((item) => item.id === eventId)
+    if (!event) return null
+    const now = new Date().toISOString()
+    const selected = new Set(guestIds || event.guests.map((guest) => guest.id))
+    let sent = 0
+    event.guests = event.guests.map((guest) => {
+      if (!selected.has(guest.id) || !guest.email) return guest
+      sent += 1
+      return kind === 'std' ? { ...guest, stdSentAt: now } : { ...guest, inviteSentAt: now }
+    })
+    event.updatedAt = now
+    await saveStore(store)
+    return { event, sent }
   })
 }

@@ -78,8 +78,8 @@ export function EventActions({
         </button>
       ) : null}
       {!compact && (
-        <Link href={`/dashboard/events/${id}/guests`} className={btn}>
-          Convidados
+        <Link href={`/dashboard/events/${id}`} className={btn}>
+          Dashboard do evento
         </Link>
       )}
       {!compact && (

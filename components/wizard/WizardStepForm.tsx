@@ -7,6 +7,7 @@ import { applyGeneratedPatch, typeLabel, wizardUi } from '@/lib/platform/copy'
 import { uid } from '@/lib/platform/ids'
 import {
   EVENT_TYPES,
+  PLACE_CATEGORIES,
   THEMES,
   type EventConfig,
   type Guest,
@@ -61,6 +62,9 @@ export const WizardStepForm = forwardRef<
         dietary: '',
         message: '',
         createdAt: new Date().toISOString(),
+        token: uid(),
+        stdSentAt: null,
+        inviteSentAt: null,
       },
     ])
     form.reset()
@@ -219,6 +223,14 @@ export const WizardStepForm = forwardRef<
             onChange={(e) => set({ ...config, story: { ...config.story, about: e.target.value } })}
           />
         </Field>
+        <Field label={ui.honoreeBio}>
+          <TextArea
+            value={config.story.honoreeBio}
+            onChange={(e) =>
+              set({ ...config, story: { ...config.story, honoreeBio: e.target.value } })
+            }
+          />
+        </Field>
       </div>
     )
   }
@@ -358,16 +370,48 @@ export const WizardStepForm = forwardRef<
                 })
               }
             />
+            <div className="grid gap-2 sm:grid-cols-2">
+              <TextInput
+                placeholder={ui.walking}
+                value={hotel.walking}
+                onChange={(e) =>
+                  set({
+                    ...config,
+                    venues: {
+                      ...config.venues,
+                      hotels: config.venues.hotels.map((row) =>
+                        row.id === hotel.id ? { ...row, walking: e.target.value } : row,
+                      ),
+                    },
+                  })
+                }
+              />
+              <TextInput
+                placeholder="URL"
+                value={hotel.url}
+                onChange={(e) =>
+                  set({
+                    ...config,
+                    venues: {
+                      ...config.venues,
+                      hotels: config.venues.hotels.map((row) =>
+                        row.id === hotel.id ? { ...row, url: e.target.value } : row,
+                      ),
+                    },
+                  })
+                }
+              />
+            </div>
             <TextInput
-              placeholder="URL"
-              value={hotel.url}
+              placeholder={ui.mapUrl}
+              value={hotel.mapUrl}
               onChange={(e) =>
                 set({
                   ...config,
                   venues: {
                     ...config.venues,
                     hotels: config.venues.hotels.map((row) =>
-                      row.id === hotel.id ? { ...row, url: e.target.value } : row,
+                      row.id === hotel.id ? { ...row, mapUrl: e.target.value } : row,
                     ),
                   },
                 })
@@ -398,13 +442,99 @@ export const WizardStepForm = forwardRef<
               ...config,
               venues: {
                 ...config.venues,
-                hotels: [...config.venues.hotels, { id: uid(), name: '', url: '', notes: '' }],
+                hotels: [
+                  ...config.venues.hotels,
+                  { id: uid(), name: '', url: '', notes: '', walking: '', mapUrl: '' },
+                ],
               },
             })
           }
         >
           {ui.addHotel}
         </button>
+        {config.places.map((item) => (
+          <div key={item.id} className="space-y-2 rounded-2xl border border-white/10 p-4">
+            <TextInput
+              placeholder={ui.place}
+              value={item.name}
+              onChange={(e) =>
+                set({
+                  ...config,
+                  places: config.places.map((row) =>
+                    row.id === item.id ? { ...row, name: e.target.value } : row,
+                  ),
+                })
+              }
+            />
+            <select
+              value={item.category}
+              onChange={(e) =>
+                set({
+                  ...config,
+                  places: config.places.map((row) =>
+                    row.id === item.id
+                      ? { ...row, category: e.target.value as (typeof PLACE_CATEGORIES)[number] }
+                      : row,
+                  ),
+                })
+              }
+              className="w-full rounded-xl border border-white/15 bg-[#12182a] px-3 py-2.5 text-sm"
+            >
+              {PLACE_CATEGORIES.map((cat) => (
+                <option key={cat} value={cat}>
+                  {cat}
+                </option>
+              ))}
+            </select>
+            <TextInput
+              placeholder={ui.notes}
+              value={item.notes}
+              onChange={(e) =>
+                set({
+                  ...config,
+                  places: config.places.map((row) =>
+                    row.id === item.id ? { ...row, notes: e.target.value } : row,
+                  ),
+                })
+              }
+            />
+          </div>
+        ))}
+        <button
+          type="button"
+          className="rounded-full border border-white/20 px-4 py-2 text-sm"
+          onClick={() =>
+            set({
+              ...config,
+              places: [
+                ...config.places,
+                { id: uid(), name: '', category: 'restaurant', url: '', mapUrl: '', notes: '' },
+              ],
+            })
+          }
+        >
+          {ui.addPlace}
+        </button>
+        <Field label="Telefone">
+          <TextInput
+            value={config.contact.phone}
+            onChange={(e) => set({ ...config, contact: { ...config.contact, phone: e.target.value } })}
+          />
+        </Field>
+        <Field label="Email">
+          <TextInput
+            value={config.contact.email}
+            onChange={(e) => set({ ...config, contact: { ...config.contact, email: e.target.value } })}
+          />
+        </Field>
+        <Field label="WhatsApp">
+          <TextInput
+            value={config.contact.whatsapp}
+            onChange={(e) =>
+              set({ ...config, contact: { ...config.contact, whatsapp: e.target.value } })
+            }
+          />
+        </Field>
       </div>
     )
   }
@@ -456,6 +586,7 @@ export const WizardStepForm = forwardRef<
   if (step === 'saveTheDate') {
     return (
       <div className="space-y-4">
+        <p className="text-sm text-white/50">{ui.stdEmailHint}</p>
         <label className="flex items-center gap-2 text-sm">
           <input
             type="checkbox"
@@ -492,6 +623,7 @@ export const WizardStepForm = forwardRef<
   if (step === 'invitation') {
     return (
       <div className="space-y-4">
+        <p className="text-sm text-white/50">{ui.inviteEmailHint}</p>
         <Field label={ui.greeting}>
           <TextInput
             value={config.invitation.greeting}

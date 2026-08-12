@@ -19,10 +19,13 @@ npm run build
 1. `npm run dev`
 2. Abra http://localhost:3000/dashboard/login
 3. Senha padrão: `mitzvah` (`DASHBOARD_PASSWORD`)
-4. Crie um evento → o wizard abre com o site atualizando à direita a cada campo
-5. Publique → o site fica em `/e/seu-slug`
+4. Crie um evento → o wizard abre com preview ao vivo
+5. Save the Date e convite são **emails** (preview no wizard; envio no dashboard do evento)
+6. Publique → o **site** fica em `/e/seu-slug` (sem STD/convite como páginas do site)
 
-Há um evento semente publicado em `/e/beni`. Os dados ficam em `data/platform.json` (gitignored).
+Há um evento semente em `/e/beni`. Dados em `data/platform.json` (gitignored).
+
+Dashboard do evento: `/dashboard/events/[id]` — convidados, RSVP, enviar STD/convites.
 
 ## Variáveis de ambiente
 
@@ -41,8 +44,11 @@ Há um evento semente publicado em `/e/beni`. Os dados ficam em `data/platform.j
 - `/` — landing EN
 - `/pt` `/es` `/he` — landing
 - `/dashboard` — studio (login em `/dashboard/login`)
+- `/dashboard/events/[id]` — dashboard do evento (convidados, envio de emails, RSVP)
 - `/dashboard/events/[id]/wizard` — wizard com preview ao vivo
-- `/e/[slug]` — site publicado do evento
+- `/e/[slug]` — site público do evento (template BarBeni)
+- `/e/[slug]/std` — abertura do email Save the Date
+- `/e/[slug]/invite` — abertura do email convite
 - `/api/contact` — POST formulário
 - `/BarBeni/*` — rewrite para `BAR_BENI_ORIGIN` (evento Beni legado)
 
