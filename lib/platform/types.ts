@@ -92,6 +92,7 @@ export type EventConfig = {
     body: string
     hostLine: string
     sealLabel: string
+    sealImageUrl: string
   }
   rsvp: {
     deadline: string

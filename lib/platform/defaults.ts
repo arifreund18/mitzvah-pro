@@ -79,6 +79,7 @@ export function createDefaultConfig(partial?: {
       body: copy.inviteBody,
       hostLine: copy.hostLine,
       sealLabel: 'Mitzvah',
+      sealImageUrl: '',
     },
     rsvp: {
       deadline: '',

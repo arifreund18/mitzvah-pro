@@ -260,6 +260,8 @@ export type WizardUi = {
   inviteBody: string
   hostLine: string
   seal: string
+  sealHint: string
+  sealUpload: string
   deadline: string
   meals: string
   plusOne: string
@@ -350,7 +352,9 @@ const WIZARD_UI: Record<EventLocale, WizardUi> = {
     greeting: 'Saudação',
     inviteBody: 'Texto do convite',
     hostLine: 'Linha da família',
-    seal: 'Selo',
+    seal: 'Selo / logo',
+    sealHint: 'Envie uma imagem para usar como logo no convite. Sem imagem, o texto aparece no selo.',
+    sealUpload: 'Enviar logo',
     deadline: 'Prazo do RSVP',
     meals: 'Opções de refeição (uma por linha)',
     plusOne: 'Permitir acompanhante / número de pessoas',
@@ -462,7 +466,9 @@ const WIZARD_UI: Record<EventLocale, WizardUi> = {
     greeting: 'Greeting',
     inviteBody: 'Invitation text',
     hostLine: 'Host line',
-    seal: 'Seal',
+    seal: 'Seal / logo',
+    sealHint: 'Upload an image to use as the invitation logo. Without an image, the text appears on the seal.',
+    sealUpload: 'Upload logo',
     deadline: 'RSVP deadline',
     meals: 'Meal options (one per line)',
     plusOne: 'Allow plus-one / party size',
@@ -574,7 +580,9 @@ const WIZARD_UI: Record<EventLocale, WizardUi> = {
     greeting: 'Saludo',
     inviteBody: 'Texto de la invitación',
     hostLine: 'Línea de la familia',
-    seal: 'Sello',
+    seal: 'Sello / logo',
+    sealHint: 'Sube una imagen para usarla como logo en la invitación. Sin imagen, aparece el texto del sello.',
+    sealUpload: 'Subir logo',
     deadline: 'Fecha límite del RSVP',
     meals: 'Opciones de comida (una por línea)',
     plusOne: 'Permitir acompañante / número de personas',
@@ -686,7 +694,9 @@ const WIZARD_UI: Record<EventLocale, WizardUi> = {
     greeting: 'ברכה',
     inviteBody: 'טקסט ההזמנה',
     hostLine: 'שורת המשפחה',
-    seal: 'חותם',
+    seal: 'חותם / לוגו',
+    sealHint: 'העלו תמונה ללוגו בהזמנה. בלי תמונה מופיע הטקסט על החותם.',
+    sealUpload: 'העלאת לוגו',
     deadline: 'תאריך אחרון ל־RSVP',
     meals: 'אפשרויות ארוחה (אחת בכל שורה)',
     plusOne: 'לאפשר מלווה / מספר אנשים',

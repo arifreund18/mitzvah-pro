@@ -100,6 +100,13 @@ export function EventSite({
             }}
           />
         )}
+        {config.invitation.sealImageUrl ? (
+          <img
+            src={config.invitation.sealImageUrl}
+            alt={config.invitation.sealLabel || ''}
+            className="relative mx-auto mb-6 h-16 w-16 rounded-full bg-white/10 object-contain p-1"
+          />
+        ) : null}
         <p className="relative text-xs uppercase tracking-[0.35em]" style={{ color: accent }}>
           {type}
         </p>
@@ -344,10 +351,18 @@ function InvitationCard({
       style={{ background: theme.inviteBg, color: theme.inviteText }}
     >
       <div
-        className="absolute left-1/2 top-0 flex h-14 w-14 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full text-[10px] font-bold uppercase tracking-wider text-black"
-        style={{ background: accent }}
+        className="absolute left-1/2 top-0 flex h-16 w-16 -translate-x-1/2 -translate-y-1/2 items-center justify-center overflow-hidden rounded-full text-[10px] font-bold uppercase tracking-wider text-black shadow-lg"
+        style={{ background: config.invitation.sealImageUrl ? theme.inviteBg : accent }}
       >
-        {config.invitation.sealLabel || 'Mitzvah'}
+        {config.invitation.sealImageUrl ? (
+          <img
+            src={config.invitation.sealImageUrl}
+            alt={config.invitation.sealLabel || ''}
+            className="h-full w-full object-contain p-1"
+          />
+        ) : (
+          config.invitation.sealLabel || 'Mitzvah'
+        )}
       </div>
       <p className="mt-4 text-sm italic opacity-80">{config.invitation.greeting}</p>
       <h2 className="font-display mt-4 text-4xl">{config.basics.honoreeName || wizardUi(config.locales.default).site.honoreeFallback}</h2>

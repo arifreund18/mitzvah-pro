@@ -486,7 +486,44 @@ export function WizardStepForm({
             }
           />
         </Field>
-        <Field label={ui.seal}>
+        <Field label={ui.seal} hint={ui.sealHint}>
+          {config.invitation.sealImageUrl ? (
+            <div className="mb-3 flex items-center gap-3">
+              <img
+                src={config.invitation.sealImageUrl}
+                alt=""
+                className="h-16 w-16 rounded-full border border-white/20 bg-white object-contain p-1"
+              />
+              <button
+                type="button"
+                className="text-sm text-rose-200 hover:text-rose-100"
+                onClick={() =>
+                  set({ ...config, invitation: { ...config.invitation, sealImageUrl: '' } })
+                }
+              >
+                {ui.remove}
+              </button>
+            </div>
+          ) : null}
+          <label className="mb-3 flex cursor-pointer items-center justify-center rounded-xl border border-dashed border-white/20 bg-white/5 px-4 py-3 text-sm text-white/80 hover:border-cyan-400/50">
+            {ui.sealUpload}
+            <input
+              type="file"
+              accept="image/*"
+              className="sr-only"
+              onChange={async (e) => {
+                const file = e.target.files?.[0]
+                e.target.value = ''
+                if (!file) return
+                try {
+                  const url = await readFileAsDataUrl(file, ui.imageTooBig)
+                  set({ ...config, invitation: { ...config.invitation, sealImageUrl: url } })
+                } catch (err) {
+                  alert(err instanceof Error ? err.message : ui.uploadFail)
+                }
+              }}
+            />
+          </label>
           <TextInput
             value={config.invitation.sealLabel}
             onChange={(e) =>
