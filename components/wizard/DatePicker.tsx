@@ -30,7 +30,7 @@ export function DatePicker({
   placeholder: string
 }) {
   const [open, setOpen] = useState(false)
-  const [pos, setPos] = useState({ top: 0, left: 0, width: 0 })
+  const [pos, setPos] = useState({ top: 0, left: 0, width: 272, maxHeight: 320, ready: false })
   const trigger = useRef<HTMLButtonElement>(null)
   const pop = useRef<HTMLDivElement>(null)
   const selected = value ? parseIso(value) : null
@@ -40,29 +40,47 @@ export function DatePicker({
     const el = trigger.current
     if (!el) return
     const rect = el.getBoundingClientRect()
-    setPos({ top: rect.bottom + 8, left: rect.left, width: Math.max(rect.width, 280) })
+    const margin = 8
+    const gap = 6
+    const width = Math.min(272, window.innerWidth - margin * 2)
+    const naturalH = pop.current?.scrollHeight || 240
+    const spaceBelow = window.innerHeight - rect.bottom - gap - margin
+    const spaceAbove = rect.top - gap - margin
+    const openUp = spaceBelow < naturalH && spaceAbove > spaceBelow
+    const available = openUp ? spaceAbove : spaceBelow
+    const maxHeight = Math.min(window.innerHeight - margin * 2, Math.max(160, available))
+    const height = Math.min(naturalH, maxHeight)
+    let top = openUp ? rect.top - gap - height : rect.bottom + gap
+    top = Math.min(Math.max(margin, top), window.innerHeight - height - margin)
+    let left = rect.left
+    if (left + width > window.innerWidth - margin) left = window.innerWidth - width - margin
+    if (left < margin) left = margin
+    setPos({ top, left, width, maxHeight, ready: true })
   }
 
   function toggle() {
     if (!open && selected) {
       setCursor(new Date(selected.getFullYear(), selected.getMonth(), 1))
     }
+    if (!open) setPos((current) => ({ ...current, ready: false }))
     setOpen((v) => !v)
   }
 
   useLayoutEffect(() => {
     if (!open) return
     place()
+    const frame = window.requestAnimationFrame(place)
     function onScroll() {
       place()
     }
     window.addEventListener('scroll', onScroll, true)
     window.addEventListener('resize', onScroll)
     return () => {
+      window.cancelAnimationFrame(frame)
       window.removeEventListener('scroll', onScroll, true)
       window.removeEventListener('resize', onScroll)
     }
-  }, [open])
+  }, [open, cursor])
 
   useEffect(() => {
     if (!open) return
@@ -95,10 +113,17 @@ export function DatePicker({
     ? createPortal(
         <div
           ref={pop}
-          style={{ top: pos.top, left: pos.left, width: pos.width, position: 'fixed' }}
-          className="z-[80] rounded-2xl border border-white/20 bg-[#12182a] p-3 text-white shadow-2xl"
+          style={{
+            top: pos.top,
+            left: pos.left,
+            width: pos.width,
+            maxHeight: pos.maxHeight,
+            position: 'fixed',
+            visibility: pos.ready ? 'visible' : 'hidden',
+          }}
+          className="z-[80] overflow-y-auto rounded-xl border border-white/20 bg-[#12182a] p-2 text-white shadow-2xl"
         >
-          <div className="mb-3 flex items-center justify-between text-sm">
+          <div className="mb-1.5 flex items-center justify-between text-sm">
             <button
               type="button"
               className="rounded-lg px-2 py-1 hover:bg-white/10"
@@ -115,12 +140,12 @@ export function DatePicker({
               ›
             </button>
           </div>
-          <div className="grid grid-cols-7 gap-1 text-center text-[11px] text-white/40">
+          <div className="grid grid-cols-7 gap-0.5 text-center text-[10px] text-white/40">
             {weekdays.map((day) => (
               <div key={day}>{day}</div>
             ))}
           </div>
-          <div className="mt-1 grid grid-cols-7 gap-1">
+          <div className="mt-0.5 grid grid-cols-7 gap-0.5">
             {cells.map((day, i) => {
               if (!day) return <div key={`e-${i}`} />
               const iso = toIso(new Date(year, month, day))
@@ -134,7 +159,7 @@ export function DatePicker({
                     setOpen(false)
                   }}
                   className={cn(
-                    'h-9 rounded-lg text-sm text-white hover:bg-white/10',
+                    'h-7 rounded-md text-xs text-white hover:bg-white/10',
                     active && 'bg-cyan-400 font-semibold text-[#0b1020] hover:bg-cyan-300',
                   )}
                 >
