@@ -1,5 +1,6 @@
 'use client'
 
+import { forwardRef, useImperativeHandle, useRef } from 'react'
 import { DatePicker } from '@/components/wizard/DatePicker'
 import { Field, TextArea, TextInput } from '@/components/wizard/fields'
 import { applyGeneratedPatch, typeLabel, wizardUi } from '@/lib/platform/copy'
@@ -25,22 +26,51 @@ function readFileAsDataUrl(file: File, tooBig: string): Promise<string> {
   })
 }
 
-export function WizardStepForm({
-  step,
-  config,
-  guests,
-  onChange,
-  onGuests,
-}: {
-  step: string
-  config: EventConfig
-  guests: Guest[]
-  onChange: (next: EventConfig) => void
-  onGuests: (next: Guest[]) => void
-}) {
+export type WizardStepFormHandle = {
+  flushPending: () => void
+}
+
+export const WizardStepForm = forwardRef<
+  WizardStepFormHandle,
+  {
+    step: string
+    config: EventConfig
+    guests: Guest[]
+    onChange: (next: EventConfig) => void
+    onGuests: (next: Guest[]) => void
+  }
+>(function WizardStepForm({ step, config, guests, onChange, onGuests }, ref) {
   const ui = wizardUi(config.locales.default)
   const set = (next: EventConfig) => onChange(next)
   const patch = (fn: (draft: EventConfig) => EventConfig) => onChange(applyGeneratedPatch(config, fn))
+  const draftGuestForm = useRef<HTMLFormElement>(null)
+
+  function commitDraftGuest(form: HTMLFormElement) {
+    const data = new FormData(form)
+    const familyName = String(data.get('familyName') || '').trim()
+    if (!familyName) return
+    onGuests([
+      ...guests,
+      {
+        id: uid(),
+        familyName,
+        email: String(data.get('email') || '').trim(),
+        partySize: Number(data.get('partySize') || 1) || 1,
+        status: 'pending',
+        meal: '',
+        dietary: '',
+        message: '',
+        createdAt: new Date().toISOString(),
+      },
+    ])
+    form.reset()
+  }
+
+  useImperativeHandle(ref, () => ({
+    flushPending() {
+      if (draftGuestForm.current) commitDraftGuest(draftGuestForm.current)
+    },
+  }))
 
   if (step === 'basics') {
     return (
@@ -650,27 +680,11 @@ export function WizardStepForm({
           </div>
         ))}
         <form
+          ref={draftGuestForm}
           className="space-y-2 rounded-2xl border border-dashed border-white/20 p-4"
           onSubmit={(e) => {
             e.preventDefault()
-            const form = new FormData(e.currentTarget)
-            const familyName = String(form.get('familyName') || '').trim()
-            if (!familyName) return
-            onGuests([
-              ...guests,
-              {
-                id: uid(),
-                familyName,
-                email: String(form.get('email') || ''),
-                partySize: Number(form.get('partySize') || 1),
-                status: 'pending',
-                meal: '',
-                dietary: '',
-                message: '',
-                createdAt: new Date().toISOString(),
-              },
-            ])
-            e.currentTarget.reset()
+            commitDraftGuest(e.currentTarget)
           }}
         >
           <TextInput name="familyName" placeholder={ui.family} required />
@@ -734,4 +748,4 @@ export function WizardStepForm({
       )}
     </div>
   )
-}
+})

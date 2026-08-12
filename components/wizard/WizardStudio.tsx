@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { LivePreview } from '@/components/wizard/LivePreview'
-import { WizardStepForm } from '@/components/wizard/WizardStepForm'
+import { WizardStepForm, type WizardStepFormHandle } from '@/components/wizard/WizardStepForm'
 import { wizardUi } from '@/lib/platform/copy'
 import { adjacentStep, normalizeWizardStep, reviewIssues, wizardSteps } from '@/lib/platform/wizard'
 import type { EventConfig, Guest, PlatformEvent, WizardStepId } from '@/lib/platform/types'
@@ -21,6 +21,7 @@ export function WizardStudio({ event }: { event: PlatformEvent }) {
   const [publishing, setPublishing] = useState(false)
   const completed = useRef(new Set<WizardStepId>(event.wizard.completedSteps.map(normalizeWizardStep)))
   const skipFirst = useRef(true)
+  const stepForm = useRef<WizardStepFormHandle>(null)
 
   const ui = wizardUi(config.locales.default)
   const steps = wizardSteps(config.locales.default)
@@ -54,6 +55,11 @@ export function WizardStudio({ event }: { event: PlatformEvent }) {
     }, 450)
     return () => window.clearTimeout(handle)
   }, [config, step, event.id])
+
+  function goToStep(nextStep: WizardStepId) {
+    stepForm.current?.flushPending()
+    setStep(nextStep)
+  }
 
   async function persistGuests(nextGuests: Guest[]) {
     setGuests(nextGuests)
@@ -138,7 +144,7 @@ export function WizardStudio({ event }: { event: PlatformEvent }) {
               <li key={item.id}>
                 <button
                   type="button"
-                  onClick={() => setStep(item.id)}
+                  onClick={() => goToStep(item.id)}
                   className={cn(
                     'w-full rounded-xl px-3 py-2 text-start text-sm',
                     item.id === step ? 'bg-cyan-400/15 text-cyan-100' : 'text-white/60 hover:bg-white/5',
@@ -169,6 +175,7 @@ export function WizardStudio({ event }: { event: PlatformEvent }) {
           </div>
           <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5">
             <WizardStepForm
+              ref={stepForm}
               step={step}
               config={config}
               guests={guests}
@@ -193,7 +200,7 @@ export function WizardStudio({ event }: { event: PlatformEvent }) {
             <button
               type="button"
               disabled={!prev}
-              onClick={() => prev && setStep(prev)}
+              onClick={() => prev && goToStep(prev)}
               className="rounded-full border border-white/15 px-4 py-2 text-sm disabled:opacity-30"
             >
               {ui.back}
@@ -201,7 +208,7 @@ export function WizardStudio({ event }: { event: PlatformEvent }) {
             <select
               className="max-w-[40%] rounded-lg border border-white/15 bg-[#12182a] px-2 py-2 text-sm text-white md:hidden"
               value={step}
-              onChange={(e) => setStep(e.target.value as WizardStepId)}
+              onChange={(e) => goToStep(e.target.value as WizardStepId)}
               style={{ colorScheme: 'dark', backgroundColor: '#12182a', color: '#fff' }}
             >
               {steps.map((item) => (
@@ -213,7 +220,7 @@ export function WizardStudio({ event }: { event: PlatformEvent }) {
             <button
               type="button"
               disabled={!next}
-              onClick={() => next && setStep(next)}
+              onClick={() => next && goToStep(next)}
               className="rounded-full bg-white/10 px-4 py-2 text-sm disabled:opacity-30"
             >
               {ui.continue}
