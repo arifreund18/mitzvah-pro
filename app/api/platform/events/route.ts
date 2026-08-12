@@ -15,12 +15,20 @@ export async function POST(request: Request) {
   const body = (await request.json().catch(() => null)) as {
     honoreeName?: string
     familyName?: string
+    locale?: string
   } | null
   const honoreeName = body?.honoreeName?.trim()
   const familyName = body?.familyName?.trim()
+  const locale = ['en', 'pt', 'es', 'he'].includes(body?.locale || '')
+    ? (body?.locale as 'en' | 'pt' | 'es' | 'he')
+    : 'pt'
   if (!honoreeName) {
     return NextResponse.json({ error: 'Informe o nome do celebrante' }, { status: 400 })
   }
-  const event = await createEvent({ honoreeName, familyName: familyName || honoreeName })
+  const event = await createEvent({
+    honoreeName,
+    familyName: familyName || honoreeName,
+    locale,
+  })
   return NextResponse.json({ event })
 }

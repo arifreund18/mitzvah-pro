@@ -4,6 +4,7 @@ import { createDefaultConfig, createSeedEvent } from './defaults'
 import { slugify, uid } from './ids'
 import type {
   EventConfig,
+  EventLocale,
   Guest,
   PlatformEvent,
   PlatformStore,
@@ -111,6 +112,7 @@ function uniqueSlug(store: PlatformStore, desired: string, ignoreId?: string): s
 export async function createEvent(input: {
   honoreeName: string
   familyName: string
+  locale?: EventLocale
 }): Promise<PlatformEvent> {
   return withLock(async () => {
     const store = await loadStore()
@@ -122,6 +124,7 @@ export async function createEvent(input: {
     const config = createDefaultConfig({
       honoreeName: input.honoreeName,
       familyName: input.familyName,
+      locale: input.locale,
       slug,
     })
     const event: PlatformEvent = {
