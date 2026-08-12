@@ -206,6 +206,17 @@ export async function duplicateEvent(id: string): Promise<PlatformEvent | null> 
   })
 }
 
+export async function deleteEvent(id: string): Promise<boolean> {
+  return withLock(async () => {
+    const store = await loadStore()
+    const before = store.events.length
+    store.events = store.events.filter((item) => item.id !== id)
+    if (store.events.length === before) return false
+    await saveStore(store)
+    return true
+  })
+}
+
 export async function addGuest(
   eventId: string,
   guest: Omit<Guest, 'id' | 'createdAt'>,

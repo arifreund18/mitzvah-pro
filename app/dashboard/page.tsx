@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { DashboardShell } from '@/components/dashboard/DashboardShell'
+import { EventActions } from '@/components/dashboard/EventActions'
 import { listEvents } from '@/lib/platform/store'
 import { typeLabel } from '@/lib/platform/defaults'
 
@@ -24,38 +25,46 @@ export default async function DashboardPage() {
         </Link>
       </div>
       <div className="mt-10 grid gap-4">
-        {events.map((event) => (
-          <Link
-            key={event.id}
-            href={`/dashboard/events/${event.id}`}
-            className="rounded-2xl border border-white/10 bg-white/5 p-5 transition hover:border-cyan-400/30"
-          >
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <p className="text-xs uppercase tracking-widest text-cyan-300/80">
-                  {typeLabel(event.config.basics.type, event.config.locales.default)}
-                </p>
-                <h2 className="font-display mt-1 text-2xl">
-                  {event.config.basics.honoreeName || 'Sem nome'}
-                </h2>
-                <p className="text-sm text-white/50">
-                  Família {event.config.basics.familyName || '—'} · /e/{event.slug}
-                </p>
+        {events.length === 0 ? (
+          <p className="rounded-2xl border border-white/10 bg-white/5 p-8 text-center text-white/50">
+            Nenhum evento. Crie o primeiro com “Novo evento”.
+          </p>
+        ) : (
+          events.map((event) => (
+            <div
+              key={event.id}
+              className="rounded-2xl border border-white/10 bg-white/5 p-5 transition hover:border-cyan-400/30"
+            >
+              <div className="flex flex-wrap items-start justify-between gap-4">
+                <Link href={`/dashboard/events/${event.id}`} className="min-w-0 flex-1">
+                  <p className="text-xs uppercase tracking-widest text-cyan-300/80">
+                    {typeLabel(event.config.basics.type, event.config.locales.default)}
+                  </p>
+                  <h2 className="font-display mt-1 text-2xl">
+                    {event.config.basics.honoreeName || 'Sem nome'}
+                  </h2>
+                  <p className="text-sm text-white/50">
+                    Família {event.config.basics.familyName || '—'} · /e/{event.slug}
+                  </p>
+                </Link>
+                <span
+                  className={`rounded-full px-3 py-1 text-xs font-semibold uppercase ${
+                    event.status === 'published'
+                      ? 'bg-emerald-400/15 text-emerald-200'
+                      : event.status === 'archived'
+                        ? 'bg-white/10 text-white/40'
+                        : 'bg-amber-400/15 text-amber-100'
+                  }`}
+                >
+                  {event.status}
+                </span>
               </div>
-              <span
-                className={`rounded-full px-3 py-1 text-xs font-semibold uppercase ${
-                  event.status === 'published'
-                    ? 'bg-emerald-400/15 text-emerald-200'
-                    : event.status === 'archived'
-                      ? 'bg-white/10 text-white/40'
-                      : 'bg-amber-400/15 text-amber-100'
-                }`}
-              >
-                {event.status}
-              </span>
+              <div className="mt-4">
+                <EventActions id={event.id} slug={event.slug} status={event.status} compact />
+              </div>
             </div>
-          </Link>
-        ))}
+          ))
+        )}
       </div>
     </DashboardShell>
   )
