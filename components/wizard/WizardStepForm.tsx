@@ -1,20 +1,29 @@
 'use client'
 
-import { Field, SelectInput, TextArea, TextInput } from '@/components/wizard/fields'
-import { typeLabel } from '@/lib/platform/defaults'
+import { DatePicker } from '@/components/wizard/DatePicker'
+import { DarkSelect } from '@/components/wizard/DarkSelect'
+import { Field, TextArea, TextInput } from '@/components/wizard/fields'
+import { applyGeneratedPatch, typeLabel, wizardUi } from '@/lib/platform/copy'
 import { uid } from '@/lib/platform/ids'
-import { EVENT_LOCALES, EVENT_TYPES, THEMES, type EventConfig, type EventType, type Guest } from '@/lib/platform/types'
+import {
+  EVENT_LOCALES,
+  EVENT_TYPES,
+  THEMES,
+  type EventConfig,
+  type EventType,
+  type Guest,
+} from '@/lib/platform/types'
 import { reviewIssues } from '@/lib/platform/wizard'
 
-function readFileAsDataUrl(file: File): Promise<string> {
+function readFileAsDataUrl(file: File, tooBig: string): Promise<string> {
   return new Promise((resolve, reject) => {
     if (file.size > 1_500_000) {
-      reject(new Error('Imagem maior que 1.5 MB'))
+      reject(new Error(tooBig))
       return
     }
     const reader = new FileReader()
     reader.onload = () => resolve(String(reader.result))
-    reader.onerror = () => reject(new Error('Falha ao ler arquivo'))
+    reader.onerror = () => reject(new Error('upload'))
     reader.readAsDataURL(file)
   })
 }
@@ -32,53 +41,90 @@ export function WizardStepForm({
   onChange: (next: EventConfig) => void
   onGuests: (next: Guest[]) => void
 }) {
+  const ui = wizardUi(config.locales.default)
   const set = (next: EventConfig) => onChange(next)
+  const patch = (fn: (draft: EventConfig) => EventConfig) => onChange(applyGeneratedPatch(config, fn))
 
   if (step === 'basics') {
     return (
-      <div className="space-y-4">
-        <Field label="Tipo">
-          <SelectInput
-            value={config.basics.type}
-            onChange={(e) =>
-              set({ ...config, basics: { ...config.basics, type: e.target.value as EventType } })
-            }
-          >
-            {EVENT_TYPES.map((type) => (
-              <option key={type} value={type}>
-                {typeLabel(type)}
-              </option>
+      <div className="space-y-5">
+        <Field label={ui.language} hint={ui.languageHint}>
+          <div className="grid grid-cols-2 gap-2">
+            {EVENT_LOCALES.map((locale) => (
+              <button
+                key={locale}
+                type="button"
+                onClick={() =>
+                  patch((draft) => ({
+                    ...draft,
+                    locales: { default: locale, enabled: [locale] },
+                  }))
+                }
+                className={`rounded-xl border px-3 py-3 text-sm ${
+                  config.locales.default === locale
+                    ? 'border-cyan-400 bg-cyan-400/10 text-cyan-100'
+                    : 'border-white/15 bg-white/5 text-white/80'
+                }`}
+              >
+                {ui.localeNames[locale]}
+              </button>
             ))}
-          </SelectInput>
+          </div>
         </Field>
-        <Field label="Nome do celebrante">
+        <Field label={ui.type}>
+          <DarkSelect
+            value={config.basics.type}
+            onChange={(value) =>
+              patch((draft) => ({
+                ...draft,
+                basics: { ...draft.basics, type: value as EventType },
+              }))
+            }
+            options={EVENT_TYPES.map((type) => ({
+              value: type,
+              label: typeLabel(type, config.locales.default),
+            }))}
+          />
+        </Field>
+        <Field label={ui.honoree}>
           <TextInput
             value={config.basics.honoreeName}
-            onChange={(e) => set({ ...config, basics: { ...config.basics, honoreeName: e.target.value } })}
-            placeholder="Noah, Beni, Sofia…"
+            onChange={(e) =>
+              patch((draft) => ({
+                ...draft,
+                basics: { ...draft.basics, honoreeName: e.target.value },
+              }))
+            }
+            placeholder={ui.honoreePlaceholder}
           />
         </Field>
-        <Field label="Família">
+        <Field label={ui.family}>
           <TextInput
             value={config.basics.familyName}
-            onChange={(e) => set({ ...config, basics: { ...config.basics, familyName: e.target.value } })}
+            onChange={(e) =>
+              patch((draft) => ({
+                ...draft,
+                basics: { ...draft.basics, familyName: e.target.value },
+              }))
+            }
           />
         </Field>
-        <Field label="Data">
-          <TextInput
-            type="date"
+        <Field label={ui.date} hint={ui.pickDate}>
+          <DatePicker
             value={config.basics.date}
-            onChange={(e) => set({ ...config, basics: { ...config.basics, date: e.target.value } })}
+            locale={config.locales.default}
+            placeholder={ui.pickDate}
+            onChange={(iso) => set({ ...config, basics: { ...config.basics, date: iso } })}
           />
         </Field>
         <div className="grid gap-4 sm:grid-cols-2">
-          <Field label="Cidade">
+          <Field label={ui.city}>
             <TextInput
               value={config.basics.city}
               onChange={(e) => set({ ...config, basics: { ...config.basics, city: e.target.value } })}
             />
           </Field>
-          <Field label="País">
+          <Field label={ui.country}>
             <TextInput
               value={config.basics.country}
               onChange={(e) => set({ ...config, basics: { ...config.basics, country: e.target.value } })}
@@ -89,38 +135,10 @@ export function WizardStepForm({
     )
   }
 
-  if (step === 'locales') {
-    return (
-      <div className="space-y-4">
-        <Field label="Idioma padrão do site" hint="Hebraico ativa RTL no preview imediatamente.">
-          <SelectInput
-            value={config.locales.default}
-            onChange={(e) =>
-              set({
-                ...config,
-                locales: { ...config.locales, default: e.target.value as EventConfig['locales']['default'] },
-              })
-            }
-          >
-            {EVENT_LOCALES.map((locale) => (
-              <option key={locale} value={locale}>
-                {locale.toUpperCase()}
-              </option>
-            ))}
-          </SelectInput>
-        </Field>
-        <p className="text-sm text-white/50">
-          Nesta versão local o conteúdo é único (o que você digita). O idioma define `lang` e a direção do
-          site gerado.
-        </p>
-      </div>
-    )
-  }
-
   if (step === 'branding') {
     return (
       <div className="space-y-4">
-        <Field label="Tema">
+        <Field label={ui.theme}>
           <div className="grid grid-cols-2 gap-2">
             {THEMES.map((theme) => (
               <button
@@ -138,7 +156,7 @@ export function WizardStepForm({
             ))}
           </div>
         </Field>
-        <Field label="Cor de destaque">
+        <Field label={ui.accent}>
           <div className="flex items-center gap-3">
             <input
               type="color"
@@ -163,19 +181,19 @@ export function WizardStepForm({
   if (step === 'story') {
     return (
       <div className="space-y-4">
-        <Field label="Headline">
+        <Field label={ui.headline}>
           <TextInput
             value={config.story.headline}
             onChange={(e) => set({ ...config, story: { ...config.story, headline: e.target.value } })}
           />
         </Field>
-        <Field label="Subtítulo">
+        <Field label={ui.subtitle}>
           <TextInput
             value={config.story.subtitle}
             onChange={(e) => set({ ...config, story: { ...config.story, subtitle: e.target.value } })}
           />
         </Field>
-        <Field label="Mensagem dos pais">
+        <Field label={ui.parentsMessage}>
           <TextArea
             value={config.story.parentsMessage}
             onChange={(e) =>
@@ -183,7 +201,7 @@ export function WizardStepForm({
             }
           />
         </Field>
-        <Field label="Sobre a celebração">
+        <Field label={ui.about}>
           <TextArea
             value={config.story.about}
             onChange={(e) => set({ ...config, story: { ...config.story, about: e.target.value } })}
@@ -199,7 +217,9 @@ export function WizardStepForm({
         {config.schedule.items.map((item, index) => (
           <div key={item.id} className="rounded-2xl border border-white/10 bg-white/5 p-4">
             <div className="mb-3 flex items-center justify-between text-xs text-white/40">
-              <span>Momento {index + 1}</span>
+              <span>
+                {ui.moment} {index + 1}
+              </span>
               <button
                 type="button"
                 className="text-rose-300"
@@ -210,12 +230,12 @@ export function WizardStepForm({
                   })
                 }
               >
-                Remover
+                {ui.remove}
               </button>
             </div>
             <div className="grid gap-3 sm:grid-cols-2">
               <TextInput
-                placeholder="Título"
+                placeholder={ui.title}
                 value={item.title}
                 onChange={(e) =>
                   set({
@@ -229,7 +249,7 @@ export function WizardStepForm({
                 }
               />
               <TextInput
-                placeholder="Horário"
+                placeholder={ui.time}
                 value={item.time}
                 onChange={(e) =>
                   set({
@@ -243,7 +263,7 @@ export function WizardStepForm({
                 }
               />
               <TextInput
-                placeholder="Local"
+                placeholder={ui.place}
                 value={item.place}
                 onChange={(e) =>
                   set({
@@ -257,7 +277,7 @@ export function WizardStepForm({
                 }
               />
               <TextInput
-                placeholder="Endereço"
+                placeholder={ui.address}
                 value={item.address}
                 onChange={(e) =>
                   set({
@@ -288,7 +308,7 @@ export function WizardStepForm({
             })
           }
         >
-          + Adicionar momento
+          {ui.addMoment}
         </button>
       </div>
     )
@@ -303,7 +323,7 @@ export function WizardStepForm({
             onChange={(e) => set({ ...config, venues: { ...config.venues, dressCode: e.target.value } })}
           />
         </Field>
-        <Field label="Estacionamento">
+        <Field label={ui.parking}>
           <TextInput
             value={config.venues.parking}
             onChange={(e) => set({ ...config, venues: { ...config.venues, parking: e.target.value } })}
@@ -312,7 +332,7 @@ export function WizardStepForm({
         {config.venues.hotels.map((hotel) => (
           <div key={hotel.id} className="space-y-2 rounded-2xl border border-white/10 p-4">
             <TextInput
-              placeholder="Hotel"
+              placeholder={ui.hotels}
               value={hotel.name}
               onChange={(e) =>
                 set({
@@ -342,7 +362,7 @@ export function WizardStepForm({
               }
             />
             <TextInput
-              placeholder="Notas"
+              placeholder={ui.notes}
               value={hotel.notes}
               onChange={(e) =>
                 set({
@@ -371,7 +391,7 @@ export function WizardStepForm({
             })
           }
         >
-          + Hotel
+          {ui.addHotel}
         </button>
       </div>
     )
@@ -380,14 +400,14 @@ export function WizardStepForm({
   if (step === 'media') {
     return (
       <div className="space-y-4">
-        <Field label="Foto hero (URL)">
+        <Field label={ui.heroUrl}>
           <TextInput
             value={config.media.heroUrl}
             onChange={(e) => set({ ...config, media: { ...config.media, heroUrl: e.target.value } })}
             placeholder="https://…"
           />
         </Field>
-        <Field label="Ou envie uma foto hero">
+        <Field label={ui.heroUpload}>
           <input
             type="file"
             accept="image/*"
@@ -395,15 +415,15 @@ export function WizardStepForm({
               const file = e.target.files?.[0]
               if (!file) return
               try {
-                const url = await readFileAsDataUrl(file)
+                const url = await readFileAsDataUrl(file, ui.imageTooBig)
                 set({ ...config, media: { ...config.media, heroUrl: url } })
               } catch (err) {
-                alert(err instanceof Error ? err.message : 'Falha no upload')
+                alert(err instanceof Error ? err.message : ui.uploadFail)
               }
             }}
           />
         </Field>
-        <Field label="Galeria (uma URL por linha)">
+        <Field label={ui.gallery}>
           <TextArea
             value={config.media.gallery.join('\n')}
             onChange={(e) =>
@@ -432,9 +452,9 @@ export function WizardStepForm({
               set({ ...config, saveTheDate: { ...config.saveTheDate, enabled: e.target.checked } })
             }
           />
-          Mostrar Save the Date
+          {ui.showStd}
         </label>
-        <Field label="Mensagem">
+        <Field label={ui.message}>
           <TextArea
             value={config.saveTheDate.message}
             onChange={(e) =>
@@ -442,7 +462,7 @@ export function WizardStepForm({
             }
           />
         </Field>
-        <Field label="Rótulo do envelope">
+        <Field label={ui.envelopeLabel}>
           <TextInput
             value={config.saveTheDate.envelopeLabel}
             onChange={(e) =>
@@ -460,7 +480,7 @@ export function WizardStepForm({
   if (step === 'invitation') {
     return (
       <div className="space-y-4">
-        <Field label="Saudação">
+        <Field label={ui.greeting}>
           <TextInput
             value={config.invitation.greeting}
             onChange={(e) =>
@@ -468,7 +488,7 @@ export function WizardStepForm({
             }
           />
         </Field>
-        <Field label="Texto do convite">
+        <Field label={ui.inviteBody}>
           <TextArea
             value={config.invitation.body}
             onChange={(e) =>
@@ -476,7 +496,7 @@ export function WizardStepForm({
             }
           />
         </Field>
-        <Field label="Linha da família">
+        <Field label={ui.hostLine}>
           <TextInput
             value={config.invitation.hostLine}
             onChange={(e) =>
@@ -484,7 +504,7 @@ export function WizardStepForm({
             }
           />
         </Field>
-        <Field label="Selo">
+        <Field label={ui.seal}>
           <TextInput
             value={config.invitation.sealLabel}
             onChange={(e) =>
@@ -499,14 +519,15 @@ export function WizardStepForm({
   if (step === 'rsvp') {
     return (
       <div className="space-y-4">
-        <Field label="Prazo">
-          <TextInput
-            type="date"
+        <Field label={ui.deadline} hint={ui.pickDate}>
+          <DatePicker
             value={config.rsvp.deadline}
-            onChange={(e) => set({ ...config, rsvp: { ...config.rsvp, deadline: e.target.value } })}
+            locale={config.locales.default}
+            placeholder={ui.pickDate}
+            onChange={(iso) => set({ ...config, rsvp: { ...config.rsvp, deadline: iso } })}
           />
         </Field>
-        <Field label="Opções de refeição (uma por linha)">
+        <Field label={ui.meals}>
           <TextArea
             value={config.rsvp.meals.join('\n')}
             onChange={(e) =>
@@ -526,7 +547,7 @@ export function WizardStepForm({
             checked={config.rsvp.allowPlusOne}
             onChange={(e) => set({ ...config, rsvp: { ...config.rsvp, allowPlusOne: e.target.checked } })}
           />
-          Permitir acompanhante / party size
+          {ui.plusOne}
         </label>
         <label className="flex items-center gap-2 text-sm">
           <input
@@ -536,9 +557,9 @@ export function WizardStepForm({
               set({ ...config, rsvp: { ...config.rsvp, collectDietary: e.target.checked } })
             }
           />
-          Coletar restrições alimentares
+          {ui.dietary}
         </label>
-        <Field label="Notas do RSVP">
+        <Field label={ui.rsvpNotes}>
           <TextArea
             value={config.rsvp.notes}
             onChange={(e) => set({ ...config, rsvp: { ...config.rsvp, notes: e.target.value } })}
@@ -554,7 +575,7 @@ export function WizardStepForm({
         {config.faq.items.map((item) => (
           <div key={item.id} className="space-y-2 rounded-2xl border border-white/10 p-4">
             <TextInput
-              placeholder="Pergunta"
+              placeholder={ui.question}
               value={item.question}
               onChange={(e) =>
                 set({
@@ -568,7 +589,7 @@ export function WizardStepForm({
               }
             />
             <TextArea
-              placeholder="Resposta"
+              placeholder={ui.answer}
               value={item.answer}
               onChange={(e) =>
                 set({
@@ -593,7 +614,7 @@ export function WizardStepForm({
             })
           }
         >
-          + Pergunta
+          {ui.addQuestion}
         </button>
       </div>
     )
@@ -602,9 +623,7 @@ export function WizardStepForm({
   if (step === 'guestsBootstrap') {
     return (
       <div className="space-y-4">
-        <p className="text-sm text-white/50">
-          Adicione famílias agora ou depois no painel de convidados. RSVPs públicos entram automaticamente.
-        </p>
+        <p className="text-sm text-white/50">{ui.guestsHint}</p>
         {guests.map((guest) => (
           <div key={guest.id} className="grid gap-2 rounded-2xl border border-white/10 p-3 sm:grid-cols-2">
             <TextInput value={guest.familyName} readOnly />
@@ -635,11 +654,11 @@ export function WizardStepForm({
             e.currentTarget.reset()
           }}
         >
-          <TextInput name="familyName" placeholder="Família" required />
+          <TextInput name="familyName" placeholder={ui.family} required />
           <TextInput name="email" type="email" placeholder="Email" />
           <TextInput name="partySize" type="number" min={1} defaultValue={1} />
           <button type="submit" className="rounded-full bg-white/10 px-4 py-2 text-sm">
-            Adicionar à lista
+            {ui.addGuest}
           </button>
         </form>
       </div>
@@ -649,7 +668,7 @@ export function WizardStepForm({
   if (step === 'domain') {
     return (
       <div className="space-y-4">
-        <Field label="Slug local" hint="O site fica em /e/seu-slug nesta versão local.">
+        <Field label={ui.slug} hint={ui.slugHint}>
           <TextInput
             value={config.domain.slug}
             onChange={(e) =>
@@ -660,13 +679,13 @@ export function WizardStepForm({
             }
           />
         </Field>
-        <Field label="Título SEO">
+        <Field label={ui.seoTitle}>
           <TextInput
             value={config.domain.seoTitle}
             onChange={(e) => set({ ...config, domain: { ...config.domain, seoTitle: e.target.value } })}
           />
         </Field>
-        <Field label="Descrição SEO">
+        <Field label={ui.seoDescription}>
           <TextArea
             value={config.domain.seoDescription}
             onChange={(e) =>
@@ -683,12 +702,14 @@ export function WizardStepForm({
     <div className="space-y-4">
       {issues.length === 0 ? (
         <p className="rounded-2xl border border-emerald-400/30 bg-emerald-400/10 p-4 text-sm text-emerald-100">
-          Tudo pronto para publicar. O preview à direita é o site que os convidados vão ver.
+          {ui.reviewReady}
         </p>
       ) : (
         <ul className="space-y-2 rounded-2xl border border-amber-400/30 bg-amber-400/10 p-4 text-sm text-amber-100">
           {issues.map((issue) => (
-            <li key={issue.message}>Falta: {issue.message}</li>
+            <li key={issue.message}>
+              {ui.missing}: {issue.message}
+            </li>
           ))}
         </ul>
       )}

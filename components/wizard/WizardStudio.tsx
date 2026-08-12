@@ -5,7 +5,8 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { LivePreview } from '@/components/wizard/LivePreview'
 import { WizardStepForm } from '@/components/wizard/WizardStepForm'
-import { adjacentStep, reviewIssues, WIZARD_STEPS } from '@/lib/platform/wizard'
+import { wizardUi } from '@/lib/platform/copy'
+import { adjacentStep, normalizeWizardStep, reviewIssues, wizardSteps } from '@/lib/platform/wizard'
 import type { EventConfig, Guest, PlatformEvent, WizardStepId } from '@/lib/platform/types'
 import { cn } from '@/lib/utils'
 
@@ -13,18 +14,21 @@ export function WizardStudio({ event }: { event: PlatformEvent }) {
   const router = useRouter()
   const [config, setConfig] = useState<EventConfig>(event.config)
   const [guests, setGuests] = useState<Guest[]>(event.guests)
-  const [step, setStep] = useState<WizardStepId>(event.wizard.currentStep)
+  const [step, setStep] = useState<WizardStepId>(normalizeWizardStep(event.wizard.currentStep))
   const [saveState, setSaveState] = useState<'saved' | 'saving' | 'error'>('saved')
   const [mobileTab, setMobileTab] = useState<'form' | 'preview'>('form')
   const [publishError, setPublishError] = useState('')
   const [publishing, setPublishing] = useState(false)
-  const completed = useRef(new Set<WizardStepId>(event.wizard.completedSteps))
+  const completed = useRef(new Set<WizardStepId>(event.wizard.completedSteps.map(normalizeWizardStep)))
   const skipFirst = useRef(true)
 
-  const def = WIZARD_STEPS.find((item) => item.id === step) ?? WIZARD_STEPS[0]
+  const ui = wizardUi(config.locales.default)
+  const steps = wizardSteps(config.locales.default)
+  const def = steps.find((item) => item.id === step) ?? steps[0]
   const issues = useMemo(() => reviewIssues(config), [config])
   const prev = adjacentStep(step, -1)
   const next = adjacentStep(step, 1)
+  const dir = config.locales.default === 'he' ? 'rtl' : 'ltr'
 
   useEffect(() => {
     if (skipFirst.current) {
@@ -83,14 +87,18 @@ export function WizardStudio({ event }: { event: PlatformEvent }) {
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-[#070b16] text-white lg:h-screen lg:overflow-hidden">
+    <div
+      className="flex min-h-screen flex-col bg-[#070b16] text-white lg:h-screen lg:overflow-hidden"
+      lang={config.locales.default}
+      dir={dir}
+    >
       <header className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 px-4 py-3">
         <div>
           <Link href="/dashboard" className="text-xs text-white/40 hover:text-white">
-            ← Dashboard
+            ← {ui.dashboard}
           </Link>
           <h1 className="font-display text-lg">
-            Wizard · {config.basics.honoreeName || 'Novo evento'}
+            Wizard · {config.basics.honoreeName || ui.newEvent}
           </h1>
         </div>
         <div className="flex items-center gap-3 text-xs">
@@ -102,7 +110,7 @@ export function WizardStudio({ event }: { event: PlatformEvent }) {
               saveState === 'error' && 'bg-rose-400/15 text-rose-200',
             )}
           >
-            {saveState === 'saved' ? 'Salvo' : saveState === 'saving' ? 'Salvando…' : 'Erro ao salvar'}
+            {saveState === 'saved' ? ui.saved : saveState === 'saving' ? ui.saving : ui.saveError}
           </span>
           <div className="flex rounded-lg bg-white/10 p-1 lg:hidden">
             <button
@@ -110,14 +118,14 @@ export function WizardStudio({ event }: { event: PlatformEvent }) {
               className={cn('rounded-md px-3 py-1', mobileTab === 'form' && 'bg-white/15')}
               onClick={() => setMobileTab('form')}
             >
-              Editar
+              {ui.edit}
             </button>
             <button
               type="button"
               className={cn('rounded-md px-3 py-1', mobileTab === 'preview' && 'bg-white/15')}
               onClick={() => setMobileTab('preview')}
             >
-              Ver site
+              {ui.viewSite}
             </button>
           </div>
         </div>
@@ -126,7 +134,7 @@ export function WizardStudio({ event }: { event: PlatformEvent }) {
       <div className="flex min-h-0 flex-1">
         <aside className="hidden w-56 shrink-0 overflow-y-auto border-e border-white/10 p-3 md:block">
           <ol className="space-y-1">
-            {WIZARD_STEPS.map((item, index) => (
+            {steps.map((item, index) => (
               <li key={item.id}>
                 <button
                   type="button"
@@ -152,7 +160,9 @@ export function WizardStudio({ event }: { event: PlatformEvent }) {
         >
           <div className="border-b border-white/10 px-5 py-4">
             <p className="text-xs uppercase tracking-[0.25em] text-cyan-300/80">
-              Passo {WIZARD_STEPS.findIndex((item) => item.id === step) + 1} de {WIZARD_STEPS.length}
+              {ui.stepOf
+                .replace('{n}', String(steps.findIndex((item) => item.id === step) + 1))
+                .replace('{total}', String(steps.length))}
             </p>
             <h2 className="font-display mt-1 text-2xl">{def.title}</h2>
             <p className="mt-1 text-sm text-white/50">{def.subtitle}</p>
@@ -174,7 +184,7 @@ export function WizardStudio({ event }: { event: PlatformEvent }) {
                   onClick={publish}
                   className="w-full rounded-full bg-cyan-400 py-3 font-semibold text-[#0b1020] disabled:opacity-40"
                 >
-                  {publishing ? 'Publicando…' : 'Publicar site'}
+                  {publishing ? ui.publishing : ui.publish}
                 </button>
               </div>
             )}
@@ -186,14 +196,14 @@ export function WizardStudio({ event }: { event: PlatformEvent }) {
               onClick={() => prev && setStep(prev)}
               className="rounded-full border border-white/15 px-4 py-2 text-sm disabled:opacity-30"
             >
-              Voltar
+              {ui.back}
             </button>
             <select
-              className="rounded-lg border border-white/15 bg-[#070b16] px-2 py-2 text-sm md:hidden"
+              className="rounded-lg border border-white/15 bg-[#070b16] px-2 py-2 text-sm text-white [color-scheme:dark] [&>option]:bg-[#12182a] [&>option]:text-white md:hidden"
               value={step}
               onChange={(e) => setStep(e.target.value as WizardStepId)}
             >
-              {WIZARD_STEPS.map((item) => (
+              {steps.map((item) => (
                 <option key={item.id} value={item.id}>
                   {item.title}
                 </option>
@@ -205,7 +215,7 @@ export function WizardStudio({ event }: { event: PlatformEvent }) {
               onClick={() => next && setStep(next)}
               className="rounded-full bg-white/10 px-4 py-2 text-sm disabled:opacity-30"
             >
-              Continuar
+              {ui.continue}
             </button>
           </div>
         </section>

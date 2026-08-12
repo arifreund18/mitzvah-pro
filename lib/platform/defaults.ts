@@ -1,5 +1,8 @@
 import type { EventConfig, EventLocale, EventType, PlatformEvent } from './types'
+import { generatedCopy } from './copy'
 import { uid } from './ids'
+
+export { typeLabel } from './copy'
 
 export function createDefaultConfig(partial?: {
   honoreeName?: string
@@ -13,6 +16,7 @@ export function createDefaultConfig(partial?: {
   const type = partial?.type ?? 'bar'
   const locale = partial?.locale ?? 'pt'
   const slug = partial?.slug || ''
+  const copy = generatedCopy(locale, type, honoreeName, familyName)
 
   return {
     basics: {
@@ -33,8 +37,8 @@ export function createDefaultConfig(partial?: {
       accentColor: '#22d3ee',
     },
     story: {
-      headline: honoreeName ? `A celebração de ${honoreeName}` : 'A celebração da nossa família',
-      subtitle: 'Save the date, convite e site — tudo em um só lugar.',
+      headline: copy.headline,
+      subtitle: copy.subtitle,
       parentsMessage: '',
       about: '',
     },
@@ -42,14 +46,14 @@ export function createDefaultConfig(partial?: {
       items: [
         {
           id: uid(),
-          title: 'Cerimônia',
+          title: copy.ceremonyTitle,
           time: '10:00',
           place: '',
           address: '',
         },
         {
           id: uid(),
-          title: 'Recepção',
+          title: copy.receptionTitle,
           time: '19:00',
           place: '',
           address: '',
@@ -67,22 +71,18 @@ export function createDefaultConfig(partial?: {
     },
     saveTheDate: {
       enabled: true,
-      message: honoreeName
-        ? `Reserve a data da ${typeLabel(type)} de ${honoreeName}`
-        : 'Reserve esta data especial',
-      envelopeLabel: 'Abrir save the date',
+      message: copy.stdMessage,
+      envelopeLabel: copy.envelopeLabel,
     },
     invitation: {
-      greeting: 'Com alegria, convidamos você',
-      body: honoreeName
-        ? `para celebrar a ${typeLabel(type)} de ${honoreeName}.`
-        : 'para celebrar conosco este marco da nossa família.',
-      hostLine: familyName ? `Família ${familyName}` : 'Com carinho, a família',
+      greeting: copy.greeting,
+      body: copy.inviteBody,
+      hostLine: copy.hostLine,
       sealLabel: 'Mitzvah',
     },
     rsvp: {
       deadline: '',
-      meals: ['Kosher', 'Vegetariano', 'Infantil'],
+      meals: copy.meals,
       allowPlusOne: true,
       collectDietary: true,
       notes: '',
@@ -90,22 +90,9 @@ export function createDefaultConfig(partial?: {
     faq: { items: [] },
     domain: {
       slug,
-      seoTitle: honoreeName ? `${honoreeName} — Mitzvah.pro` : 'Celebração — Mitzvah.pro',
-      seoDescription: 'Convite digital, save the date e RSVP.',
+      seoTitle: copy.seoTitle,
+      seoDescription: copy.seoDescription,
     },
-  }
-}
-
-export function typeLabel(type: EventType): string {
-  switch (type) {
-    case 'bar':
-      return 'Bar Mitzvah'
-    case 'bat':
-      return 'Bat Mitzvah'
-    case 'bnei':
-      return 'Bnei Mitzvah'
-    default:
-      return 'celebração'
   }
 }
 
@@ -194,7 +181,6 @@ export function createSeedEvent(): PlatformEvent {
       currentStep: 'review',
       completedSteps: [
         'basics',
-        'locales',
         'branding',
         'story',
         'schedule',

@@ -33,7 +33,7 @@ export default async function DashboardPage() {
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
                 <p className="text-xs uppercase tracking-widest text-cyan-300/80">
-                  {typeLabel(event.config.basics.type)}
+                  {typeLabel(event.config.basics.type, event.config.locales.default)}
                 </p>
                 <h2 className="font-display mt-1 text-2xl">
                   {event.config.basics.honoreeName || 'Sem nome'}

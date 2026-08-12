@@ -12,7 +12,6 @@ export type EventStatus = (typeof EVENT_STATUSES)[number]
 
 export const WIZARD_STEP_IDS = [
   'basics',
-  'locales',
   'branding',
   'story',
   'schedule',

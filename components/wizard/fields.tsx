@@ -38,5 +38,14 @@ export function TextArea(
 export function SelectInput(
   props: React.SelectHTMLAttributes<HTMLSelectElement> & { className?: string },
 ) {
-  return <select {...props} className={cn(inputClass, props.className)} />
+  return (
+    <select
+      {...props}
+      className={cn(
+        inputClass,
+        'bg-[#12182a] text-white [color-scheme:dark] [&>option]:bg-[#12182a] [&>option]:text-white',
+        props.className,
+      )}
+    />
+  )
 }

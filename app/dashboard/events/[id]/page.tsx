@@ -20,7 +20,7 @@ export default async function EventDetailPage({
   return (
     <DashboardShell>
       <p className="text-xs uppercase tracking-[0.3em] text-cyan-300/80">
-        {typeLabel(event.config.basics.type)} · template BarBeni
+        {typeLabel(event.config.basics.type, event.config.locales.default)} · template BarBeni
       </p>
       <h1 className="font-display mt-2 text-4xl">{event.config.basics.honoreeName || 'Evento'}</h1>
       <p className="mt-2 text-white/50">

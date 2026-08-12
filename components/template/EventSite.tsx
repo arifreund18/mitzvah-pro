@@ -1,5 +1,5 @@
 import type { EventConfig, ThemeId, WizardStepId } from '@/lib/platform/types'
-import { typeLabel } from '@/lib/platform/defaults'
+import { formatEventDate, typeLabel, wizardUi } from '@/lib/platform/copy'
 
 export const THEME_PRESETS: Record<
   ThemeId,
@@ -39,18 +39,6 @@ export const THEME_PRESETS: Record<
   },
 }
 
-function formatDate(iso: string, locale: string) {
-  if (!iso) return 'Data a definir'
-  const date = new Date(`${iso}T12:00:00`)
-  if (Number.isNaN(date.getTime())) return iso
-  return new Intl.DateTimeFormat(locale === 'he' ? 'he-IL' : locale === 'pt' ? 'pt-BR' : locale === 'es' ? 'es-MX' : 'en-US', {
-    weekday: 'long',
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
-  }).format(date)
-}
-
 export function EventSite({
   config,
   highlight,
@@ -63,10 +51,11 @@ export function EventSite({
   const theme = THEME_PRESETS[config.branding.theme]
   const accent = config.branding.accentColor || '#22d3ee'
   const locale = config.locales.default
+  const ui = wizardUi(locale).site
   const dir = locale === 'he' ? 'rtl' : 'ltr'
-  const type = typeLabel(config.basics.type)
-  const name = config.basics.honoreeName || 'Celebrante'
-  const dateLabel = formatDate(config.basics.date, locale)
+  const type = typeLabel(config.basics.type, locale)
+  const name = config.basics.honoreeName || ui.honoreeFallback
+  const dateLabel = formatEventDate(config.basics.date, locale, ui.dateTbd)
   const place = [config.basics.city, config.basics.country].filter(Boolean).join(', ')
   const interactive = mode === 'live'
 
@@ -158,7 +147,7 @@ export function EventSite({
 
       <section id="preview-schedule" data-preview="schedule" className={`px-6 py-16 ${mark('schedule')}`}>
         <div className="mx-auto max-w-3xl">
-          <h2 className="font-display text-center text-3xl">Programação</h2>
+          <h2 className="font-display text-center text-3xl">{ui.schedule}</h2>
           <div className="mt-10 space-y-4">
             {config.schedule.items.map((item) => (
               <div
@@ -167,11 +156,11 @@ export function EventSite({
                 style={{ background: theme.card }}
               >
                 <p className="text-sm font-semibold" style={{ color: accent }}>
-                  {item.time || 'Horário'}
+                  {item.time || ui.timeTbd}
                 </p>
-                <h3 className="mt-1 text-lg font-semibold">{item.title || 'Momento'}</h3>
+                <h3 className="mt-1 text-lg font-semibold">{item.title || ui.moment}</h3>
                 <p className="mt-1 text-sm" style={{ color: theme.muted }}>
-                  {[item.place, item.address].filter(Boolean).join(' · ') || 'Local a definir'}
+                  {[item.place, item.address].filter(Boolean).join(' · ') || ui.placeTbd}
                 </p>
               </div>
             ))}
@@ -198,9 +187,9 @@ export function EventSite({
             </div>
             <div className="rounded-2xl p-6" style={{ background: theme.card }}>
               <h3 className="font-display text-xl">Hotéis</h3>
-              {config.venues.hotels.length === 0 ? (
+                  {config.venues.hotels.length === 0 ? (
                 <p className="mt-2" style={{ color: theme.muted }}>
-                  Nenhum hotel adicionado ainda.
+                  {ui.hotelsEmpty}
                 </p>
               ) : (
                 <ul className="mt-3 space-y-3">
@@ -241,13 +230,13 @@ export function EventSite({
       {config.faq.items.length > 0 && (
         <section id="preview-faq" data-preview="faq" className={`px-6 py-16 ${mark('faq')}`}>
           <div className="mx-auto max-w-3xl">
-            <h2 className="font-display text-center text-3xl">Perguntas frequentes</h2>
+            <h2 className="font-display text-center text-3xl">{ui.faq}</h2>
             <div className="mt-8 space-y-4">
               {config.faq.items.map((item) => (
                 <div key={item.id} className="rounded-2xl p-5" style={{ background: theme.card }}>
-                  <h3 className="font-semibold">{item.question || 'Pergunta'}</h3>
+                  <h3 className="font-semibold">{item.question || ui.question}</h3>
                   <p className="mt-2 text-sm" style={{ color: theme.muted }}>
-                    {item.answer || 'Resposta'}
+                    {item.answer || ui.answer}
                   </p>
                 </div>
               ))}
@@ -263,7 +252,8 @@ export function EventSite({
         >
           <h2 className="font-display text-3xl">RSVP</h2>
           <p className="mt-3" style={{ color: theme.muted }}>
-            Confirme até {config.rsvp.deadline ? formatDate(config.rsvp.deadline, locale) : 'a data limite'}.
+            {ui.rsvpUntil}{' '}
+            {config.rsvp.deadline ? formatEventDate(config.rsvp.deadline, locale) : ui.deadlineTbd}.
           </p>
           {config.rsvp.notes ? (
             <p className="mt-2 text-sm" style={{ color: theme.muted }}>
@@ -287,14 +277,14 @@ export function EventSite({
               className="mt-8 inline-block rounded-full px-8 py-3 font-semibold text-black"
               style={{ background: accent }}
             >
-              Confirmar presença
+              {ui.confirm}
             </a>
           ) : (
             <span
               className="mt-8 inline-block rounded-full px-8 py-3 font-semibold text-black"
               style={{ background: accent }}
             >
-              Confirmar presença
+              {ui.confirm}
             </span>
           )}
         </div>
@@ -329,7 +319,7 @@ function EnvelopeCard({
         <p className="text-xs uppercase tracking-[0.3em]" style={{ color: accent }}>
           Save the Date
         </p>
-        <p className="font-display mt-4 text-3xl">{config.basics.honoreeName || 'Celebrante'}</p>
+        <p className="font-display mt-4 text-3xl">{config.basics.honoreeName || wizardUi(config.locales.default).site.honoreeFallback}</p>
         <p className="mt-3 text-sm leading-relaxed">{config.saveTheDate.message}</p>
         <p className="mt-6 text-xs uppercase tracking-widest opacity-70">
           {config.saveTheDate.envelopeLabel}
@@ -360,7 +350,7 @@ function InvitationCard({
         {config.invitation.sealLabel || 'Mitzvah'}
       </div>
       <p className="mt-4 text-sm italic opacity-80">{config.invitation.greeting}</p>
-      <h2 className="font-display mt-4 text-4xl">{config.basics.honoreeName || 'Celebrante'}</h2>
+      <h2 className="font-display mt-4 text-4xl">{config.basics.honoreeName || wizardUi(config.locales.default).site.honoreeFallback}</h2>
       <p className="mt-4 leading-relaxed">{config.invitation.body}</p>
       <p className="mt-8 text-sm font-semibold">{config.invitation.hostLine}</p>
     </div>

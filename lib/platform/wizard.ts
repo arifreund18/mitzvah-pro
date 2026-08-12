@@ -1,4 +1,5 @@
-import type { EventConfig, WizardStepId } from './types'
+import { wizardUi } from './copy'
+import type { EventConfig, EventLocale, WizardStepId } from './types'
 import { WIZARD_STEP_IDS } from './types'
 
 export type WizardStepDef = {
@@ -9,106 +10,36 @@ export type WizardStepDef = {
   previewTarget: string
 }
 
-export const WIZARD_STEPS: WizardStepDef[] = [
-  {
-    id: 'basics',
-    title: 'Celebração',
-    subtitle: 'Quem honramos, quando e onde.',
-    required: true,
-    previewTarget: 'hero',
-  },
-  {
-    id: 'locales',
-    title: 'Idiomas',
-    subtitle: 'Idioma padrão do site (inclui hebraico RTL).',
-    required: true,
-    previewTarget: 'hero',
-  },
-  {
-    id: 'branding',
-    title: 'Visual',
-    subtitle: 'Tema e cores — o preview muda na hora.',
-    required: true,
-    previewTarget: 'hero',
-  },
-  {
-    id: 'story',
-    title: 'Textos',
-    subtitle: 'Headline, subtítulo e mensagem da família.',
-    required: true,
-    previewTarget: 'story',
-  },
-  {
-    id: 'schedule',
-    title: 'Programação',
-    subtitle: 'Cerimônia, recepção e horários.',
-    required: true,
-    previewTarget: 'schedule',
-  },
-  {
-    id: 'venues',
-    title: 'Locais & hotéis',
-    subtitle: 'Dress code, estacionamento e hospedagem.',
-    required: false,
-    previewTarget: 'venues',
-  },
-  {
-    id: 'media',
-    title: 'Fotos',
-    subtitle: 'Hero e galeria (URL ou upload local).',
-    required: false,
-    previewTarget: 'gallery',
-  },
-  {
-    id: 'saveTheDate',
-    title: 'Save the Date',
-    subtitle: 'Envelope digital e mensagem.',
-    required: false,
-    previewTarget: 'std',
-  },
-  {
-    id: 'invitation',
-    title: 'Convite',
-    subtitle: 'Cartão, selo e texto do convite.',
-    required: true,
-    previewTarget: 'invite',
-  },
-  {
-    id: 'rsvp',
-    title: 'RSVP',
-    subtitle: 'Prazo, refeições e acompanhante.',
-    required: true,
-    previewTarget: 'rsvp',
-  },
-  {
-    id: 'faq',
-    title: 'FAQ',
-    subtitle: 'Perguntas que os convidados sempre fazem.',
-    required: false,
-    previewTarget: 'faq',
-  },
-  {
-    id: 'guestsBootstrap',
-    title: 'Convidados',
-    subtitle: 'Lista inicial — RSVPs entram depois.',
-    required: false,
-    previewTarget: 'rsvp',
-  },
-  {
-    id: 'domain',
-    title: 'Publicação',
-    subtitle: 'Slug local /e/sua-familia e SEO.',
-    required: true,
-    previewTarget: 'hero',
-  },
-  {
-    id: 'review',
-    title: 'Revisão',
-    subtitle: 'Checklist e publicar o site.',
-    required: true,
-    previewTarget: 'hero',
-  },
-]
+const STEP_META: Record<
+  WizardStepId,
+  { required: boolean; previewTarget: string }
+> = {
+  basics: { required: true, previewTarget: 'hero' },
+  branding: { required: true, previewTarget: 'hero' },
+  story: { required: true, previewTarget: 'story' },
+  schedule: { required: true, previewTarget: 'schedule' },
+  venues: { required: false, previewTarget: 'venues' },
+  media: { required: false, previewTarget: 'gallery' },
+  saveTheDate: { required: false, previewTarget: 'std' },
+  invitation: { required: true, previewTarget: 'invite' },
+  rsvp: { required: true, previewTarget: 'rsvp' },
+  faq: { required: false, previewTarget: 'faq' },
+  guestsBootstrap: { required: false, previewTarget: 'rsvp' },
+  domain: { required: true, previewTarget: 'hero' },
+  review: { required: true, previewTarget: 'hero' },
+}
+
+export function wizardSteps(locale: EventLocale): WizardStepDef[] {
+  const ui = wizardUi(locale)
+  return WIZARD_STEP_IDS.map((id) => ({
+    id,
+    title: ui.steps[id].title,
+    subtitle: ui.steps[id].subtitle,
+    ...STEP_META[id],
+  }))
+}
+
+export const WIZARD_STEPS = wizardSteps('pt')
 
 export function stepIndex(id: WizardStepId): number {
   return WIZARD_STEP_IDS.indexOf(id)
@@ -116,43 +47,36 @@ export function stepIndex(id: WizardStepId): number {
 
 export function adjacentStep(id: WizardStepId, delta: -1 | 1): WizardStepId | null {
   const i = stepIndex(id) + delta
-  return WIZARD_STEPS[i]?.id ?? null
+  return WIZARD_STEP_IDS[i] ?? null
+}
+
+export function normalizeWizardStep(value: string | undefined): WizardStepId {
+  if (value && (WIZARD_STEP_IDS as readonly string[]).includes(value)) {
+    return value as WizardStepId
+  }
+  return 'basics'
 }
 
 export type ReviewIssue = { step: WizardStepId; message: string }
 
 export function reviewIssues(config: EventConfig): ReviewIssue[] {
-  const issues: ReviewIssue[] = []
-  if (!config.basics.honoreeName.trim()) {
-    issues.push({ step: 'basics', message: 'Nome do celebrante' })
-  }
-  if (!config.basics.date) {
-    issues.push({ step: 'basics', message: 'Data da celebração' })
-  }
-  if (!config.basics.city.trim()) {
-    issues.push({ step: 'basics', message: 'Cidade' })
-  }
-  if (!config.story.headline.trim()) {
-    issues.push({ step: 'story', message: 'Headline' })
-  }
+  const issues = wizardUi(config.locales.default).issues
+  const list: ReviewIssue[] = []
+  if (!config.basics.honoreeName.trim()) list.push({ step: 'basics', message: issues.honoree })
+  if (!config.basics.date) list.push({ step: 'basics', message: issues.date })
+  if (!config.basics.city.trim()) list.push({ step: 'basics', message: issues.city })
+  if (!config.story.headline.trim()) list.push({ step: 'story', message: issues.headline })
   if (!config.schedule.items.some((item) => item.title.trim())) {
-    issues.push({ step: 'schedule', message: 'Pelo menos um item na programação' })
+    list.push({ step: 'schedule', message: issues.schedule })
   }
-  if (!config.invitation.body.trim()) {
-    issues.push({ step: 'invitation', message: 'Texto do convite' })
-  }
-  if (!config.rsvp.deadline) {
-    issues.push({ step: 'rsvp', message: 'Prazo do RSVP' })
-  }
-  if (!config.domain.slug.trim()) {
-    issues.push({ step: 'domain', message: 'Slug do site' })
-  }
-  return issues
+  if (!config.invitation.body.trim()) list.push({ step: 'invitation', message: issues.invite })
+  if (!config.rsvp.deadline) list.push({ step: 'rsvp', message: issues.rsvp })
+  if (!config.domain.slug.trim()) list.push({ step: 'domain', message: issues.slug })
+  return list
 }
 
 export function isStepComplete(id: WizardStepId, config: EventConfig): boolean {
   const related = reviewIssues(config).filter((issue) => issue.step === id)
-  const def = WIZARD_STEPS.find((step) => step.id === id)
-  if (!def?.required) return true
+  if (!STEP_META[id]?.required) return true
   return related.length === 0
 }
