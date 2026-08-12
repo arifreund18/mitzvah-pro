@@ -2,6 +2,7 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { createDefaultConfig, createSeedEvent } from './defaults'
 import { slugify, uid } from './ids'
+import { isReservedSlug } from './site-url'
 import { normalizeConfig, normalizeEvent, normalizeGuest } from './normalize'
 import type {
   EventConfig,
@@ -100,10 +101,14 @@ export async function getEventBySlug(slug: string): Promise<PlatformEvent | null
 }
 
 function uniqueSlug(store: PlatformStore, desired: string, ignoreId?: string): string {
-  const base = slugify(desired) || `evento-${uid().slice(0, 6)}`
+  let base = slugify(desired) || `evento-${uid().slice(0, 6)}`
+  if (isReservedSlug(base)) base = `evento-${base}`
   let candidate = base
   let n = 2
-  while (store.events.some((event) => event.slug === candidate && event.id !== ignoreId)) {
+  while (
+    isReservedSlug(candidate) ||
+    store.events.some((event) => event.slug === candidate && event.id !== ignoreId)
+  ) {
     candidate = `${base}-${n}`
     n += 1
   }

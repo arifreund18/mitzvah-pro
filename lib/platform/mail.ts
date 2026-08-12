@@ -1,4 +1,5 @@
 import { typeLabel } from './copy'
+import { eventPublicUrl } from './site-url'
 import type { EventConfig, Guest } from './types'
 
 export function mailSubject(kind: 'std' | 'invite', config: EventConfig): string {
@@ -10,15 +11,16 @@ export function mailSubject(kind: 'std' | 'invite', config: EventConfig): string
 export function mailHtml(
   kind: 'std' | 'invite',
   config: EventConfig,
-  origin: string,
+  host: string,
   guest: Guest,
 ): string {
   const name = config.basics.honoreeName || ''
   const accent = config.branding.accentColor || '#22d3ee'
-  const href =
-    kind === 'std'
-      ? `${origin}/e/${config.domain.slug}/std`
-      : `${origin}/e/${config.domain.slug}/invite`
+  const href = eventPublicUrl(
+    config.domain.slug,
+    kind === 'std' ? '/std' : '/invite',
+    { host },
+  )
   const body = kind === 'std' ? config.saveTheDate.message : config.invitation.body
   const greeting = kind === 'invite' ? config.invitation.greeting : 'Save the Date'
   const cta = kind === 'std' ? 'Open save the date' : 'Open invitation'

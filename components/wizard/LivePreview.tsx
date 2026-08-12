@@ -5,6 +5,7 @@ import { EventSite } from '@/components/template/EventSite'
 import { EmailChrome, InvitationCard, SaveTheDateCard } from '@/components/template/EventEmails'
 import { wizardUi } from '@/lib/platform/copy'
 import { templateUi } from '@/lib/platform/template-copy'
+import { eventPublicHostLabel } from '@/lib/platform/site-url'
 import type { EventConfig, WizardStepId } from '@/lib/platform/types'
 import { wizardSteps } from '@/lib/platform/wizard'
 
@@ -41,7 +42,7 @@ export function LivePreview({
               ? mail.emailStd
               : mail.emailInvite
             : config.domain.slug
-              ? `/e/${config.domain.slug}`
+              ? eventPublicHostLabel(config.domain.slug)
               : ui.draft}
         </span>
       </div>

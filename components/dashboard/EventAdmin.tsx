@@ -1,10 +1,10 @@
 'use client'
 
-import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { EventActions } from '@/components/dashboard/EventActions'
 import type { PlatformEvent } from '@/lib/platform/types'
+import { eventPublicHostLabel, eventPublicUrl } from '@/lib/platform/site-url'
 
 function fmt(iso: string | null) {
   if (!iso) return '—'
@@ -15,6 +15,9 @@ export function EventAdmin({ event }: { event: PlatformEvent }) {
   const router = useRouter()
   const [busy, setBusy] = useState('')
   const [message, setMessage] = useState('')
+  const [siteLabel, setSiteLabel] = useState(() => eventPublicHostLabel(event.slug))
+  const [stdUrl, setStdUrl] = useState(() => eventPublicUrl(event.slug, '/std'))
+  const [inviteUrl, setInviteUrl] = useState(() => eventPublicUrl(event.slug, '/invite'))
   const guests = event.guests
   const stats = useMemo(() => {
     const yes = guests.filter((g) => g.status === 'yes').length
@@ -25,6 +28,13 @@ export function EventAdmin({ event }: { event: PlatformEvent }) {
     const invite = guests.filter((g) => g.inviteSentAt).length
     return { yes, no, pending, people, std, invite, total: guests.length }
   }, [guests])
+
+  useEffect(() => {
+    const host = window.location.host
+    setSiteLabel(eventPublicHostLabel(event.slug, { host }))
+    setStdUrl(eventPublicUrl(event.slug, '/std', { host }))
+    setInviteUrl(eventPublicUrl(event.slug, '/invite', { host }))
+  }, [event.slug])
 
   async function send(kind: 'std' | 'invite') {
     setBusy(kind)
@@ -55,18 +65,18 @@ export function EventAdmin({ event }: { event: PlatformEvent }) {
       <p className="text-xs uppercase tracking-[0.3em] text-cyan-300/80">Dashboard do evento · BarBeni</p>
       <h1 className="font-display mt-2 text-4xl">{event.config.basics.honoreeName || 'Evento'}</h1>
       <p className="mt-2 text-white/50">
-        Família {event.config.basics.familyName || '—'} · /e/{event.slug}
+        Família {event.config.basics.familyName || '—'} · {siteLabel}
       </p>
       <div className="mt-8">
         <EventActions id={event.id} slug={event.slug} status={event.status} />
       </div>
       <div className="mt-6 flex flex-wrap gap-3 text-sm">
-        <Link href={`/e/${event.slug}/std`} className="rounded-full border border-white/20 px-4 py-2 hover:bg-white/10">
+        <a href={stdUrl} className="rounded-full border border-white/20 px-4 py-2 hover:bg-white/10">
           Preview Save the Date
-        </Link>
-        <Link href={`/e/${event.slug}/invite`} className="rounded-full border border-white/20 px-4 py-2 hover:bg-white/10">
+        </a>
+        <a href={inviteUrl} className="rounded-full border border-white/20 px-4 py-2 hover:bg-white/10">
           Preview convite
-        </Link>
+        </a>
         <button
           type="button"
           disabled={!!busy || !event.config.saveTheDate.enabled}

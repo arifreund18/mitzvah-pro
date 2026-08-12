@@ -14,6 +14,7 @@ import {
   type Guest,
 } from '@/lib/platform/types'
 import { LOCALE_OPTIONS } from '@/lib/platform/locales'
+import { eventPublicHostLabel } from '@/lib/platform/site-url'
 import { reviewIssues } from '@/lib/platform/wizard'
 
 function readFileAsDataUrl(file: File, tooBig: string): Promise<string> {
@@ -870,6 +871,9 @@ export const WizardStepForm = forwardRef<
               })
             }
           />
+          {config.domain.slug ? (
+            <p className="mt-2 text-sm text-cyan-200/80">{eventPublicHostLabel(config.domain.slug)}</p>
+          ) : null}
         </Field>
         <Field label={ui.seoTitle}>
           <TextInput

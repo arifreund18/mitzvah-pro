@@ -1,8 +1,10 @@
 import type { Metadata } from 'next'
+import { headers } from 'next/headers'
 import { notFound } from 'next/navigation'
 import { EventSite } from '@/components/template/EventSite'
 import { EventRsvpForm } from '@/components/template/EventRsvpForm'
 import { isEventLocale } from '@/lib/platform/locales'
+import { eventPublicUrl, hostFromHeaders } from '@/lib/platform/site-url'
 import { getEventBySlug } from '@/lib/platform/store'
 
 export const dynamic = 'force-dynamic'
@@ -15,9 +17,12 @@ export async function generateMetadata({
   const { slug } = await params
   const event = await getEventBySlug(slug)
   if (!event || event.status !== 'published') return { title: 'Evento' }
+  const host = hostFromHeaders(await headers())
+  const url = eventPublicUrl(slug, '', { host })
   return {
     title: event.config.domain.seoTitle || event.config.basics.honoreeName,
     description: event.config.domain.seoDescription,
+    alternates: { canonical: url },
   }
 }
 

@@ -25,7 +25,10 @@ export async function POST(request: Request, ctx: Ctx) {
     return NextResponse.json({ error: 'Save the Date está desativado neste evento' }, { status: 400 })
   }
 
-  const origin = new URL(request.url).origin
+  const host =
+    request.headers.get('x-forwarded-host') ||
+    request.headers.get('host') ||
+    new URL(request.url).host
   const targets = event.guests.filter((guest) => {
     if (!guest.email) return false
     if (body?.guestIds?.length) return body.guestIds.includes(guest.id)
@@ -44,7 +47,7 @@ export async function POST(request: Request, ctx: Ctx) {
         from,
         to: guest.email,
         subject: mailSubject(kind, event.config),
-        html: mailHtml(kind, event.config, origin, guest),
+        html: mailHtml(kind, event.config, host, guest),
       })
       if (!result.error) delivered += 1
     }

@@ -1,20 +1,23 @@
+import { headers } from 'next/headers'
 import Link from 'next/link'
 import { DashboardShell } from '@/components/dashboard/DashboardShell'
 import { EventActions } from '@/components/dashboard/EventActions'
 import { listEvents } from '@/lib/platform/store'
 import { typeLabel } from '@/lib/platform/defaults'
+import { eventPublicHostLabel, hostFromHeaders } from '@/lib/platform/site-url'
 
 export const dynamic = 'force-dynamic'
 
 export default async function DashboardPage() {
   const events = await listEvents()
+  const host = hostFromHeaders(await headers())
   return (
     <DashboardShell>
       <div className="flex items-end justify-between gap-4">
         <div>
           <h1 className="font-display text-3xl">Eventos</h1>
           <p className="mt-2 text-sm text-white/50">
-            Crie um evento, customize no wizard com preview ao vivo e publique em /e/slug.
+            Crie um evento, customize no wizard com preview ao vivo e publique em slug.mitzvah.pro.
           </p>
         </div>
         <Link
@@ -44,7 +47,7 @@ export default async function DashboardPage() {
                     {event.config.basics.honoreeName || 'Sem nome'}
                   </h2>
                   <p className="text-sm text-white/50">
-                    Família {event.config.basics.familyName || '—'} · /e/{event.slug}
+                    Família {event.config.basics.familyName || '—'} · {eventPublicHostLabel(event.slug, { host })}
                   </p>
                 </Link>
                 <span

@@ -2,7 +2,8 @@
 
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { eventPublicUrl } from '@/lib/platform/site-url'
 
 const btn =
   'rounded-full border border-white/20 px-5 py-2 text-sm hover:bg-white/10 disabled:opacity-40'
@@ -21,6 +22,11 @@ export function EventActions({
   const router = useRouter()
   const [error, setError] = useState('')
   const [busy, setBusy] = useState('')
+  const [siteUrl, setSiteUrl] = useState(() => eventPublicUrl(slug))
+
+  useEffect(() => {
+    setSiteUrl(eventPublicUrl(slug, '', { host: window.location.host }))
+  }, [slug])
 
   async function post(path: string, label: string) {
     setError('')
@@ -57,9 +63,19 @@ export function EventActions({
     router.refresh()
   }
 
+  const siteLink = status === 'published' ? (
+    <a href={siteUrl} className={btn}>
+      Ver site
+    </a>
+  ) : null
+
   return (
     <div className={`flex flex-wrap gap-2 ${compact ? '' : 'gap-3'}`}>
-      {!compact && (
+      {compact ? (
+        <Link href={`/dashboard/events/${id}`} className={btn}>
+          Dashboard do evento
+        </Link>
+      ) : (
         <Link
           href={`/dashboard/events/${id}/wizard`}
           className="rounded-full bg-cyan-400 px-5 py-2 text-sm font-semibold text-[#0b1020]"
@@ -67,21 +83,17 @@ export function EventActions({
           Abrir wizard
         </Link>
       )}
-      {!compact && status === 'published' ? (
-        <Link href={`/e/${slug}`} className={btn}>
-          Ver site
+      {compact ? (
+        <Link href={`/dashboard/events/${id}/wizard`} className={btn}>
+          Wizard
         </Link>
       ) : null}
+      {siteLink}
       {!compact && status !== 'published' && status !== 'archived' ? (
         <button type="button" className={btn} disabled={!!busy} onClick={() => post(`/api/platform/events/${id}/publish`, 'publish')}>
           Publicar
         </button>
       ) : null}
-      {!compact && (
-        <Link href={`/dashboard/events/${id}`} className={btn}>
-          Dashboard do evento
-        </Link>
-      )}
       {!compact && (
         <button
           type="button"

@@ -4,12 +4,11 @@ import { LOCALE_OPTIONS } from '@/lib/platform/locales'
 import type { EventLocale } from '@/lib/platform/types'
 
 export function EventSiteLocales({
-  slug,
   enabled,
   current,
   accent,
 }: {
-  slug: string
+  slug?: string
   enabled: EventLocale[]
   current: EventLocale
   accent: string
@@ -22,7 +21,7 @@ export function EventSiteLocales({
         return (
           <a
             key={option.value}
-            href={`/e/${slug}?lang=${option.value}`}
+            href={`?lang=${option.value}`}
             className="rounded-full px-3 py-1 text-[10px] font-semibold uppercase tracking-widest"
             style={{
               background: active ? accent : 'transparent',

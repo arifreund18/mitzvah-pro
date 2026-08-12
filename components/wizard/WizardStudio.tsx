@@ -2,17 +2,16 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
 import { LivePreview } from '@/components/wizard/LivePreview'
 import { WizardStepForm, type WizardStepFormHandle } from '@/components/wizard/WizardStepForm'
 import { applyGeneratedPatch, wizardUi } from '@/lib/platform/copy'
 import { LOCALE_OPTIONS } from '@/lib/platform/locales'
+import { eventPublicUrl } from '@/lib/platform/site-url'
 import { adjacentStep, normalizeWizardStep, reviewIssues, wizardSteps } from '@/lib/platform/wizard'
 import type { EventConfig, EventLocale, Guest, PlatformEvent, WizardStepId } from '@/lib/platform/types'
 import { cn } from '@/lib/utils'
 
 export function WizardStudio({ event }: { event: PlatformEvent }) {
-  const router = useRouter()
   const [config, setConfig] = useState<EventConfig>(event.config)
   const [guests, setGuests] = useState<Guest[]>(event.guests)
   const [step, setStep] = useState<WizardStepId>(normalizeWizardStep(event.wizard.currentStep))
@@ -89,8 +88,9 @@ export function WizardStudio({ event }: { event: PlatformEvent }) {
       setPublishError(data?.error || 'Não foi possível publicar')
       return
     }
-    router.push(`/e/${data?.event?.slug || config.domain.slug}`)
-    router.refresh()
+    window.location.href = eventPublicUrl(data?.event?.slug || config.domain.slug, '', {
+      host: window.location.host,
+    })
   }
 
   return (
@@ -103,6 +103,12 @@ export function WizardStudio({ event }: { event: PlatformEvent }) {
         <div>
           <Link href="/dashboard" className="text-xs text-white/40 hover:text-white">
             ← {ui.dashboard}
+          </Link>
+          <Link
+            href={`/dashboard/events/${event.id}`}
+            className="ms-3 text-xs text-cyan-300/80 hover:text-cyan-200"
+          >
+            Dashboard do evento
           </Link>
           <h1 className="font-display text-lg">
             Wizard · {config.basics.honoreeName || ui.newEvent}
