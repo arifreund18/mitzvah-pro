@@ -5,6 +5,8 @@ import {
   apexHost,
   eventPublicUrl,
   eventSlugFromHost,
+  isBarBeniSubdomain,
+  isReservedSlug,
   protocolFor,
   supportsEventSubdomain,
 } from './lib/platform/site-url'
@@ -44,6 +46,13 @@ function rewriteToEvent(request: NextRequest, pathname: string) {
 export default function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
   const host = requestHost(request)
+
+  if (isBarBeniSubdomain(host)) {
+    const path = pathname === '/' || pathname === '' ? '/en' : pathname
+    const dest = `${protocolFor(host)}://${apexHost(host)}${path}${request.nextUrl.search}`
+    return NextResponse.redirect(dest)
+  }
+
   const eventSlug = eventSlugFromHost(host)
 
   if (eventSlug) {
@@ -72,7 +81,7 @@ export default function middleware(request: NextRequest) {
   if (pathname.startsWith('/e/')) {
     const parts = pathname.split('/').filter(Boolean)
     const slug = parts[1]
-    if (slug && supportsEventSubdomain(host)) {
+    if (slug && !isReservedSlug(slug) && supportsEventSubdomain(host)) {
       const rest = parts.slice(2).join('/')
       const dest = new URL(eventPublicUrl(slug, rest ? `/${rest}` : '', { host }))
       dest.search = request.nextUrl.search

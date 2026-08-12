@@ -102,11 +102,12 @@ export async function getEventBySlug(slug: string): Promise<PlatformEvent | null
 
 function uniqueSlug(store: PlatformStore, desired: string, ignoreId?: string): string {
   let base = slugify(desired) || `evento-${uid().slice(0, 6)}`
-  if (isReservedSlug(base)) base = `evento-${base}`
+  const current = ignoreId ? store.events.find((event) => event.id === ignoreId)?.slug : undefined
+  if (isReservedSlug(base) && base !== current) base = `evento-${base}`
   let candidate = base
   let n = 2
   while (
-    isReservedSlug(candidate) ||
+    (isReservedSlug(candidate) && candidate !== current) ||
     store.events.some((event) => event.slug === candidate && event.id !== ignoreId)
   ) {
     candidate = `${base}-${n}`

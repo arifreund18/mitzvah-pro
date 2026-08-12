@@ -23,11 +23,11 @@ npm run build
 5. Save the Date e convite são **emails** (preview no wizard; envio no dashboard do evento)
 6. Publique → o **site** fica em `seu-slug.mitzvah.pro` (local: `http://seu-slug.localhost:3000`)
 
-Há um evento semente em `http://beni.localhost:3000`. Dados em `data/platform.json` (gitignored).
+Há um evento semente de studio em `/e/beni` (não usa subdomínio). O **BarBeni legado** continua em `/en`, `/admin` e `/BarBeni/*` — não muda para `{slug}.mitzvah.pro`.
 
 Dashboard do evento: `/dashboard/events/[id]` — convidados, RSVP, enviar STD/convites.
 
-No DNS/Vercel, aponte o wildcard `*.mitzvah.pro` para este projeto. `/e/{slug}` redireciona para o subdomínio.
+No DNS/Vercel, aponte o wildcard `*.mitzvah.pro` para este projeto. `/e/{slug}` redireciona para o subdomínio, **exceto** slugs reservados (`beni`, `en`, `admin`, …).
 
 ## Variáveis de ambiente
 
@@ -49,12 +49,12 @@ No DNS/Vercel, aponte o wildcard `*.mitzvah.pro` para este projeto. `/e/{slug}` 
 - `/dashboard` — studio (login em `/dashboard/login`)
 - `/dashboard/events/[id]` — dashboard do evento (convidados, envio de emails, RSVP)
 - `/dashboard/events/[id]/wizard` — wizard com preview ao vivo
-- `/e/[slug]` — runtime interno do site (redireciona para `{slug}.mitzvah.pro`)
-- `{slug}.mitzvah.pro` — site público do evento (local: `{slug}.localhost:3000`)
+- `/e/[slug]` — runtime interno; redireciona para `{slug}.mitzvah.pro` (exceto BarBeni/`beni`)
+- `{slug}.mitzvah.pro` — site público de eventos **novos** do studio (local: `{slug}.localhost:3000`)
 - `{slug}.mitzvah.pro/std` — abertura do email Save the Date
 - `{slug}.mitzvah.pro/invite` — abertura do email convite
+- `/en` `/admin` `/BarBeni/*` — **BarBeni legado** (inalterado; `beni.mitzvah.pro` redireciona para `/en`)
 - `/api/contact` — POST formulário
-- `/BarBeni/*` — rewrite para `BAR_BENI_ORIGIN` (evento Beni legado)
 
 ## Deploy Vercel
 

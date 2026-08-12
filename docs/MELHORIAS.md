@@ -29,7 +29,7 @@ Atualizado em: 2026-08-12
 | **P2** | i18n completo do conteúdo do evento (N idiomas) | ⏳ idioma/RTL do site; textos únicos |
 | **P2** | Unificar APIs de contato | ⏳ |
 
-**Como usar a versão local:** `/dashboard/login` (senha `mitzvah`) → Novo evento → wizard. O site atualiza à direita. Save the Date e convite são emails (preview no wizard; envio no dashboard do evento). Publicar abre `{slug}.localhost:3000` (produção: `{slug}.mitzvah.pro`). Demo: `http://beni.localhost:3000`.
+**Como usar a versão local:** `/dashboard/login` (senha `mitzvah`) → Novo evento → wizard. O site atualiza à direita. Save the Date e convite são emails (preview no wizard; envio no dashboard do evento). Publicar abre `{slug}.localhost:3000` (produção: `{slug}.mitzvah.pro`). O BarBeni legado permanece em `/en` e `/BarBeni`. Demo do studio: `/e/beni`.
 
 ---
 
@@ -370,8 +370,8 @@ Requisitos:
 
 ### Mudanças no middleware (`mitzvah-pro`)
 1. Host-based routing: `{slug}.mitzvah.pro` (e `{slug}.localhost` no dev) faz rewrite para `/e/{slug}`  
-2. Apex `/e/{slug}` redireciona 308 para o subdomínio (exceto preview Vercel e IP)  
-3. Manter compat BarBeni atual (`/BarBeni`) durante migração  
+2. Apex `/e/{slug}` redireciona 308 para o subdomínio (exceto preview Vercel, IP, e slugs reservados)  
+3. **BarBeni legado inalterado:** `/en`, `/admin`, `/BarBeni/*` no apex; `beni.mitzvah.pro` redireciona para `/en`  
 4. Dashboard/auth **excluídos** do proxy BarBeni; `/dashboard` num subdomínio de evento volta ao apex  
 
 ### DNS
@@ -497,6 +497,7 @@ Requisitos:
 
 | Data | Mudança |
 |------|---------|
+| 2026-08-12 | BarBeni legado permanece em `/en` e `/BarBeni`; slug `beni` não vira subdomínio |
 | 2026-08-12 | Sites publicados em `{slug}.mitzvah.pro` (local `{slug}.localhost`); `/e/slug` redireciona |
 | 2026-08-12 | Template BarBeni: site sem STD/convite; emails STD+convite; dashboard do evento com envio e RSVP |
 | 2026-08-12 | Versão local P0: dashboard, template BarBeni, wizard com preview ao vivo, publish `/e/[slug]`, RSVP |

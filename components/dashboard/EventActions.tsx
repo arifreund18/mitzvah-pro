@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { eventPublicUrl } from '@/lib/platform/site-url'
 
 const btn =
@@ -22,11 +22,7 @@ export function EventActions({
   const router = useRouter()
   const [error, setError] = useState('')
   const [busy, setBusy] = useState('')
-  const [siteUrl, setSiteUrl] = useState(() => eventPublicUrl(slug))
-
-  useEffect(() => {
-    setSiteUrl(eventPublicUrl(slug, '', { host: window.location.host }))
-  }, [slug])
+  const siteUrl = eventPublicUrl(slug)
 
   async function post(path: string, label: string) {
     setError('')

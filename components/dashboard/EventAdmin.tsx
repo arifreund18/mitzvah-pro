@@ -1,7 +1,7 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { EventActions } from '@/components/dashboard/EventActions'
 import type { PlatformEvent } from '@/lib/platform/types'
 import { eventPublicHostLabel, eventPublicUrl } from '@/lib/platform/site-url'
@@ -15,9 +15,9 @@ export function EventAdmin({ event }: { event: PlatformEvent }) {
   const router = useRouter()
   const [busy, setBusy] = useState('')
   const [message, setMessage] = useState('')
-  const [siteLabel, setSiteLabel] = useState(() => eventPublicHostLabel(event.slug))
-  const [stdUrl, setStdUrl] = useState(() => eventPublicUrl(event.slug, '/std'))
-  const [inviteUrl, setInviteUrl] = useState(() => eventPublicUrl(event.slug, '/invite'))
+  const siteLabel = eventPublicHostLabel(event.slug)
+  const stdUrl = eventPublicUrl(event.slug, '/std')
+  const inviteUrl = eventPublicUrl(event.slug, '/invite')
   const guests = event.guests
   const stats = useMemo(() => {
     const yes = guests.filter((g) => g.status === 'yes').length
@@ -28,13 +28,6 @@ export function EventAdmin({ event }: { event: PlatformEvent }) {
     const invite = guests.filter((g) => g.inviteSentAt).length
     return { yes, no, pending, people, std, invite, total: guests.length }
   }, [guests])
-
-  useEffect(() => {
-    const host = window.location.host
-    setSiteLabel(eventPublicHostLabel(event.slug, { host }))
-    setStdUrl(eventPublicUrl(event.slug, '/std', { host }))
-    setInviteUrl(eventPublicUrl(event.slug, '/invite', { host }))
-  }, [event.slug])
 
   async function send(kind: 'std' | 'invite') {
     setBusy(kind)

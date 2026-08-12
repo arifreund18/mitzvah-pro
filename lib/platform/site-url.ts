@@ -1,5 +1,8 @@
 export const SITE_HOST = process.env.NEXT_PUBLIC_SITE_HOST || 'mitzvah.pro'
 
+/** Hosts that belong to the live BarBeni event, not the studio template. */
+export const BARBENI_SUBDOMAINS = new Set(['beni', 'barbeni', 'bar-beni', 'barbini'])
+
 export const RESERVED_SUBDOMAINS = new Set([
   'www',
   'www2',
@@ -37,10 +40,13 @@ export const RESERVED_SUBDOMAINS = new Set([
   'vercel',
   'next',
   'mitzvah',
-  'barbini',
-  'bar-beni',
   'm',
   'mobile',
+  'en',
+  'pt',
+  'es',
+  'he',
+  ...BARBENI_SUBDOMAINS,
 ])
 
 export function isReservedSlug(slug: string): boolean {
@@ -87,19 +93,30 @@ export function protocolFor(host: string): string {
   return 'https'
 }
 
-export function eventSlugFromHost(host: string): string | null {
+export function subdomainLabelFromHost(host: string): string | null {
   const hostname = hostnameOf(host)
   if (hostname.endsWith('.localhost')) {
     const slug = hostname.slice(0, -'.localhost'.length)
-    if (!slug || slug.includes('.') || isReservedSlug(slug)) return null
+    if (!slug || slug.includes('.')) return null
     return slug
   }
   if (hostname.endsWith(`.${SITE_HOST}`)) {
     const slug = hostname.slice(0, -(SITE_HOST.length + 1))
-    if (!slug || slug.includes('.') || isReservedSlug(slug)) return null
+    if (!slug || slug.includes('.')) return null
     return slug
   }
   return null
+}
+
+export function eventSlugFromHost(host: string): string | null {
+  const slug = subdomainLabelFromHost(host)
+  if (!slug || isReservedSlug(slug)) return null
+  return slug
+}
+
+export function isBarBeniSubdomain(host: string): boolean {
+  const slug = subdomainLabelFromHost(host)
+  return !!slug && BARBENI_SUBDOMAINS.has(slug)
 }
 
 export function supportsEventSubdomain(host: string): boolean {
@@ -128,7 +145,7 @@ export function eventPublicUrl(slug: string, path = '', opts?: { host?: string }
   const suffix = !rawPath || rawPath === '/' ? '' : rawPath.startsWith('/') ? rawPath : `/${rawPath}`
   const proto = protocolFor(host)
 
-  if (!supportsEventSubdomain(host)) {
+  if (!supportsEventSubdomain(host) || isReservedSlug(slug)) {
     return `${proto}://${host}/e/${slug}${suffix}${hash}`
   }
 
