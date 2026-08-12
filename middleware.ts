@@ -17,15 +17,12 @@ function barBeniOrigin(): string | null {
   return process.env.BAR_BENI_ORIGIN?.replace(/\/$/, '') ?? null
 }
 
-/** Paths that belong to the event app (bar-beni), not the Mitzvah.pro landing. */
-function barBeniPublicPath(pathname: string): string | null {
-  if (pathname.startsWith('/admin')) return `/BarBeni${pathname}`
-
+/** Paths of the separate bar-beni app, proxied under /BarBeni. Never /admin on the apex. */
+function barBeniEventPath(pathname: string): string | null {
   const eventPage = pathname.match(
     /^\/(en|pt)\/(invite|rsvp|card|std|privacy|terms)(\/|$)/,
   )
   if (eventPage) return `/BarBeni${pathname}`
-
   return null
 }
 
@@ -93,7 +90,7 @@ export default function middleware(request: NextRequest) {
     return NextResponse.next()
   }
 
-  const barBeniPath = barBeniPublicPath(pathname)
+  const barBeniPath = barBeniEventPath(pathname)
   if (barBeniPath) {
     const url = request.nextUrl.clone()
     url.pathname = barBeniPath
@@ -103,7 +100,7 @@ export default function middleware(request: NextRequest) {
   if (pathname === '/BarBeni' || pathname.startsWith('/BarBeni/')) {
     const origin = barBeniOrigin()
     if (!origin) {
-      return new NextResponse('BAR_BENI_ORIGIN não configurado', { status: 502 })
+      return new NextResponse('BAR_BENI_ORIGIN não configurado (repo bar-beni)', { status: 502 })
     }
     const target = new URL(`${pathname}${request.nextUrl.search}`, origin)
     return NextResponse.rewrite(target)
@@ -135,8 +132,6 @@ export const config = {
     '/std/:path*',
     '/invite',
     '/invite/:path*',
-    '/admin',
-    '/admin/:path*',
     '/BarBeni',
     '/BarBeni/:path*',
     '/api/:path*',

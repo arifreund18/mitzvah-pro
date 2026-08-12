@@ -55,7 +55,7 @@ export function EventAdmin({ event }: { event: PlatformEvent }) {
 
   return (
     <div>
-      <p className="text-xs uppercase tracking-[0.3em] text-cyan-300/80">Dashboard do evento · BarBeni</p>
+      <p className="text-xs uppercase tracking-[0.3em] text-cyan-300/80">Dashboard do evento</p>
       <h1 className="font-display mt-2 text-4xl">{event.config.basics.honoreeName || 'Evento'}</h1>
       <p className="mt-2 text-white/50">
         Família {event.config.basics.familyName || '—'} · {siteLabel}

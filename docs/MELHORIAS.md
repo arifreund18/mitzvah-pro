@@ -16,7 +16,7 @@ Atualizado em: 2026-08-12
 | **P0** | Publish do site do evento | ✅ `{slug}.mitzvah.pro` (local `{slug}.localhost`) |
 | **P0** | RSVP público + lista de convidados | ✅ site + dashboard do evento |
 | **P0** | Emails STD e convite | ✅ templates + envio no dashboard (Resend ou marca local) |
-| **P0** | Dashboard do evento (estilo Bar-Beni admin) | ✅ `/dashboard/events/[id]` |
+| **P0** | Dashboard do evento (studio mitzvah-pro) | ✅ `/dashboard/events/[id]` |
 | **P1** | Inventário fiel do repo `bar-beni` (paridade 1:1) | ⏳ pendente (template inspirado) |
 | **P1** | Multi-tenant (orgs, papéis, isolamento) | ⏳ senha única de studio |
 | **P1** | Preview token / subdomain `*.mitzvah.pro` | ✅ `{slug}.mitzvah.pro`; path `/e/slug` redireciona |
@@ -29,7 +29,7 @@ Atualizado em: 2026-08-12
 | **P2** | i18n completo do conteúdo do evento (N idiomas) | ⏳ idioma/RTL do site; textos únicos |
 | **P2** | Unificar APIs de contato | ⏳ |
 
-**Como usar a versão local:** `/dashboard/login` (senha `mitzvah`) → Novo evento → wizard. O site atualiza à direita. Save the Date e convite são emails (preview no wizard; envio no dashboard do evento). Publicar abre `{slug}.localhost:3000` (produção: `{slug}.mitzvah.pro`). Landing EN: `/` e `/en`. O BarBeni legado permanece em `/BarBeni/en`. Demo do studio: `/e/beni`.
+**Como usar a versão local:** `/dashboard/login` (senha `mitzvah`) → Novo evento → wizard. Publicar abre `{slug}.localhost:3000`. Landing: `/` e `/en`. Evento Beni (outro repo): `/BarBeni/en`. Admin Beni: `/BarBeni/admin/dashboard`. Demo do studio: `/e/beni`. **Não existe** `/admin` no apex.
 
 ---
 
@@ -59,12 +59,23 @@ Atualizado em: 2026-08-12
 
 ## 1. Contexto atual (Fase 1)
 
-Hoje o repo `mitzvah-pro` é uma **casca de plataforma**:
+### Dois repositórios
+
+| | **mitzvah-pro** (este repo) | **bar-beni** (outro repo) |
+|--|-----------------------------|---------------------------|
+| Papel | Plataforma: landing + studio de eventos novos | Um evento: site e admin do Beni |
+| Site público | `{slug}.mitzvah.pro` | `https://mitzvah.pro/BarBeni/en` |
+| Painel | `/dashboard` | `/BarBeni/admin/dashboard` |
+| Código | este repositório | repositório `bar-beni`, proxied em `/BarBeni/*` |
+
+`https://mitzvah.pro/admin` **não existe**. O admin do BarBeni é só `https://mitzvah.pro/BarBeni/admin/dashboard`.
+
+Hoje o repo `mitzvah-pro` é landing + studio local + **proxy** para o app `bar-beni`:
 
 | Capacidade | Estado |
 |------------|--------|
 | Landing comercial multilíngue (`en`/`pt`/`es`/`he`) | ✅ |
-| Proxy para um evento BarBeni (`BAR_BENI_ORIGIN`) | ✅ (origem única) |
+| Proxy `/BarBeni/*` → `BAR_BENI_ORIGIN` (repo `bar-beni`) | ✅ (origem única) |
 | Formulário de contato (vendas/boutique) | ✅ |
 | Dashboard multi-evento | ❌ |
 | Auth / contas | ❌ |
@@ -73,23 +84,25 @@ Hoje o repo `mitzvah-pro` é uma **casca de plataforma**:
 | Domínios/subdomínios por família | ❌ (só copy de pricing) |
 | Persistência (DB / storage) | ❌ |
 
-**Implicação:** BarBeni é o “produto de evento” real (STD, convite, RSVP, admin de convidados), mas está **fora** deste repo, acessível via rewrite. Qualquer dashboard/wizard precisa decidir se:
+**Implicação:** o produto de evento “Beni” (STD, convite, RSVP, admin de convidados) está **no repo `bar-beni`**, não neste. O studio em `/dashboard` é da plataforma e não substitui `/BarBeni/admin/dashboard`.
+
+Qualquer evolução precisa decidir se:
 
 - **A)** evolui o `bar-beni` para multi-tenant + template + wizard, e o `mitzvah-pro` vira painel + router; ou
 - **B)** absorve/extraí o runtime de evento para dentro de `mitzvah-pro`; ou
 - **C)** cria um terceiro serviço “event-runtime” e ambos os frontends falam com ele.
 
-**Recomendação:** **A + extração gradual** — tratar BarBeni como **Template v1** (código + schema de config), e construir em `mitzvah-pro` o **Control Plane** (auth, dashboard, wizard, billing futuro). O runtime de evento continua no app derivado do BarBeni até estabilizar o schema.
+**Recomendação:** **A + extração gradual** — tratar o código do BarBeni como **Template v1**, e construir em `mitzvah-pro` o **Control Plane** (auth, dashboard, wizard, billing futuro). O evento Beni continua no app `bar-beni` até estabilizar o schema.
 
-Rotas já reservadas (não colidir):
+Rotas (não colidir os dois repos):
 
-- `/admin`, `/admin/*` → BarBeni admin de convidados (`/BarBeni/admin`)
-- `/en/(invite|rsvp|card|std|privacy|terms)` → BarBeni (links antigos de email)
-- `/pt/(invite|rsvp|card|std|privacy|terms)` → BarBeni
-- `/BarBeni/*` → rewrite upstream
-- `/en` → landing Mitzvah.pro (não é BarBeni)
-
-Usar para o painel da plataforma: `/dashboard`, `/studio`, `/wizard`, `/login` (nunca `/admin` na plataforma).
+- `/` `/en` `/pt` `/es` `/he` — landing **mitzvah-pro**
+- `/dashboard` — studio **mitzvah-pro** (nunca usar `/admin` neste repo)
+- `/BarBeni/en` — site do evento **bar-beni**
+- `/BarBeni/admin/dashboard` — admin de convidados **bar-beni**
+- `/BarBeni/*` — rewrite para `BAR_BENI_ORIGIN`
+- `/en/(invite|rsvp|card|std|privacy|terms)` e o equivalente em `/pt/` — atalhos antigos de email → `/BarBeni/...`
+- **`/admin` no apex — não existe** (não redireciona para o BarBeni)
 
 ---
 
@@ -138,7 +151,7 @@ Uma família (ou a equipe Mitzvah) consegue, sem deploy manual:
 1. **Config over code** — customizações do cliente vivem em dados (JSON/DB), não em forks do repo.
 2. **BarBeni como source of truth do template** — inventariar campos reais do Beni antes de fechar o wizard.
 3. **Preview ≠ Publish** — rascunho sempre; publicar é ação explícita.
-4. **Sem colisão de rotas** — painel em `/dashboard/*`; runtime de evento em `{slug}.mitzvah.pro` (path `/e/[slug]` só como rewrite interno).
+4. **Sem colisão de rotas** — studio em `/dashboard/*` (mitzvah-pro); evento Beni em `/BarBeni/*` (bar-beni, admin em `/BarBeni/admin/dashboard`); eventos novos em `{slug}.mitzvah.pro`. **Não existe** `/admin` no apex.
 5. **Uma origem de contato** — unificar form local vs `/BarBeni/api/platform/contact`.
 6. **Segurança first** — upload de mídia com limites; sem XSS em rich text; RLS/tenant isolation.
 7. **Copy da landing** — hoje diz “você não monta sozinho”; atualizar quando o wizard for GA.
@@ -233,8 +246,8 @@ WizardProgress
 - Duplicate event (clonar config do template + overrides)  
 - Transfer org (futuro)
 
-### Path sugerido
-`/dashboard` — **não** usar `/admin` (já proxy do BarBeni).
+### Path
+`/dashboard` — studio **mitzvah-pro**. O admin do evento Beni é `/BarBeni/admin/dashboard` no repo `bar-beni`. Não criar `/admin` neste domínio.
 
 ---
 
@@ -372,7 +385,7 @@ Requisitos:
 ### Mudanças no middleware (`mitzvah-pro`)
 1. Host-based routing: `{slug}.mitzvah.pro` (e `{slug}.localhost` no dev) faz rewrite para `/e/{slug}`  
 2. Apex `/e/{slug}` redireciona 308 para o subdomínio (exceto preview Vercel, IP, e slugs reservados)  
-3. **BarBeni legado inalterado:** `/BarBeni/en`, `/BarBeni/admin`; `beni.mitzvah.pro` redireciona para `/BarBeni/en`. `/en` é a landing Mitzvah.pro.  
+3. **BarBeni (repo `bar-beni`) inalterado:** site em `/BarBeni/en`; admin em `/BarBeni/admin/dashboard`. `beni.mitzvah.pro` redireciona para `/BarBeni/en`. `/en` é a landing mitzvah-pro. **`/admin` no apex não existe.**  
 4. Dashboard/auth **excluídos** do proxy BarBeni; `/dashboard` num subdomínio de evento volta ao apex  
 
 ### DNS
@@ -447,7 +460,8 @@ Requisitos:
 | Risco | Impacto | Mitigação |
 |-------|---------|-----------|
 | Schema incompleto do BarBeni | Wizard incompleto | Fase 0 inventário obrigatório |
-| Colisão `/admin` e `/en` | Quebra evento legado | Paths novos; feature flags |
+| Confundir `/dashboard` (mitzvah-pro) com `/BarBeni/admin/dashboard` (bar-beni) | Ops no painel errado | Documentar os dois repos; `/admin` no apex não existe |
+| Colisão `/en` com o site Beni | Landing vira evento | `/en` = landing; Beni só em `/BarBeni/en` |
 | Escopo virar page builder | Atraso | Wizard form-based; builder depois |
 | Uploads grandes | Custo/abuse | Quotas por plano |
 | Single `BAR_BENI_ORIGIN` | Bloqueia multi-evento | Runtime multi-tenant o quanto antes |
@@ -498,7 +512,8 @@ Requisitos:
 
 | Data | Mudança |
 |------|---------|
-| 2026-08-12 | `/en` volta a ser a landing Mitzvah.pro; BarBeni fica em `/BarBeni/en`; `/admin` é o admin do BarBeni |
+| 2026-08-12 | `/admin` no apex removido; admin BarBeni só em `/BarBeni/admin/dashboard`; docs separam os dois repos |
+| 2026-08-12 | `/en` volta a ser a landing Mitzvah.pro; BarBeni fica em `/BarBeni/en` |
 | 2026-08-12 | BarBeni legado permanece em `/BarBeni/en`; slug `beni` não vira subdomínio |
 | 2026-08-12 | Sites publicados em `{slug}.mitzvah.pro` (local `{slug}.localhost`); `/e/slug` redireciona |
 | 2026-08-12 | Template BarBeni: site sem STD/convite; emails STD+convite; dashboard do evento com envio e RSVP |
