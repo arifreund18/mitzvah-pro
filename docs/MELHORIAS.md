@@ -29,7 +29,7 @@ Atualizado em: 2026-08-12
 | **P2** | i18n completo do conteúdo do evento (N idiomas) | ⏳ idioma/RTL do site; textos únicos |
 | **P2** | Unificar APIs de contato | ⏳ |
 
-**Como usar a versão local:** `/dashboard/login` (senha `mitzvah`) → Novo evento → wizard. O site atualiza à direita. Save the Date e convite são emails (preview no wizard; envio no dashboard do evento). Publicar abre `{slug}.localhost:3000` (produção: `{slug}.mitzvah.pro`). O BarBeni legado permanece em `/en` e `/BarBeni`. Demo do studio: `/e/beni`.
+**Como usar a versão local:** `/dashboard/login` (senha `mitzvah`) → Novo evento → wizard. O site atualiza à direita. Save the Date e convite são emails (preview no wizard; envio no dashboard do evento). Publicar abre `{slug}.localhost:3000` (produção: `{slug}.mitzvah.pro`). Landing EN: `/` e `/en`. O BarBeni legado permanece em `/BarBeni/en`. Demo do studio: `/e/beni`.
 
 ---
 
@@ -83,10 +83,11 @@ Hoje o repo `mitzvah-pro` é uma **casca de plataforma**:
 
 Rotas já reservadas (não colidir):
 
-- `/admin`, `/admin/*` → BarBeni
-- `/en`, `/en/*` → BarBeni
+- `/admin`, `/admin/*` → BarBeni admin de convidados (`/BarBeni/admin`)
+- `/en/(invite|rsvp|card|std|privacy|terms)` → BarBeni (links antigos de email)
 - `/pt/(invite|rsvp|card|std|privacy|terms)` → BarBeni
 - `/BarBeni/*` → rewrite upstream
+- `/en` → landing Mitzvah.pro (não é BarBeni)
 
 Usar para o painel da plataforma: `/dashboard`, `/studio`, `/wizard`, `/login` (nunca `/admin` na plataforma).
 
@@ -371,7 +372,7 @@ Requisitos:
 ### Mudanças no middleware (`mitzvah-pro`)
 1. Host-based routing: `{slug}.mitzvah.pro` (e `{slug}.localhost` no dev) faz rewrite para `/e/{slug}`  
 2. Apex `/e/{slug}` redireciona 308 para o subdomínio (exceto preview Vercel, IP, e slugs reservados)  
-3. **BarBeni legado inalterado:** `/en`, `/admin`, `/BarBeni/*` no apex; `beni.mitzvah.pro` redireciona para `/en`  
+3. **BarBeni legado inalterado:** `/BarBeni/en`, `/BarBeni/admin`; `beni.mitzvah.pro` redireciona para `/BarBeni/en`. `/en` é a landing Mitzvah.pro.  
 4. Dashboard/auth **excluídos** do proxy BarBeni; `/dashboard` num subdomínio de evento volta ao apex  
 
 ### DNS
@@ -497,7 +498,8 @@ Requisitos:
 
 | Data | Mudança |
 |------|---------|
-| 2026-08-12 | BarBeni legado permanece em `/en` e `/BarBeni`; slug `beni` não vira subdomínio |
+| 2026-08-12 | `/en` volta a ser a landing Mitzvah.pro; BarBeni fica em `/BarBeni/en`; `/admin` é o admin do BarBeni |
+| 2026-08-12 | BarBeni legado permanece em `/BarBeni/en`; slug `beni` não vira subdomínio |
 | 2026-08-12 | Sites publicados em `{slug}.mitzvah.pro` (local `{slug}.localhost`); `/e/slug` redireciona |
 | 2026-08-12 | Template BarBeni: site sem STD/convite; emails STD+convite; dashboard do evento com envio e RSVP |
 | 2026-08-12 | Versão local P0: dashboard, template BarBeni, wizard com preview ao vivo, publish `/e/[slug]`, RSVP |

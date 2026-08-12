@@ -17,18 +17,14 @@ function barBeniOrigin(): string | null {
   return process.env.BAR_BENI_ORIGIN?.replace(/\/$/, '') ?? null
 }
 
-/** Paths that belong to the event app (bar-beni), not the landing. */
+/** Paths that belong to the event app (bar-beni), not the Mitzvah.pro landing. */
 function barBeniPublicPath(pathname: string): string | null {
   if (pathname.startsWith('/admin')) return `/BarBeni${pathname}`
 
-  if (pathname === '/en' || pathname.startsWith('/en/')) {
-    return `/BarBeni${pathname}`
-  }
-
-  const ptEvent = pathname.match(
-    /^\/pt\/(invite|rsvp|card|std|privacy|terms)(\/|$)/,
+  const eventPage = pathname.match(
+    /^\/(en|pt)\/(invite|rsvp|card|std|privacy|terms)(\/|$)/,
   )
-  if (ptEvent) return `/BarBeni${pathname}`
+  if (eventPage) return `/BarBeni${pathname}`
 
   return null
 }
@@ -48,7 +44,7 @@ export default function middleware(request: NextRequest) {
   const host = requestHost(request)
 
   if (isBarBeniSubdomain(host)) {
-    const path = pathname === '/' || pathname === '' ? '/en' : pathname
+    const path = pathname === '/' || pathname === '' ? '/BarBeni/en' : pathname
     const dest = `${protocolFor(host)}://${apexHost(host)}${path}${request.nextUrl.search}`
     return NextResponse.redirect(dest)
   }
