@@ -1,6 +1,7 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { BCP47, formatShortDate } from '@/lib/platform/copy'
 import type { EventLocale } from '@/lib/platform/types'
 import { cn } from '@/lib/utils'
@@ -29,22 +30,54 @@ export function DatePicker({
   placeholder: string
 }) {
   const [open, setOpen] = useState(false)
-  const root = useRef<HTMLDivElement>(null)
+  const [pos, setPos] = useState({ top: 0, left: 0, width: 0 })
+  const trigger = useRef<HTMLButtonElement>(null)
+  const pop = useRef<HTMLDivElement>(null)
   const selected = value ? parseIso(value) : null
   const [cursor, setCursor] = useState(() => selected ?? new Date())
 
+  function place() {
+    const el = trigger.current
+    if (!el) return
+    const rect = el.getBoundingClientRect()
+    setPos({ top: rect.bottom + 8, left: rect.left, width: Math.max(rect.width, 280) })
+  }
+
+  function toggle() {
+    if (!open && selected) {
+      setCursor(new Date(selected.getFullYear(), selected.getMonth(), 1))
+    }
+    setOpen((v) => !v)
+  }
+
+  useLayoutEffect(() => {
+    if (!open) return
+    place()
+    function onScroll() {
+      place()
+    }
+    window.addEventListener('scroll', onScroll, true)
+    window.addEventListener('resize', onScroll)
+    return () => {
+      window.removeEventListener('scroll', onScroll, true)
+      window.removeEventListener('resize', onScroll)
+    }
+  }, [open])
+
   useEffect(() => {
+    if (!open) return
     function onDoc(e: MouseEvent) {
-      if (!root.current?.contains(e.target as Node)) setOpen(false)
+      const target = e.target as Node
+      if (trigger.current?.contains(target) || pop.current?.contains(target)) return
+      setOpen(false)
     }
     document.addEventListener('mousedown', onDoc)
     return () => document.removeEventListener('mousedown', onDoc)
-  }, [])
+  }, [open])
 
   const year = cursor.getFullYear()
   const month = cursor.getMonth()
-  const first = new Date(year, month, 1)
-  const startWeekday = (first.getDay() + 6) % 7 // Monday-first
+  const startWeekday = (new Date(year, month, 1).getDay() + 6) % 7
   const daysInMonth = new Date(year, month + 1, 0).getDate()
   const bcp = BCP47[locale]
   const monthLabel = new Intl.DateTimeFormat(bcp, { month: 'long', year: 'numeric' }).format(
@@ -53,33 +86,18 @@ export function DatePicker({
   const weekdays = Array.from({ length: 7 }, (_, i) =>
     new Intl.DateTimeFormat(bcp, { weekday: 'short' }).format(new Date(2021, 10, i + 1)),
   )
-
   const cells: (number | null)[] = [
     ...Array.from({ length: startWeekday }, () => null),
     ...Array.from({ length: daysInMonth }, (_, i) => i + 1),
   ]
 
-  return (
-    <div ref={root} className="relative">
-      <button
-        type="button"
-        onClick={() => {
-          if (!open && selected) {
-            setCursor(new Date(selected.getFullYear(), selected.getMonth(), 1))
-          }
-          setOpen((v) => !v)
-        }}
-        className="flex w-full items-center justify-between rounded-xl border border-white/15 bg-white/5 px-3 py-2.5 text-start text-sm text-white outline-none focus:border-cyan-400/60"
-      >
-        <span className={value ? 'text-white' : 'text-white/35'}>
-          {value ? formatShortDate(value, locale) : placeholder}
-        </span>
-        <span aria-hidden className="text-cyan-300">
-          📅
-        </span>
-      </button>
-      {open ? (
-        <div className="absolute z-30 mt-2 w-full min-w-[280px] rounded-2xl border border-white/15 bg-[#12182a] p-3 shadow-2xl">
+  const calendar = open
+    ? createPortal(
+        <div
+          ref={pop}
+          style={{ top: pos.top, left: pos.left, width: pos.width, position: 'fixed' }}
+          className="z-[80] rounded-2xl border border-white/20 bg-[#12182a] p-3 text-white shadow-2xl"
+        >
           <div className="mb-3 flex items-center justify-between text-sm">
             <button
               type="button"
@@ -116,7 +134,7 @@ export function DatePicker({
                     setOpen(false)
                   }}
                   className={cn(
-                    'h-9 rounded-lg text-sm hover:bg-white/10',
+                    'h-9 rounded-lg text-sm text-white hover:bg-white/10',
                     active && 'bg-cyan-400 font-semibold text-[#0b1020] hover:bg-cyan-300',
                   )}
                 >
@@ -125,8 +143,27 @@ export function DatePicker({
               )
             })}
           </div>
-        </div>
-      ) : null}
+        </div>,
+        document.body,
+      )
+    : null
+
+  return (
+    <div>
+      <button
+        ref={trigger}
+        type="button"
+        onClick={toggle}
+        className="flex w-full cursor-pointer items-center justify-between rounded-xl border border-white/15 bg-[#12182a] px-3 py-3 text-start text-sm text-white outline-none hover:border-cyan-400/50 focus:border-cyan-400/60"
+      >
+        <span className={value ? 'text-white' : 'text-white/45'}>
+          {value ? formatShortDate(value, locale) : placeholder}
+        </span>
+        <span aria-hidden className="text-cyan-300">
+          📅
+        </span>
+      </button>
+      {calendar}
     </div>
   )
 }

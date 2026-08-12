@@ -1,7 +1,6 @@
 'use client'
 
 import { DatePicker } from '@/components/wizard/DatePicker'
-import { DarkSelect } from '@/components/wizard/DarkSelect'
 import { Field, TextArea, TextInput } from '@/components/wizard/fields'
 import { applyGeneratedPatch, typeLabel, wizardUi } from '@/lib/platform/copy'
 import { uid } from '@/lib/platform/ids'
@@ -10,7 +9,6 @@ import {
   EVENT_TYPES,
   THEMES,
   type EventConfig,
-  type EventType,
   type Guest,
 } from '@/lib/platform/types'
 import { reviewIssues } from '@/lib/platform/wizard'
@@ -72,19 +70,27 @@ export function WizardStepForm({
           </div>
         </Field>
         <Field label={ui.type}>
-          <DarkSelect
-            value={config.basics.type}
-            onChange={(value) =>
-              patch((draft) => ({
-                ...draft,
-                basics: { ...draft.basics, type: value as EventType },
-              }))
-            }
-            options={EVENT_TYPES.map((type) => ({
-              value: type,
-              label: typeLabel(type, config.locales.default),
-            }))}
-          />
+          <div className="grid grid-cols-2 gap-2">
+            {EVENT_TYPES.map((type) => (
+              <button
+                key={type}
+                type="button"
+                onClick={() =>
+                  patch((draft) => ({
+                    ...draft,
+                    basics: { ...draft.basics, type },
+                  }))
+                }
+                className={`rounded-xl border px-3 py-3 text-start text-sm ${
+                  config.basics.type === type
+                    ? 'border-cyan-400 bg-cyan-400/10 text-cyan-100'
+                    : 'border-white/15 bg-[#12182a] text-white hover:border-white/30'
+                }`}
+              >
+                {typeLabel(type, config.locales.default)}
+              </button>
+            ))}
+          </div>
         </Field>
         <Field label={ui.honoree}>
           <TextInput
@@ -109,7 +115,7 @@ export function WizardStepForm({
             }
           />
         </Field>
-        <Field label={ui.date} hint={ui.pickDate}>
+        <Field label={ui.date}>
           <DatePicker
             value={config.basics.date}
             locale={config.locales.default}
@@ -519,7 +525,7 @@ export function WizardStepForm({
   if (step === 'rsvp') {
     return (
       <div className="space-y-4">
-        <Field label={ui.deadline} hint={ui.pickDate}>
+        <Field label={ui.deadline}>
           <DatePicker
             value={config.rsvp.deadline}
             locale={config.locales.default}

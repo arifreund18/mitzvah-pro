@@ -38,3 +38,9 @@ body {
 [lang='he'] .font-display {
   font-family: var(--font-hebrew), system-ui, sans-serif;
 }
+
+select,
+select option {
+  background-color: #12182a;
+  color: #fff;
+}

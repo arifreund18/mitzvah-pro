@@ -12,11 +12,11 @@ export function Field({
   children: React.ReactNode
 }) {
   return (
-    <label className="block">
+    <div className="block">
       <span className="text-sm font-medium text-white/80">{label}</span>
       {hint ? <span className="mt-0.5 block text-xs text-white/40">{hint}</span> : null}
       <div className="mt-1.5">{children}</div>
-    </label>
+    </div>
   )
 }
 
