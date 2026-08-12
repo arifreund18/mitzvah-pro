@@ -2,6 +2,7 @@ import { createDefaultConfig } from './defaults'
 import { uid } from './ids'
 import type { EventConfig, Guest, Hotel, LocalPlace, PlaceCategory, PlatformEvent } from './types'
 import { PLACE_CATEGORIES } from './types'
+import { resolveLocales } from './locales'
 
 function asPlaceCategory(value: string | undefined): PlaceCategory {
   if (value && (PLACE_CATEGORIES as readonly string[]).includes(value)) return value as PlaceCategory
@@ -54,7 +55,7 @@ export function normalizeConfig(raw: EventConfig | null | undefined): EventConfi
     ...base,
     ...raw,
     basics: { ...base.basics, ...raw.basics },
-    locales: { ...base.locales, ...raw.locales },
+    locales: resolveLocales(raw.locales?.enabled, raw.locales?.default),
     branding: { ...base.branding, ...raw.branding },
     story: { ...base.story, ...raw.story, honoreeBio: raw.story?.honoreeBio || '' },
     schedule: { items: raw.schedule?.items?.length ? raw.schedule.items : base.schedule.items },

@@ -9,12 +9,17 @@ export function createDefaultConfig(partial?: {
   familyName?: string
   type?: EventType
   locale?: EventLocale
+  enabled?: EventLocale[]
   slug?: string
 }): EventConfig {
   const honoreeName = partial?.honoreeName?.trim() || ''
   const familyName = partial?.familyName?.trim() || ''
   const type = partial?.type ?? 'bar'
-  const locale = partial?.locale ?? 'pt'
+  const enabled = (partial?.enabled?.length ? partial.enabled : [partial?.locale ?? 'pt']).filter(
+    (locale, index, list) => list.indexOf(locale) === index,
+  )
+  const locale =
+    partial?.locale && enabled.includes(partial.locale) ? partial.locale : enabled[0] ?? 'pt'
   const slug = partial?.slug || ''
   const copy = generatedCopy(locale, type, honoreeName, familyName)
 
@@ -29,7 +34,7 @@ export function createDefaultConfig(partial?: {
     },
     locales: {
       default: locale,
-      enabled: locale === 'en' ? ['en', 'pt'] : [locale, 'en'],
+      enabled,
     },
     branding: {
       theme: 'navy',
@@ -111,6 +116,7 @@ export function createSeedEvent(): PlatformEvent {
     familyName: 'Freund',
     type: 'bar',
     locale: 'pt',
+    enabled: ['pt', 'en'],
     slug: 'beni',
   })
   config.basics.date = '2026-11-14'

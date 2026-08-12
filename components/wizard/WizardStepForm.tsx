@@ -10,8 +10,10 @@ import {
   PLACE_CATEGORIES,
   THEMES,
   type EventConfig,
+  type EventLocale,
   type Guest,
 } from '@/lib/platform/types'
+import { LOCALE_OPTIONS } from '@/lib/platform/locales'
 import { reviewIssues } from '@/lib/platform/wizard'
 
 function readFileAsDataUrl(file: File, tooBig: string): Promise<string> {
@@ -77,8 +79,33 @@ export const WizardStepForm = forwardRef<
   }))
 
   if (step === 'basics') {
+    const wizardLocales = (config.locales.enabled.length ? config.locales.enabled : LOCALE_OPTIONS.map((item) => item.value))
     return (
       <div className="space-y-5">
+        <Field label={ui.language} hint={ui.languageHint}>
+          <div className="grid grid-cols-2 gap-2">
+            {LOCALE_OPTIONS.filter((option) => wizardLocales.includes(option.value)).map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                onClick={() =>
+                  patch((draft) => ({
+                    ...draft,
+                    locales: { ...draft.locales, default: option.value as EventLocale },
+                  }))
+                }
+                className={`rounded-xl border px-3 py-3 text-start text-sm ${
+                  config.locales.default === option.value
+                    ? 'border-cyan-400 bg-cyan-400/10 text-cyan-100'
+                    : 'border-white/15 bg-white/5 text-white/80'
+                }`}
+              >
+                <span className="block font-medium">{option.label}</span>
+                <span className="text-xs text-white/40">{option.hint}</span>
+              </button>
+            ))}
+          </div>
+        </Field>
         <Field label={ui.type}>
           <div className="grid grid-cols-2 gap-2">
             {EVENT_TYPES.map((type) => (

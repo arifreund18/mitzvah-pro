@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { requireSession } from '@/lib/platform/session'
+import { resolveLocales } from '@/lib/platform/locales'
 import { createEvent, listEvents } from '@/lib/platform/store'
 
 export async function GET() {
@@ -16,19 +17,19 @@ export async function POST(request: Request) {
     honoreeName?: string
     familyName?: string
     locale?: string
+    enabled?: string[]
   } | null
   const honoreeName = body?.honoreeName?.trim()
   const familyName = body?.familyName?.trim()
-  const locale = ['en', 'pt', 'es', 'he'].includes(body?.locale || '')
-    ? (body?.locale as 'en' | 'pt' | 'es' | 'he')
-    : 'pt'
+  const locales = resolveLocales(body?.enabled, body?.locale)
   if (!honoreeName) {
     return NextResponse.json({ error: 'Informe o nome do celebrante' }, { status: 400 })
   }
   const event = await createEvent({
     honoreeName,
     familyName: familyName || honoreeName,
-    locale,
+    locale: locales.default,
+    enabled: locales.enabled,
   })
   return NextResponse.json({ event })
 }

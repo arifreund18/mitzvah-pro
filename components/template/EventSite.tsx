@@ -1,10 +1,11 @@
-import type { EventConfig, ThemeId, WizardStepId } from '@/lib/platform/types'
+import type { EventConfig, EventLocale, ThemeId, WizardStepId } from '@/lib/platform/types'
 import { formatEventDate, typeLabel, wizardUi } from '@/lib/platform/copy'
 import { templateUi } from '@/lib/platform/template-copy'
 import { googleCalendarUrl } from '@/lib/platform/calendar'
 import { EventCountdown } from '@/components/template/EventCountdown'
 import { EventFaq } from '@/components/template/EventFaq'
 import { EventPlaces } from '@/components/template/EventPlaces'
+import { EventSiteLocales } from '@/components/template/EventSiteLocales'
 
 export const THEME_PRESETS: Record<
   ThemeId,
@@ -48,14 +49,18 @@ export function EventSite({
   config,
   highlight,
   mode = 'live',
+  displayLocale,
+  slug,
 }: {
   config: EventConfig
   highlight?: WizardStepId | string
   mode?: 'live' | 'preview'
+  displayLocale?: EventLocale
+  slug?: string
 }) {
   const theme = THEME_PRESETS[config.branding.theme]
   const accent = config.branding.accentColor || '#22d3ee'
-  const locale = config.locales.default
+  const locale = displayLocale || config.locales.default
   const site = wizardUi(locale).site
   const ui = templateUi(locale)
   const dir = locale === 'he' ? 'rtl' : 'ltr'
@@ -97,13 +102,23 @@ export function EventSite({
       style={{ background: theme.bg, color: theme.text, ['--accent' as string]: accent }}
     >
       <nav className="sticky top-0 z-20 hidden border-b border-white/10 bg-[inherit]/90 px-4 py-3 text-xs uppercase tracking-widest backdrop-blur md:block">
-        <div className="mx-auto flex max-w-5xl flex-wrap justify-center gap-4 opacity-80">
+        <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-center gap-4 opacity-80">
           {nav.map((item) => (
             <a key={item.href} href={item.href} className="hover:opacity-100">
               {item.label}
             </a>
           ))}
         </div>
+        {mode === 'live' && slug ? (
+          <div className="mt-2">
+            <EventSiteLocales
+              slug={slug}
+              enabled={config.locales.enabled}
+              current={locale}
+              accent={accent}
+            />
+          </div>
+        ) : null}
       </nav>
 
       <section
@@ -136,6 +151,16 @@ export function EventSite({
         <p className="relative text-xs uppercase tracking-[0.35em]" style={{ color: accent }}>
           ✦ {ui.joinUs} ✦
         </p>
+        {mode === 'live' && slug ? (
+          <div className="relative mt-4 md:hidden">
+            <EventSiteLocales
+              slug={slug}
+              enabled={config.locales.enabled}
+              current={locale}
+              accent={accent}
+            />
+          </div>
+        ) : null}
         <h1 className="font-display relative mt-4 text-4xl font-bold md:text-6xl">
           {config.story.headline || `${type} · ${name}`}
         </h1>

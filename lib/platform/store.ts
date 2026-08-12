@@ -114,6 +114,7 @@ export async function createEvent(input: {
   honoreeName: string
   familyName: string
   locale?: EventLocale
+  enabled?: EventLocale[]
 }): Promise<PlatformEvent> {
   return withLock(async () => {
     const store = await loadStore()
@@ -126,6 +127,7 @@ export async function createEvent(input: {
       honoreeName: input.honoreeName,
       familyName: input.familyName,
       locale: input.locale,
+      enabled: input.enabled,
       slug,
     })
     const event: PlatformEvent = {

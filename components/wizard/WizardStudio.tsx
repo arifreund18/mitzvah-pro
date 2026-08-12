@@ -5,9 +5,10 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { LivePreview } from '@/components/wizard/LivePreview'
 import { WizardStepForm, type WizardStepFormHandle } from '@/components/wizard/WizardStepForm'
-import { wizardUi } from '@/lib/platform/copy'
+import { applyGeneratedPatch, wizardUi } from '@/lib/platform/copy'
+import { LOCALE_OPTIONS } from '@/lib/platform/locales'
 import { adjacentStep, normalizeWizardStep, reviewIssues, wizardSteps } from '@/lib/platform/wizard'
-import type { EventConfig, Guest, PlatformEvent, WizardStepId } from '@/lib/platform/types'
+import type { EventConfig, EventLocale, Guest, PlatformEvent, WizardStepId } from '@/lib/platform/types'
 import { cn } from '@/lib/utils'
 
 export function WizardStudio({ event }: { event: PlatformEvent }) {
@@ -108,6 +109,32 @@ export function WizardStudio({ event }: { event: PlatformEvent }) {
           </h1>
         </div>
         <div className="flex items-center gap-3 text-xs">
+          {config.locales.enabled.length > 1 ? (
+            <div className="flex rounded-lg bg-white/10 p-1">
+              {LOCALE_OPTIONS.filter((option) => config.locales.enabled.includes(option.value)).map(
+                (option) => (
+                  <button
+                    key={option.value}
+                    type="button"
+                    className={cn(
+                      'rounded-md px-2 py-1',
+                      config.locales.default === option.value && 'bg-cyan-400/20 text-cyan-100',
+                    )}
+                    onClick={() =>
+                      setConfig((current) =>
+                        applyGeneratedPatch(current, (draft) => ({
+                          ...draft,
+                          locales: { ...draft.locales, default: option.value as EventLocale },
+                        })),
+                      )
+                    }
+                  >
+                    {option.value.toUpperCase()}
+                  </button>
+                ),
+              )}
+            </div>
+          ) : null}
           <span
             className={cn(
               'rounded-full px-2 py-1',
