@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import Link from 'next/link'
 import { createTranslator } from 'next-intl'
 import { PlatformContactForm } from '@/components/mitzvah/PlatformContactForm'
 import { PlatformLanguageSwitcher } from '@/components/mitzvah/PlatformLanguageSwitcher'
@@ -248,7 +249,12 @@ export default async function PlatformPage({
           <p>
             © {new Date().getFullYear()} Mitzvah.pro — {t('footer.tagline')}
           </p>
-          <PlatformLanguageSwitcher locale={locale} />
+          <div className="flex items-center gap-4">
+            <Link href="/dashboard" className="hover:text-white">
+              Studio
+            </Link>
+            <PlatformLanguageSwitcher locale={locale} />
+          </div>
         </div>
       </footer>
 

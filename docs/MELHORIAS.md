@@ -1,7 +1,33 @@
 # Melhorias — Mitzvah.pro
 
 Documento vivo de planos e estratégias de produto/engenharia.
-Atualizado em: 2026-08-10
+Atualizado em: 2026-08-12
+
+---
+
+## 0. Lista priorizada (e o que já existe localmente)
+
+| Prioridade | Melhoria | Status local (2026-08-12) |
+|------------|----------|---------------------------|
+| **P0** | Auth simples + dashboard CRUD de eventos | ✅ `/dashboard` |
+| **P0** | Persistência EventConfig (JSON local) | ✅ `data/platform.json` |
+| **P0** | Template BarBeni config-driven | ✅ `components/template/EventSite.tsx` |
+| **P0** | Wizard passo a passo com **preview ao vivo** | ✅ `/dashboard/events/[id]/wizard` |
+| **P0** | Publish do site do evento | ✅ `/e/[slug]` |
+| **P0** | RSVP público + lista de convidados | ✅ `/e/[slug]` + `/dashboard/events/[id]/guests` |
+| **P1** | Inventário fiel do repo `bar-beni` (paridade 1:1) | ⏳ pendente (template inspirado) |
+| **P1** | Multi-tenant (orgs, papéis, isolamento) | ⏳ senha única de studio |
+| **P1** | Preview token / subdomain `*.mitzvah.pro` | ⏳ path local `/e/slug` |
+| **P1** | Import CSV de convidados | ⏳ lista manual no wizard |
+| **P1** | Fluxo boutique assistido (aprovação do cliente) | ⏳ mesmo wizard para ops |
+| **P2** | Domínio custom Signature + SSL | ⏳ |
+| **P2** | Mais templates além do BarBeni | ⏳ contrato único pronto |
+| **P2** | Analytics de RSVP | ⏳ contagem no detalhe |
+| **P2** | Editor visual drag-and-drop | ⏳ fora de escopo |
+| **P2** | i18n completo do conteúdo do evento (N idiomas) | ⏳ idioma/RTL do site; textos únicos |
+| **P2** | Unificar APIs de contato | ⏳ |
+
+**Como usar a versão local:** `/dashboard/login` (senha `mitzvah`) → Novo evento → wizard. O painel direito atualiza na hora. Publicar abre `/e/{slug}`. Evento demo: `/e/beni`.
 
 ---
 
@@ -436,23 +462,24 @@ Requisitos:
 
 ## 18. Backlog priorizado
 
-### P0
-1. Inventário BarBeni → schema  
-2. Auth + dashboard CRUD eventos  
-3. Persistência EventConfig  
-4. Wizard steps obrigatórios + publish subdomain  
+### P0 — feito na versão local (2026-08-12)
+1. Auth studio + dashboard CRUD eventos  
+2. Persistência EventConfig em JSON  
+3. Template BarBeni config-driven + preview ao vivo no wizard  
+4. Publish em `/e/[slug]` + RSVP + convidados  
 
 ### P1
-5. Preview draft  
-6. Admin convidados ligado ao eventId  
+5. Inventário real do repo bar-beni → schema 1:1  
+6. Multi-tenant (orgs / papéis)  
 7. Import CSV convidados  
-8. Fluxo boutique assistido  
+8. Fluxo boutique assistido + aprovação  
+9. Subdomínio `{slug}.mitzvah.pro`  
 
 ### P2
-9. Domínio custom Signature  
-10. Mais templates  
-11. Analytics de RSVP no dashboard  
-12. Editor visual avançado  
+10. Domínio custom Signature  
+11. Mais templates  
+12. Analytics de RSVP no dashboard  
+13. Editor visual avançado  
 
 ---
 
@@ -467,4 +494,5 @@ Requisitos:
 
 | Data | Mudança |
 |------|---------|
+| 2026-08-12 | Versão local P0: dashboard, template BarBeni, wizard com preview ao vivo, publish `/e/[slug]`, RSVP |
 | 2026-08-10 | Criação: épico Dashboard + Template BarBeni + Wizard; issue #3 |

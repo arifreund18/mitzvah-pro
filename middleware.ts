@@ -27,6 +27,14 @@ function barBeniPublicPath(pathname: string): string | null {
 export default function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
+  if (
+    pathname.startsWith('/dashboard') ||
+    pathname.startsWith('/e/') ||
+    pathname.startsWith('/api/platform')
+  ) {
+    return NextResponse.next()
+  }
+
   const barBeniPath = barBeniPublicPath(pathname)
   if (barBeniPath) {
     const url = request.nextUrl.clone()
@@ -61,6 +69,10 @@ export const config = {
     '/es/:path*',
     '/he',
     '/he/:path*',
+    '/dashboard',
+    '/dashboard/:path*',
+    '/e',
+    '/e/:path*',
     '/admin',
     '/admin/:path*',
     '/BarBeni',

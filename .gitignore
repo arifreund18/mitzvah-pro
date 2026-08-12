@@ -34,6 +34,10 @@ yarn-error.log*
 .env*
 !.env.example
 
+# local platform store
+/data/*.json
+
+
 # vercel
 .vercel
 
