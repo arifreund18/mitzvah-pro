@@ -5,7 +5,6 @@ import { Field, TextArea, TextInput } from '@/components/wizard/fields'
 import { applyGeneratedPatch, typeLabel, wizardUi } from '@/lib/platform/copy'
 import { uid } from '@/lib/platform/ids'
 import {
-  EVENT_LOCALES,
   EVENT_TYPES,
   THEMES,
   type EventConfig,
@@ -46,29 +45,6 @@ export function WizardStepForm({
   if (step === 'basics') {
     return (
       <div className="space-y-5">
-        <Field label={ui.language} hint={ui.languageHint}>
-          <div className="grid grid-cols-2 gap-2">
-            {EVENT_LOCALES.map((locale) => (
-              <button
-                key={locale}
-                type="button"
-                onClick={() =>
-                  patch((draft) => ({
-                    ...draft,
-                    locales: { default: locale, enabled: [locale] },
-                  }))
-                }
-                className={`rounded-xl border px-3 py-3 text-sm ${
-                  config.locales.default === locale
-                    ? 'border-cyan-400 bg-cyan-400/10 text-cyan-100'
-                    : 'border-white/15 bg-white/5 text-white/80'
-                }`}
-              >
-                {ui.localeNames[locale]}
-              </button>
-            ))}
-          </div>
-        </Field>
         <Field label={ui.type}>
           <div className="grid grid-cols-2 gap-2">
             {EVENT_TYPES.map((type) => (

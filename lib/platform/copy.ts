@@ -371,7 +371,7 @@ const WIZARD_UI: Record<EventLocale, WizardUi> = {
     imageTooBig: 'Imagem maior que 1.5 MB',
     localeNames: { en: 'English', pt: 'Português', es: 'Español', he: 'עברית' },
     steps: {
-      basics: { title: 'Celebração', subtitle: 'Idioma, quem honramos, quando e onde.' },
+      basics: { title: 'Celebração', subtitle: 'Quem honramos, quando e onde.' },
       branding: { title: 'Visual', subtitle: 'Tema e cores — o preview muda na hora.' },
       story: { title: 'Textos', subtitle: 'Headline, subtítulo e mensagem da família.' },
       schedule: { title: 'Programação', subtitle: 'Cerimônia, recepção e horários.' },
@@ -483,7 +483,7 @@ const WIZARD_UI: Record<EventLocale, WizardUi> = {
     imageTooBig: 'Image larger than 1.5 MB',
     localeNames: { en: 'English', pt: 'Português', es: 'Español', he: 'עברית' },
     steps: {
-      basics: { title: 'Celebration', subtitle: 'Language, who we honor, when and where.' },
+      basics: { title: 'Celebration', subtitle: 'Who we honor, when and where.' },
       branding: { title: 'Look', subtitle: 'Theme and colors — the preview updates instantly.' },
       story: { title: 'Copy', subtitle: 'Headline, subtitle, and family message.' },
       schedule: { title: 'Schedule', subtitle: 'Ceremony, reception, and times.' },
@@ -595,7 +595,7 @@ const WIZARD_UI: Record<EventLocale, WizardUi> = {
     imageTooBig: 'Imagen mayor a 1.5 MB',
     localeNames: { en: 'English', pt: 'Português', es: 'Español', he: 'עברית' },
     steps: {
-      basics: { title: 'Celebración', subtitle: 'Idioma, a quién honramos, cuándo y dónde.' },
+      basics: { title: 'Celebración', subtitle: 'A quién honramos, cuándo y dónde.' },
       branding: { title: 'Visual', subtitle: 'Tema y colores — la vista previa cambia al instante.' },
       story: { title: 'Textos', subtitle: 'Titular, subtítulo y mensaje de la familia.' },
       schedule: { title: 'Programa', subtitle: 'Ceremonia, recepción y horarios.' },
@@ -707,7 +707,7 @@ const WIZARD_UI: Record<EventLocale, WizardUi> = {
     imageTooBig: 'התמונה גדולה מ־1.5 MB',
     localeNames: { en: 'English', pt: 'Português', es: 'Español', he: 'עברית' },
     steps: {
-      basics: { title: 'החגיגה', subtitle: 'שפה, את מי מכבדים, מתי ואיפה.' },
+      basics: { title: 'החגיגה', subtitle: 'את מי מכבדים, מתי ואיפה.' },
       branding: { title: 'מראה', subtitle: 'ערכת נושא וצבעים — התצוגה מתעדכנת מיד.' },
       story: { title: 'טקסטים', subtitle: 'כותרת, תת־כותרת ומסר המשפחה.' },
       schedule: { title: 'לוח זמנים', subtitle: 'טקס, קבלת פנים ושעות.' },
