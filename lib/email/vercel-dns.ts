@@ -39,6 +39,16 @@ export function vercelDnsConfigured(): boolean {
   return vercelConfig() !== null
 }
 
+export async function probeVercelDns(): Promise<{ ok: boolean; error?: string; recordCount?: number }> {
+  if (!vercelConfig()) return { ok: false, error: 'VERCEL_TOKEN ausente' }
+  try {
+    const records = await listRecords()
+    return { ok: true, recordCount: records.length }
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : 'Falha na API DNS da Vercel' }
+  }
+}
+
 function teamQuery(extra?: Record<string, string>): string {
   const cfg = vercelConfig()
   const params = new URLSearchParams(extra)
