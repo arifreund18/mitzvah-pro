@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { Button } from '@/components/ui/Button'
 
-const CONTACT_API = '/BarBeni/api/platform/contact'
+const CONTACT_API = '/api/contact'
 
 export function PlatformContactForm() {
   const t = useTranslations('contact.form')

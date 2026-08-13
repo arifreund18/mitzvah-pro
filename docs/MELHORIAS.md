@@ -27,7 +27,6 @@ Auth do studio + CRUD de eventos; wizard com preview ao vivo; template BarBeni c
 | **P2** | Mais templates além do BarBeni | Contrato único, só `barbeni` |
 | **P2** | Analytics de RSVP | Contagem no detalhe do evento |
 | **P2** | i18n completo do conteúdo do evento | Chrome do site em 4 idiomas; textos do evento únicos |
-| **P2** | Unificar APIs de contato | Landing → `/BarBeni/api/...`; também existe `/api/contact` |
 
 Editor visual drag-and-drop permanece **fora de escopo** (não é backlog ativo).
 
@@ -497,7 +496,6 @@ P0 e o subdomínio `{slug}.mitzvah.pro` **já saíram** da lista (ver §0).
 8. Mais templates  
 9. Analytics de RSVP no dashboard  
 10. i18n do conteúdo do evento  
-11. Unificar APIs de contato  
 
 ---
 
