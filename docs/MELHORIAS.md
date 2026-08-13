@@ -1,35 +1,39 @@
 # Melhorias — Mitzvah.pro
 
 Documento vivo de planos e estratégias de produto/engenharia.
-Atualizado em: 2026-08-12
+Atualizado em: 2026-08-13
 
 ---
 
-## 0. Lista priorizada (e o que já existe localmente)
+## 0. Lista priorizada (só o que falta)
 
-| Prioridade | Melhoria | Status local (2026-08-12) |
-|------------|----------|---------------------------|
-| **P0** | Auth simples + dashboard CRUD de eventos | ✅ `/dashboard` |
-| **P0** | Persistência EventConfig (JSON local) | ✅ `data/platform.json` |
-| **P0** | Template BarBeni config-driven | ✅ site público (hero, countdown, welcome, about, programação, FAQ, hotéis, o que fazer, galeria, RSVP, contato) |
-| **P0** | Wizard passo a passo com **preview ao vivo** | ✅ site no preview; STD/convite como **email** |
-| **P0** | Publish do site do evento | ✅ `{slug}.mitzvah.pro` (local `{slug}.localhost`) |
-| **P0** | RSVP público + lista de convidados | ✅ site + dashboard do evento |
-| **P0** | Emails STD e convite | ✅ Resend; no publish cria `mail.{slug}.mitzvah.pro` (DNS Vercel) |
-| **P0** | Dashboard do evento (studio mitzvah-pro) | ✅ `/dashboard/events/[id]` |
-| **P1** | Inventário fiel do repo `bar-beni` (paridade 1:1) | ⏳ pendente (template inspirado) |
-| **P1** | Multi-tenant (orgs, papéis, isolamento) | ⏳ senha única de studio |
-| **P1** | Preview token / subdomain `*.mitzvah.pro` | ✅ `{slug}.mitzvah.pro`; path `/e/slug` redireciona |
-| **P1** | Import CSV de convidados | ⏳ lista manual no wizard |
-| **P1** | Fluxo boutique assistido (aprovação do cliente) | ⏳ mesmo wizard para ops |
-| **P2** | Domínio custom Signature + SSL | ⏳ |
-| **P2** | Mais templates além do BarBeni | ⏳ contrato único pronto |
-| **P2** | Analytics de RSVP | ⏳ contagem no detalhe |
-| **P2** | Editor visual drag-and-drop | ⏳ fora de escopo |
-| **P2** | i18n completo do conteúdo do evento (N idiomas) | ⏳ idioma/RTL do site; textos únicos |
-| **P2** | Unificar APIs de contato | ⏳ |
+Conferido no código em 2026-08-13. Itens já entregues **saíram desta tabela**.
 
-**Como usar a versão local:** `/dashboard/login` (senha `mitzvah`) → Novo evento → wizard. Publicar abre `{slug}.localhost:3000`. Landing: `/` e `/en`. Evento Beni (outro repo): `/BarBeni/en`. Admin Beni: `/BarBeni/admin/dashboard`. Demo do studio: `/e/beni`. **Não existe** `/admin` no apex.
+### Já entregue (não repetir)
+
+Auth do studio + CRUD de eventos; wizard com preview ao vivo; template BarBeni config-driven (site: hero, countdown, welcome, about, programação, FAQ, hotéis, o que fazer, galeria, RSVP, contato); publish em `{slug}.mitzvah.pro`; RSVP público + lista de convidados; emails STD/convite (Resend + `mail.{slug}.mitzvah.pro` via DNS Vercel); dashboard do evento; duplicar/arquivar; upload de logo/hero; datepicker; isolamento BarBeni em `/BarBeni/*`; `/admin` no apex removido; landing `en`/`pt`/`es`/`he` (RTL no he); check autenticado `/api/platform/email-setup`.
+
+Persistência local: `data/platform.json` (em produção Vercel cai em `/tmp` e **não sobrevive** entre instâncias — ver P1).
+
+**Como usar:** `/dashboard/login` (senha `mitzvah`) → Novo evento → wizard. Publicar abre `{slug}.localhost:3000`. Landing: `/` e `/en`. Evento Beni (outro repo): `/BarBeni/en`. Admin Beni: `/BarBeni/admin/dashboard`. Demo do studio: `/e/beni`. **Não existe** `/admin` no apex.
+
+### Pendente
+
+| Prioridade | Melhoria | Estado atual |
+|------------|----------|--------------|
+| **P1** | Persistência durável (Postgres ou equivalente) | JSON local; `/tmp` na Vercel perde dados |
+| **P1** | Inventário fiel do repo `bar-beni` (paridade 1:1) | Template inspirado, não 1:1 |
+| **P1** | Multi-tenant (orgs, papéis, isolamento) | Senha única de studio |
+| **P1** | Import CSV de convidados | Lista manual no wizard |
+| **P1** | Fluxo boutique assistido (aprovação do cliente) | Mesmo wizard para ops e cliente |
+| **P1** | Preview público do rascunho (`preview-{token}`) | Preview só dentro do wizard |
+| **P2** | Domínio custom Signature + SSL | Só copy na landing |
+| **P2** | Mais templates além do BarBeni | Contrato único, só `barbeni` |
+| **P2** | Analytics de RSVP | Contagem no detalhe do evento |
+| **P2** | i18n completo do conteúdo do evento | Chrome do site em 4 idiomas; textos do evento únicos |
+| **P2** | Unificar APIs de contato | Landing → `/BarBeni/api/...`; também existe `/api/contact` |
+
+Editor visual drag-and-drop permanece **fora de escopo** (não é backlog ativo).
 
 ---
 
@@ -70,19 +74,19 @@ Atualizado em: 2026-08-12
 
 `https://mitzvah.pro/admin` **não existe**. O admin do BarBeni é só `https://mitzvah.pro/BarBeni/admin/dashboard`.
 
-Hoje o repo `mitzvah-pro` é landing + studio local + **proxy** para o app `bar-beni`:
+Hoje o repo `mitzvah-pro` é landing + studio + **proxy** para o app `bar-beni`:
 
 | Capacidade | Estado |
 |------------|--------|
 | Landing comercial multilíngue (`en`/`pt`/`es`/`he`) | ✅ |
 | Proxy `/BarBeni/*` → `BAR_BENI_ORIGIN` (repo `bar-beni`) | ✅ (origem única) |
 | Formulário de contato (vendas/boutique) | ✅ |
-| Dashboard multi-evento | ❌ |
-| Auth / contas | ❌ |
-| Template reutilizável | ❌ |
-| Wizard self-serve | ❌ |
-| Domínios/subdomínios por família | ❌ (só copy de pricing) |
-| Persistência (DB / storage) | ❌ |
+| Dashboard multi-evento | ✅ `/dashboard` (senha única; sem orgs) |
+| Auth / contas | ⏳ senha de studio; sem contas por org |
+| Template reutilizável | ✅ config-driven `barbeni` (não 1:1 com o repo) |
+| Wizard self-serve | ✅ preview ao vivo + publish |
+| Subdomínio por evento | ✅ `{slug}.mitzvah.pro` |
+| Persistência (DB / storage) | ⏳ JSON local; `/tmp` na Vercel |
 
 **Implicação:** o produto de evento “Beni” (STD, convite, RSVP, admin de convidados) está **no repo `bar-beni`**, não neste. O studio em `/dashboard` é da plataforma e não substitui `/BarBeni/admin/dashboard`.
 
@@ -412,23 +416,27 @@ Requisitos:
 - [ ] Definir estratégia monorepo vs multi-repo  
 
 ### Fase 1 — Control Plane mínimo
-- [ ] Auth + Organization + Event CRUD  
-- [ ] Dashboard lista/cria/arquiva  
-- [ ] EventConfig draft na DB  
-- [ ] Rotas `/dashboard` sem colidir com proxy  
+- [x] Auth de studio + Event CRUD (`/dashboard`)  
+- [x] Dashboard lista/cria/arquiva/duplica  
+- [ ] Organization + papéis (multi-tenant)  
+- [ ] EventConfig na DB (hoje JSON / `/tmp`)  
+- [x] Rotas `/dashboard` sem colidir com proxy  
 
 ### Fase 2 — Template BarBeni config-driven
-- [ ] Empacotar template + schema + defaults  
-- [ ] Runtime lê config por `eventId` (não só hardcode Beni)  
-- [ ] Preview draft  
+- [x] Template + defaults + renderers no studio  
+- [x] Runtime lê config por slug (`{slug}.mitzvah.pro`)  
+- [x] Preview draft no wizard  
+- [ ] Empacotar schema 1:1 com inventário do repo `bar-beni`  
+- [ ] Preview público do rascunho (`preview-{token}`)  
 
 ### Fase 3 — Wizard MVP
-- [ ] Steps obrigatórios (basics, branding, story, schedule, media, invitation, rsvp, domain, review)  
-- [ ] Autosave + progresso  
+- [x] Steps obrigatórios (basics, branding, story, schedule, media, invitation, rsvp, domain, review)  
+- [x] Autosave + progresso  
 - [x] Publish para subdomain  
 
 ### Fase 4 — Wizard completo + ops
-- [ ] Steps opcionais (STD, venues, FAQ, guests import)  
+- [x] Steps STD, venues, FAQ, convidados manuais  
+- [ ] Import CSV de convidados  
 - [ ] Fluxo boutique assistido + aprovação  
 - [ ] Domínio custom (Signature)  
 - [ ] Atualizar landing (self-serve + assisted)  
@@ -443,15 +451,15 @@ Requisitos:
 
 ## 15. Critérios de aceite (épico)
 
-1. Usuário autenticado cria um evento no dashboard em &lt; 1 minuto.  
-2. Wizard cobre **todas** as customizações necessárias do template BarBeni (paridade com o que a equipe edita manualmente hoje).  
-3. Preview reflete o draft em tempo quase real.  
-4. Publish disponibiliza o site em `{slug}.mitzvah.pro`.  
-5. RSVP/STD/convite funcionam no evento publicado.  
-6. Operador Mitzvah consegue gerenciar múltiplos eventos e impersonar/editar.  
-7. Isolamento: org A não vê dados da org B.  
-8. Hebraico (RTL) e demais locales funcionam no site gerado.  
-9. Nenhuma regressão na landing nem no proxy do Beni legado durante a migração.
+1. [x] Usuário autenticado cria um evento no dashboard em &lt; 1 minuto.  
+2. [ ] Wizard cobre **todas** as customizações necessárias do template BarBeni (paridade com o que a equipe edita manualmente hoje).  
+3. [x] Preview reflete o draft em tempo quase real (no wizard).  
+4. [x] Publish disponibiliza o site em `{slug}.mitzvah.pro`.  
+5. [x] RSVP/STD/convite funcionam no evento publicado (envio depende de Resend + DNS).  
+6. [ ] Operador Mitzvah consegue gerenciar múltiplos eventos e impersonar/editar.  
+7. [ ] Isolamento: org A não vê dados da org B.  
+8. [x] Hebraico (RTL) e demais locales no chrome do site; conteúdo do evento ainda é um único texto.  
+9. [x] Sem regressão na landing nem no proxy do Beni legado (`/BarBeni/*`; `/admin` no apex não existe).
 
 ---
 
@@ -480,24 +488,22 @@ Requisitos:
 
 ## 18. Backlog priorizado
 
-### P0 — feito na versão local (2026-08-12)
-1. Auth studio + dashboard CRUD eventos  
-2. Persistência EventConfig em JSON  
-3. Template BarBeni config-driven + preview ao vivo no wizard  
-4. Publish em `{slug}.mitzvah.pro` + RSVP + convidados  
+P0 e o subdomínio `{slug}.mitzvah.pro` **já saíram** da lista (ver §0).
 
 ### P1
-5. Inventário real do repo bar-beni → schema 1:1  
-6. Multi-tenant (orgs / papéis)  
-7. Import CSV convidados  
-8. Fluxo boutique assistido + aprovação  
-9. ~~Subdomínio `{slug}.mitzvah.pro`~~ ✅ feito na versão local  
+1. Persistência durável (Postgres) — JSON/`/tmp` não serve na Vercel  
+2. Inventário real do repo bar-beni → schema 1:1  
+3. Multi-tenant (orgs / papéis)  
+4. Import CSV convidados  
+5. Fluxo boutique assistido + aprovação  
+6. Preview público do rascunho  
 
 ### P2
-10. Domínio custom Signature  
-11. Mais templates  
-12. Analytics de RSVP no dashboard  
-13. Editor visual avançado  
+7. Domínio custom Signature + SSL  
+8. Mais templates  
+9. Analytics de RSVP no dashboard  
+10. i18n do conteúdo do evento  
+11. Unificar APIs de contato  
 
 ---
 
@@ -512,6 +518,7 @@ Requisitos:
 
 | Data | Mudança |
 |------|---------|
+| 2026-08-13 | Lista priorizada: removidos itens já entregues (P0, subdomínio, emails DNS); P1 passa a incluir persistência durável e preview de rascunho |
 | 2026-08-13 | DNS de email por slug na Vercel (não Cloudflare); `mitzvah.pro` permanece na Vercel |
 | 2026-08-13 | Publish provisiona domínio Resend `mail.{slug}.mitzvah.pro` + DNS |
 | 2026-08-12 | `/admin` no apex removido; admin BarBeni só em `/BarBeni/admin/dashboard`; docs separam os dois repos |

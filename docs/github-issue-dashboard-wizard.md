@@ -19,21 +19,21 @@ Hoje o `mitzvah-pro` é landing + studio + proxy `/BarBeni/*` para o app `bar-be
 ## Escopo
 
 ### 1. Dashboard (mitzvah-pro)
-- Auth + organizações
-- CRUD de eventos (draft / preview / published / archived)
-- Ações: abrir wizard, preview, publish, arquivar, duplicar
+- [x] Auth de studio + CRUD de eventos (draft / published / archived) + duplicar
+- [x] Ações: abrir wizard, publish, arquivar
+- [ ] Organizações e papéis
 - Path: `/dashboard` (nunca `/admin`)
 
 ### 2. Template inspirado no BarBeni
-- Inventariar campos do repo `bar-beni` (código de referência, outro repositório)
-- Schema + defaults + renderers config-driven **neste** repo
-- Runtime multi-evento para eventos novos (`{slug}.mitzvah.pro`)
+- [x] Schema + defaults + renderers config-driven **neste** repo
+- [x] Runtime multi-evento para eventos novos (`{slug}.mitzvah.pro`)
+- [ ] Inventariar campos do repo `bar-beni` (paridade 1:1)
 - O evento Beni continua no repo `bar-beni` em `/BarBeni/*`
 
 ### 3. Wizard self-serve
-Steps (ajustar após inventário): basics → locales → branding → story → schedule → venues → media → saveTheDate → invitation → rsvp → faq → guestsBootstrap → domain → review
-- Autosave, progresso, preview, publish
-- Mesmo wizard para cliente e equipe boutique
+- [x] Steps: basics → locales → branding → story → schedule → venues → media → saveTheDate → invitation → rsvp → faq → guestsBootstrap → domain → review
+- [x] Autosave, progresso, preview no wizard, publish
+- [ ] Import CSV; fluxo boutique (cliente só aprova); preview público do rascunho
 
 ## Fora de escopo (inicial)
 - Page builder drag-and-drop
@@ -42,22 +42,22 @@ Steps (ajustar após inventário): basics → locales → branding → story →
 - Substituir `/BarBeni/admin/dashboard` pelo `/dashboard` da plataforma
 
 ## Fases
-0. Descoberta / inventário do repo `bar-beni` / stack
-1. Control plane (auth + CRUD) em `mitzvah-pro`
-2. Template config-driven em `mitzvah-pro`
-3. Wizard MVP + publish subdomain
-4. Wizard completo + Signature domain + landing update
-5. Endurecimento, E2E; o evento Beni permanece em `bar-beni` até migração explícita
+0. Descoberta / inventário do repo `bar-beni` / stack — **pendente**
+1. Control plane (auth + CRUD) em `mitzvah-pro` — **feito** (falta orgs + DB)
+2. Template config-driven em `mitzvah-pro` — **feito** (falta paridade 1:1)
+3. Wizard MVP + publish subdomain — **feito**
+4. Wizard completo + Signature domain + landing update — **parcial**
+5. Endurecimento, E2E; o evento Beni permanece em `bar-beni` até migração explícita — **pendente**
 
 ## Critérios de aceite
-- [ ] Criar evento autenticado no `/dashboard` (mitzvah-pro)
-- [ ] Wizard cobre customizações do template
-- [ ] Preview do draft
-- [ ] Publish em `{slug}.mitzvah.pro`
-- [ ] STD / convite / RSVP funcionando no publicado
+- [x] Criar evento autenticado no `/dashboard` (mitzvah-pro)
+- [ ] Wizard cobre customizações do template (paridade BarBeni)
+- [x] Preview do draft (no wizard)
+- [x] Publish em `{slug}.mitzvah.pro`
+- [x] STD / convite / RSVP funcionando no publicado
 - [ ] Isolamento multi-tenant
-- [ ] Locales + hebraico RTL
-- [ ] Sem regressão na landing (`/` `/en`) nem em `/BarBeni/en` e `/BarBeni/admin/dashboard`
+- [x] Locales + hebraico RTL (chrome; conteúdo do evento ainda único)
+- [x] Sem regressão na landing (`/` `/en`) nem em `/BarBeni/en` e `/BarBeni/admin/dashboard`
 
 ## Decisões necessárias
 - [ ] Auth provider
