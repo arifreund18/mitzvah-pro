@@ -39,22 +39,88 @@ export function vercelDnsConfigured(): boolean {
   return vercelConfig() !== null
 }
 
-export async function probeVercelDns(): Promise<{ ok: boolean; error?: string; recordCount?: number }> {
+type DnsProbe = {
+  ok: boolean
+  error?: string
+  recordCount?: number
+  authMode?: 'teamId' | 'slug' | 'none'
+}
+
+let resolvedAuth: { mode: 'teamId' | 'slug' | 'none'; query: string } | null = null
+
+export async function probeVercelDns(): Promise<DnsProbe> {
   if (!vercelConfig()) return { ok: false, error: 'VERCEL_TOKEN ausente' }
   try {
     const records = await listRecords()
-    return { ok: true, recordCount: records.length }
+    return { ok: true, recordCount: records.length, authMode: resolvedAuth?.mode }
   } catch (error) {
-    return { ok: false, error: error instanceof Error ? error.message : 'Falha na API DNS da Vercel' }
+    const diagnosis = await diagnoseVercelToken()
+    const message = error instanceof Error ? error.message : 'Falha na API DNS da Vercel'
+    return {
+      ok: false,
+      error: diagnosis ? `${message} (${diagnosis})` : message,
+    }
+  }
+}
+
+function teamCandidates(): Array<{ mode: 'teamId' | 'slug' | 'none'; query: string }> {
+  const team = vercelConfig()?.teamId || ''
+  const candidates: Array<{ mode: 'teamId' | 'slug' | 'none'; query: string }> = []
+  if (team.startsWith('team_')) {
+    candidates.push({ mode: 'teamId', query: `teamId=${encodeURIComponent(team)}` })
+    candidates.push({ mode: 'slug', query: `slug=${encodeURIComponent(team)}` })
+  } else if (team) {
+    candidates.push({ mode: 'slug', query: `slug=${encodeURIComponent(team)}` })
+    candidates.push({ mode: 'teamId', query: `teamId=${encodeURIComponent(team)}` })
+  }
+  candidates.push({ mode: 'none', query: '' })
+  return candidates
+}
+
+function combineQuery(authQuery: string, extra?: Record<string, string>): string {
+  const params = new URLSearchParams(authQuery)
+  if (extra) {
+    for (const [key, value] of Object.entries(extra)) params.set(key, value)
+  }
+  const qs = params.toString()
+  return qs ? `?${qs}` : ''
+}
+
+async function resolveAuth(): Promise<{ mode: 'teamId' | 'slug' | 'none'; query: string }> {
+  if (resolvedAuth) return resolvedAuth
+  const cfg = vercelConfig()
+  if (!cfg) throw new Error('Vercel DNS não configurado')
+
+  const errors: string[] = []
+  for (const candidate of teamCandidates()) {
+    const res = await vercelFetch(
+      `/v5/domains/${cfg.domain}/records${combineQuery(candidate.query, { limit: '1' })}`,
+    )
+    const body = (await res.json()) as VercelListResponse
+    if (res.ok) {
+      resolvedAuth = candidate
+      return candidate
+    }
+    errors.push(`${candidate.mode}: ${body.error?.message || res.status}`)
+  }
+  throw new Error(errors.join('; '))
+}
+
+async function diagnoseVercelToken(): Promise<string | null> {
+  try {
+    const res = await vercelFetch('/v2/user')
+    if (res.status === 401 || res.status === 403) {
+      return 'token Vercel rejeitado em /v2/user — recrie o token com acesso ao time e DNS'
+    }
+    if (!res.ok) return `token: HTTP ${res.status}`
+    return 'token válido; falta permissão DNS ou o domínio não está nesse time'
+  } catch {
+    return null
   }
 }
 
 function teamQuery(extra?: Record<string, string>): string {
-  const cfg = vercelConfig()
-  const params = new URLSearchParams(extra)
-  if (cfg?.teamId) params.set('teamId', cfg.teamId)
-  const qs = params.toString()
-  return qs ? `?${qs}` : ''
+  return combineQuery(resolvedAuth?.query || teamCandidates()[0]?.query || '', extra)
 }
 
 async function vercelFetch(path: string, init?: RequestInit): Promise<Response> {
@@ -81,6 +147,7 @@ function relativeName(fqdn: string, apex: string): string {
 async function listRecords(): Promise<VercelDnsRecord[]> {
   const cfg = vercelConfig()
   if (!cfg) throw new Error('Vercel DNS não configurado')
+  await resolveAuth()
   const records: VercelDnsRecord[] = []
   let until: string | undefined
   for (let page = 0; page < 10; page += 1) {
@@ -89,7 +156,7 @@ async function listRecords(): Promise<VercelDnsRecord[]> {
     const res = await vercelFetch(`/v5/domains/${cfg.domain}/records${teamQuery(extra)}`)
     const body = (await res.json()) as VercelListResponse
     if (!res.ok) {
-      throw new Error(body.error?.message || 'Falha ao listar DNS na Vercel')
+      throw new Error(body.error?.message || `Falha ao listar DNS na Vercel (${res.status})`)
     }
     const batch = body.records || []
     records.push(...batch)

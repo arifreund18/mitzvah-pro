@@ -12,6 +12,7 @@ export async function GET() {
     vercelDns: vercelDnsConfigured(),
     vercelTeamId: Boolean(process.env.VERCEL_TEAM_ID),
     vercelDnsReachable: dns.ok,
+    vercelDnsAuthMode: dns.authMode || null,
     vercelDnsError: dns.error || null,
     vercelDnsRecords: dns.recordCount ?? null,
     siteHost: process.env.NEXT_PUBLIC_SITE_HOST || 'mitzvah.pro',
