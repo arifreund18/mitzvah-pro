@@ -55,6 +55,29 @@ export async function getEventByPreviewToken(token: string): Promise<PlatformEve
   return store.events.find((event) => event.previewToken === token) ?? null
 }
 
+export async function getEventByApprovalToken(token: string): Promise<PlatformEvent | null> {
+  if (!token) return null
+  const store = await loadStore()
+  return store.events.find((event) => event.approvalToken === token) ?? null
+}
+
+export async function requestApproval(id: string): Promise<PlatformEvent | null> {
+  return updateEvent(id, { status: 'pending_review' })
+}
+
+export async function approveEventByToken(token: string): Promise<PlatformEvent | null> {
+  return withLock(async () => {
+    const store = await loadStore()
+    const event = store.events.find((item) => item.approvalToken === token)
+    if (!event || event.status === 'archived') return null
+    if (event.status === 'published') return event
+    event.status = 'approved'
+    event.updatedAt = new Date().toISOString()
+    await saveStore(store)
+    return event
+  })
+}
+
 function uniqueSlug(store: PlatformStore, desired: string, ignoreId?: string): string {
   let base = slugify(desired) || `evento-${uid().slice(0, 6)}`
   const current = ignoreId ? store.events.find((event) => event.id === ignoreId)?.slug : undefined
@@ -100,6 +123,7 @@ export async function createEvent(input: {
       updatedAt: now,
       publishedAt: null,
       previewToken: uid(),
+      approvalToken: uid(),
       config,
       guests: [],
       wizard: { currentStep: 'basics', completedSteps: [] },
@@ -161,6 +185,7 @@ export async function duplicateEvent(id: string): Promise<PlatformEvent | null> 
       updatedAt: now,
       publishedAt: null,
       previewToken: uid(),
+      approvalToken: uid(),
       guests: [],
       wizard: { currentStep: 'review', completedSteps: source.wizard.completedSteps },
     }

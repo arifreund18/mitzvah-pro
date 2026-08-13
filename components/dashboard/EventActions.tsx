@@ -34,11 +34,15 @@ export function EventActions({
     const data = (await res.json().catch(() => null)) as {
       error?: string
       event?: { id: string; slug: string }
+      approvalUrl?: string
     } | null
     setBusy('')
     if (!res.ok) {
       setError(data?.error || 'Falha na ação')
       return
+    }
+    if (data?.approvalUrl) {
+      window.prompt('Envie este link ao cliente para aprovar:', `${window.location.origin}${data.approvalUrl}`)
     }
     if (path.endsWith('/duplicate') && data?.event) {
       router.push(`/dashboard/events/${data.event.id}`)
@@ -96,6 +100,16 @@ export function EventActions({
       {!compact && status !== 'published' && status !== 'archived' ? (
         <button type="button" className={btn} disabled={!!busy} onClick={() => post(`/api/platform/events/${id}/publish`, 'publish')}>
           Publicar
+        </button>
+      ) : null}
+      {!compact && status !== 'published' && status !== 'archived' && status !== 'approved' ? (
+        <button
+          type="button"
+          className={btn}
+          disabled={!!busy}
+          onClick={() => post(`/api/platform/events/${id}/request-approval`, 'approve')}
+        >
+          {status === 'pending_review' ? 'Link de aprovação' : 'Pedir aprovação'}
         </button>
       ) : null}
       {!compact && (

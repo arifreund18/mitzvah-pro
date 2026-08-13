@@ -56,7 +56,11 @@ export default async function DashboardPage() {
                       ? 'bg-emerald-400/15 text-emerald-200'
                       : event.status === 'archived'
                         ? 'bg-white/10 text-white/40'
-                        : 'bg-amber-400/15 text-amber-100'
+                        : event.status === 'approved'
+                          ? 'bg-cyan-400/15 text-cyan-100'
+                          : event.status === 'pending_review'
+                            ? 'bg-violet-400/15 text-violet-100'
+                            : 'bg-amber-400/15 text-amber-100'
                   }`}
                 >
                   {event.status}

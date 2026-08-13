@@ -7,7 +7,7 @@ export type ThemeId = (typeof THEMES)[number]
 export const EVENT_LOCALES = ['en', 'pt', 'es', 'he'] as const
 export type EventLocale = (typeof EVENT_LOCALES)[number]
 
-export const EVENT_STATUSES = ['draft', 'published', 'archived'] as const
+export const EVENT_STATUSES = ['draft', 'pending_review', 'approved', 'published', 'archived'] as const
 export type EventStatus = (typeof EVENT_STATUSES)[number]
 
 export const PLACE_CATEGORIES = ['restaurant', 'shopping', 'museum', 'park', 'other'] as const
@@ -173,6 +173,7 @@ export type PlatformEvent = {
   updatedAt: string
   publishedAt: string | null
   previewToken: string
+  approvalToken: string
   config: EventConfig
   guests: Guest[]
   wizard: WizardProgress

@@ -211,6 +211,7 @@ export function createSeedEvent(): PlatformEvent {
     updatedAt: now,
     publishedAt: now,
     previewToken: uid(),
+    approvalToken: uid(),
     config,
     guests: [],
     wizard: {
