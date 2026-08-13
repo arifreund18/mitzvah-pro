@@ -87,6 +87,7 @@ export function normalizeConfig(raw: EventConfig | null | undefined): EventConfi
 export function normalizeEvent(event: PlatformEvent): PlatformEvent {
   return {
     ...event,
+    previewToken: event.previewToken || uid(),
     config: normalizeConfig(event.config),
     guests: (event.guests || []).map((guest) => normalizeGuest(guest)),
   }

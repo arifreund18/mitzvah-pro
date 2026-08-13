@@ -85,7 +85,8 @@ export default function middleware(request: NextRequest) {
 
   if (
     pathname.startsWith('/dashboard') ||
-    pathname.startsWith('/api/platform')
+    pathname.startsWith('/api/platform') ||
+    pathname.startsWith('/p/')
   ) {
     return NextResponse.next()
   }
@@ -126,8 +127,8 @@ export const config = {
     '/he/:path*',
     '/dashboard',
     '/dashboard/:path*',
-    '/e',
-    '/e/:path*',
+    '/p',
+    '/p/:path*',
     '/std',
     '/std/:path*',
     '/invite',

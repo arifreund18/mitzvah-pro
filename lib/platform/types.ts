@@ -172,6 +172,7 @@ export type PlatformEvent = {
   createdAt: string
   updatedAt: string
   publishedAt: string | null
+  previewToken: string
   config: EventConfig
   guests: Guest[]
   wizard: WizardProgress

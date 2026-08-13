@@ -11,7 +11,7 @@ Conferido no código em 2026-08-13. Itens já entregues **saíram desta tabela**
 
 ### Já entregue (não repetir)
 
-Auth do studio + CRUD de eventos; wizard com preview ao vivo; template BarBeni config-driven (site: hero, countdown, welcome, about, programação, FAQ, hotéis, o que fazer, galeria, RSVP, contato); publish em `{slug}.mitzvah.pro`; RSVP público + lista de convidados; emails STD/convite (Resend + `mail.{slug}.mitzvah.pro` via DNS Vercel); dashboard do evento; duplicar/arquivar; upload de logo/hero; datepicker; isolamento BarBeni em `/BarBeni/*`; `/admin` no apex removido; landing `en`/`pt`/`es`/`he` (RTL no he); check autenticado `/api/platform/email-setup`; persistência durável (Postgres `DATABASE_URL` ou Vercel Blob; ficheiro em local); import/export CSV de convidados; formulário da landing em `/api/contact`.
+Auth do studio + CRUD de eventos; wizard com preview ao vivo; template BarBeni config-driven (site: hero, countdown, welcome, about, programação, FAQ, hotéis, o que fazer, galeria, RSVP, contato); publish em `{slug}.mitzvah.pro`; RSVP público + lista de convidados; emails STD/convite (Resend + `mail.{slug}.mitzvah.pro` via DNS Vercel); dashboard do evento; duplicar/arquivar; upload de logo/hero; datepicker; isolamento BarBeni em `/BarBeni/*`; `/admin` no apex removido; landing `en`/`pt`/`es`/`he` (RTL no he); check autenticado `/api/platform/email-setup`; persistência durável (Postgres `DATABASE_URL` ou Vercel Blob; ficheiro em local); import/export CSV de convidados; formulário da landing em `/api/contact`; preview público do rascunho em `/p/{token}`.
 
 **Como usar:** `/dashboard/login` (senha `mitzvah`) → Novo evento → wizard. Publicar abre `{slug}.localhost:3000`. Landing: `/` e `/en`. Evento Beni (outro repo): `/BarBeni/en`. Admin Beni: `/BarBeni/admin/dashboard`. Demo do studio: `/e/beni`. **Não existe** `/admin` no apex.
 
@@ -22,7 +22,6 @@ Auth do studio + CRUD de eventos; wizard com preview ao vivo; template BarBeni c
 | **P1** | Inventário fiel do repo `bar-beni` (paridade 1:1) | Template inspirado, não 1:1 |
 | **P1** | Multi-tenant (orgs, papéis, isolamento) | Senha única de studio |
 | **P1** | Fluxo boutique assistido (aprovação do cliente) | Mesmo wizard para ops e cliente |
-| **P1** | Preview público do rascunho (`preview-{token}`) | Preview só dentro do wizard |
 | **P2** | Domínio custom Signature + SSL | Só copy na landing |
 | **P2** | Mais templates além do BarBeni | Contrato único, só `barbeni` |
 | **P2** | Analytics de RSVP | Contagem no detalhe do evento |
@@ -422,7 +421,7 @@ Requisitos:
 - [x] Runtime lê config por slug (`{slug}.mitzvah.pro`)  
 - [x] Preview draft no wizard  
 - [ ] Empacotar schema 1:1 com inventário do repo `bar-beni`  
-- [ ] Preview público do rascunho (`preview-{token}`)  
+- [x] Preview público do rascunho (`preview-{token}`)  
 
 ### Fase 3 — Wizard MVP
 - [x] Steps obrigatórios (basics, branding, story, schedule, media, invitation, rsvp, domain, review)  
@@ -489,7 +488,6 @@ P0 e o subdomínio `{slug}.mitzvah.pro` **já saíram** da lista (ver §0).
 1. Inventário real do repo bar-beni → schema 1:1  
 2. Multi-tenant (orgs / papéis)  
 3. Fluxo boutique assistido + aprovação  
-4. Preview público do rascunho  
 
 ### P2
 7. Domínio custom Signature + SSL  

@@ -49,6 +49,12 @@ export async function getEventBySlug(slug: string): Promise<PlatformEvent | null
   return store.events.find((event) => event.slug === slug) ?? null
 }
 
+export async function getEventByPreviewToken(token: string): Promise<PlatformEvent | null> {
+  if (!token) return null
+  const store = await loadStore()
+  return store.events.find((event) => event.previewToken === token) ?? null
+}
+
 function uniqueSlug(store: PlatformStore, desired: string, ignoreId?: string): string {
   let base = slugify(desired) || `evento-${uid().slice(0, 6)}`
   const current = ignoreId ? store.events.find((event) => event.id === ignoreId)?.slug : undefined
@@ -93,6 +99,7 @@ export async function createEvent(input: {
       createdAt: now,
       updatedAt: now,
       publishedAt: null,
+      previewToken: uid(),
       config,
       guests: [],
       wizard: { currentStep: 'basics', completedSteps: [] },
@@ -153,6 +160,7 @@ export async function duplicateEvent(id: string): Promise<PlatformEvent | null> 
       createdAt: now,
       updatedAt: now,
       publishedAt: null,
+      previewToken: uid(),
       guests: [],
       wizard: { currentStep: 'review', completedSteps: source.wizard.completedSteps },
     }

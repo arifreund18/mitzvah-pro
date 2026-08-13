@@ -63,7 +63,13 @@ export default async function DashboardPage() {
                 </span>
               </div>
               <div className="mt-4">
-                <EventActions id={event.id} slug={event.slug} status={event.status} compact />
+                <EventActions
+                  id={event.id}
+                  slug={event.slug}
+                  status={event.status}
+                  previewToken={event.previewToken}
+                  compact
+                />
               </div>
             </div>
           ))

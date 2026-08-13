@@ -12,17 +12,20 @@ export function EventActions({
   id,
   slug,
   status,
+  previewToken,
   compact = false,
 }: {
   id: string
   slug: string
   status: string
+  previewToken?: string
   compact?: boolean
 }) {
   const router = useRouter()
   const [error, setError] = useState('')
   const [busy, setBusy] = useState('')
   const siteUrl = eventPublicUrl(slug)
+  const previewUrl = `/p/${previewToken}`
 
   async function post(path: string, label: string) {
     setError('')
@@ -83,6 +86,11 @@ export function EventActions({
         <Link href={`/dashboard/events/${id}/wizard`} className={btn}>
           Wizard
         </Link>
+      ) : null}
+      {previewToken ? (
+        <a href={previewUrl} className={btn} target="_blank" rel="noreferrer">
+          Preview rascunho
+        </a>
       ) : null}
       {siteLink}
       {!compact && status !== 'published' && status !== 'archived' ? (
