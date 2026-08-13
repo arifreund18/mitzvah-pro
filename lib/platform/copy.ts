@@ -280,6 +280,7 @@ export type WizardUi = {
   addGuest: string
   slug: string
   slugHint: string
+  mailHint: string
   seoTitle: string
   seoDescription: string
   reviewReady: string
@@ -379,6 +380,7 @@ const WIZARD_UI: Record<EventLocale, WizardUi> = {
     addGuest: 'Adicionar à lista',
     slug: 'Subdomínio',
     slugHint: 'Depois de publicar, o site fica em seu-slug.mitzvah.pro (local: seu-slug.localhost:3000).',
+    mailHint: 'Os emails saem de convites@mail.seu-slug.mitzvah.pro (domínio próprio no Resend, para não misturar reputação).',
     seoTitle: 'Título SEO',
     seoDescription: 'Descrição SEO',
     reviewReady: 'Tudo pronto para publicar. O preview à direita é o site que os convidados vão ver.',
@@ -499,6 +501,7 @@ const WIZARD_UI: Record<EventLocale, WizardUi> = {
     addGuest: 'Add to list',
     slug: 'Subdomain',
     slugHint: 'After publish, the site lives at your-slug.mitzvah.pro (local: your-slug.localhost:3000).',
+    mailHint: 'Guest email is sent from convites@mail.your-slug.mitzvah.pro (its own Resend domain, so spam on one event does not hit the others).',
     seoTitle: 'SEO title',
     seoDescription: 'SEO description',
     reviewReady: 'Ready to publish. The preview on the right is what guests will see.',
@@ -619,6 +622,7 @@ const WIZARD_UI: Record<EventLocale, WizardUi> = {
     addGuest: 'Agregar a la lista',
     slug: 'Subdominio',
     slugHint: 'Al publicar, el sitio queda en tu-slug.mitzvah.pro (local: tu-slug.localhost:3000).',
+    mailHint: 'Los emails salen de convites@mail.tu-slug.mitzvah.pro (dominio propio en Resend, para no mezclar reputación).',
     seoTitle: 'Título SEO',
     seoDescription: 'Descripción SEO',
     reviewReady: 'Listo para publicar. La vista previa a la derecha es lo que verán los invitados.',
@@ -739,6 +743,7 @@ const WIZARD_UI: Record<EventLocale, WizardUi> = {
     addGuest: 'הוספה לרשימה',
     slug: 'סאבדומיין',
     slugHint: 'אחרי פרסום האתר יהיה ב־your-slug.mitzvah.pro (מקומי: your-slug.localhost:3000).',
+    mailHint: 'האימיילים נשלחים מ־convites@mail.your-slug.mitzvah.pro (דומיין נפרד ב־Resend).',
     seoTitle: 'כותרת SEO',
     seoDescription: 'תיאור SEO',
     reviewReady: 'מוכן לפרסום. התצוגה מימין היא מה שהאורחים יראו.',

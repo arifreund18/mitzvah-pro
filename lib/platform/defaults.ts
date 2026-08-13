@@ -1,6 +1,7 @@
 import type { EventConfig, EventLocale, EventType, PlatformEvent } from './types'
 import { generatedCopy } from './copy'
 import { uid } from './ids'
+import { emptyMailDomain } from './mail-domain'
 
 export { typeLabel } from './copy'
 
@@ -105,6 +106,7 @@ export function createDefaultConfig(partial?: {
       slug,
       seoTitle: copy.seoTitle,
       seoDescription: copy.seoDescription,
+      mail: emptyMailDomain(),
     },
   }
 }

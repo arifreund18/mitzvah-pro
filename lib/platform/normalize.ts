@@ -3,6 +3,7 @@ import { uid } from './ids'
 import type { EventConfig, Guest, Hotel, LocalPlace, PlaceCategory, PlatformEvent } from './types'
 import { PLACE_CATEGORIES } from './types'
 import { resolveLocales } from './locales'
+import { normalizeMailDomain } from './mail-domain'
 
 function asPlaceCategory(value: string | undefined): PlaceCategory {
   if (value && (PLACE_CATEGORIES as readonly string[]).includes(value)) return value as PlaceCategory
@@ -75,7 +76,11 @@ export function normalizeConfig(raw: EventConfig | null | undefined): EventConfi
     invitation: { ...base.invitation, ...raw.invitation, sealImageUrl: raw.invitation?.sealImageUrl || '' },
     rsvp: { ...base.rsvp, ...raw.rsvp, meals: raw.rsvp?.meals || base.rsvp.meals },
     faq: { items: raw.faq?.items || [] },
-    domain: { ...base.domain, ...raw.domain },
+    domain: {
+      ...base.domain,
+      ...raw.domain,
+      mail: normalizeMailDomain(raw.domain?.mail),
+    },
   }
 }
 

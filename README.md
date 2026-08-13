@@ -34,7 +34,7 @@ npm run build
 3. Senha padrão: `mitzvah` (`DASHBOARD_PASSWORD`)
 4. Crie um evento → o wizard abre com preview ao vivo
 5. Save the Date e convite são **emails** (preview no wizard; envio no dashboard do evento)
-6. Publique → o **site** fica em `seu-slug.mitzvah.pro` (local: `http://seu-slug.localhost:3000`)
+6. Publique → o **site** fica em `seu-slug.mitzvah.pro` e o **email** em `convites@mail.seu-slug.mitzvah.pro` (Resend + Cloudflare)
 
 Há um evento semente **do studio** em `/e/beni` (demo da plataforma, não é o BarBeni). O evento real do Beni continua em `/BarBeni/en`.
 
@@ -47,8 +47,12 @@ No DNS/Vercel, aponte o wildcard `*.mitzvah.pro` para **este** projeto. `/e/{slu
 | Variável | Obrigatória | Descrição |
 |----------|-------------|-----------|
 | `BAR_BENI_ORIGIN` | Sim (prod) | URL do deploy **bar-beni** (outro repo), sem barra final. Só para o rewrite `/BarBeni/*` |
-| `RESEND_API_KEY` | Sim (contato) | API Resend |
-| `RESEND_FROM_EMAIL` | Sim (contato) | Remetente verificado |
+| `RESEND_API_KEY` | Sim (contato e convites) | API Resend |
+| `RESEND_FROM_EMAIL` | Sim (contato; fallback de convites) | Remetente da landing e fallback se o domínio do evento ainda não verificou |
+| `CLOUDFLARE_API_TOKEN` | Sim (isolamento de email) | Token com permissão **Zone.DNS Edit** na zona `mitzvah.pro` |
+| `CLOUDFLARE_ZONE_ID` | Sim (isolamento de email) | Zone ID do `mitzvah.pro` no Cloudflare |
+| `MAIL_FROM_LOCAL` | Não | Parte local do remetente (default `convites`) |
+| `MAIL_DOMAIN_PREFIX` | Não | Prefixo do domínio de envio (default `mail` → `mail.{slug}.mitzvah.pro`) |
 | `MITZVAH_CONTACT_EMAIL` | Não | Exibido na página (default `mitzvah@mitzvah.pro`) |
 | `MITZVAH_CONTACT_FORWARD_TO` | Não | Destino dos emails do form |
 | `DASHBOARD_PASSWORD` | Não | Senha do studio **mitzvah-pro** (default `mitzvah`) |
@@ -75,8 +79,22 @@ No DNS/Vercel, aponte o wildcard `*.mitzvah.pro` para **este** projeto. `/e/{slu
 
 Atalhos antigos `/en/invite` e `/pt/invite` (etc.) ainda redirecionam para `/BarBeni/...` para não quebrar emails já enviados. **`/admin` no apex não existe.**
 
+## Email por evento (Resend + Cloudflare)
+
+No **publish** do wizard, a plataforma:
+
+1. Cria o domínio `mail.{slug}.mitzvah.pro` na API do Resend
+2. Grava SPF/DKIM (DNS only, sem proxy) na zona Cloudflare
+3. Pede verificação ao Resend
+4. Envia Save the Date e convites de `convites@mail.{slug}.mitzvah.pro`
+
+Assim a reputação de um evento não mistura com a dos outros nem com o formulário da landing (`RESEND_FROM_EMAIL`). Sem `CLOUDFLARE_*`, o publish do site continua e o envio usa o remetente compartilhado.
+
+O token Cloudflare precisa de **Zone → DNS → Edit** (e leitura da zona). Não use proxy laranja nos records de email.
+
 ## Deploy Vercel
 
 1. Projeto **mitzvah-pro** (este repo): domínio `mitzvah.pro` e wildcard `*.mitzvah.pro`
 2. Projeto **bar-beni** (outro repo): URL interna; este app aponta `BAR_BENI_ORIGIN` para ela
 3. `NEXT_PUBLIC_SITE_HOST=mitzvah.pro`
+4. `CLOUDFLARE_API_TOKEN` + `CLOUDFLARE_ZONE_ID` para isolar email por slug

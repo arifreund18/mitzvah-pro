@@ -1,7 +1,9 @@
 import { NextResponse } from 'next/server'
-import { getEvent, markMailSent } from '@/lib/platform/store'
+import { getEvent, markMailSent, updateEvent } from '@/lib/platform/store'
 import { requireSession } from '@/lib/platform/session'
 import { getResend } from '@/lib/email/send'
+import { refreshEventMailDomain } from '@/lib/email/provision-domain'
+import { eventSendFrom } from '@/lib/platform/mail-domain'
 import { mailHtml, mailSubject } from '@/lib/platform/mail'
 
 type Ctx = { params: Promise<{ id: string }> }
@@ -39,15 +41,25 @@ export async function POST(request: Request, ctx: Ctx) {
   }
 
   const resend = getResend()
-  const from = process.env.RESEND_FROM_EMAIL
+  let config = event.config
+  if (config.domain.mail?.status === 'pending' && config.domain.mail.resendDomainId) {
+    const mail = await refreshEventMailDomain(config.domain.mail)
+    if (mail.status !== config.domain.mail.status) {
+      const updated = await updateEvent(id, {
+        config: { ...config, domain: { ...config.domain, mail } },
+      })
+      if (updated) config = updated.config
+    }
+  }
+  const from = eventSendFrom(config)
   let delivered = 0
   if (resend && from) {
     for (const guest of targets) {
       const result = await resend.emails.send({
         from,
         to: guest.email,
-        subject: mailSubject(kind, event.config),
-        html: mailHtml(kind, event.config, host, guest),
+        subject: mailSubject(kind, config),
+        html: mailHtml(kind, config, host, guest),
       })
       if (!result.error) delivered += 1
     }

@@ -875,6 +875,7 @@ export const WizardStepForm = forwardRef<
             <p className="mt-2 text-sm text-cyan-200/80">{eventPublicHostLabel(config.domain.slug)}</p>
           ) : null}
         </Field>
+        <p className="text-xs text-white/40">{ui.mailHint}</p>
         <Field label={ui.seoTitle}>
           <TextInput
             value={config.domain.seoTitle}

@@ -127,7 +127,19 @@ export type EventConfig = {
     slug: string
     seoTitle: string
     seoDescription: string
+    mail: EventMailDomain
   }
+}
+
+export type MailDomainStatus = 'skipped' | 'pending' | 'verified' | 'failed'
+
+export type EventMailDomain = {
+  sendingDomain: string
+  fromEmail: string
+  resendDomainId: string
+  status: MailDomainStatus
+  lastError: string
+  verifiedAt: string | null
 }
 
 export type GuestRsvp = 'pending' | 'yes' | 'no'

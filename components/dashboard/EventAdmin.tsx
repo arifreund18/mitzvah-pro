@@ -5,6 +5,7 @@ import { useMemo, useState } from 'react'
 import { EventActions } from '@/components/dashboard/EventActions'
 import type { PlatformEvent } from '@/lib/platform/types'
 import { eventPublicHostLabel, eventPublicUrl } from '@/lib/platform/site-url'
+import { eventMailDomainName } from '@/lib/platform/mail-domain'
 
 function fmt(iso: string | null) {
   if (!iso) return '—'
@@ -60,6 +61,7 @@ export function EventAdmin({ event }: { event: PlatformEvent }) {
       <p className="mt-2 text-white/50">
         Família {event.config.basics.familyName || '—'} · {siteLabel}
       </p>
+      <MailDomainStatus mail={event.config.domain.mail} slug={event.slug} />
       <div className="mt-8">
         <EventActions id={event.id} slug={event.slug} status={event.status} />
       </div>
@@ -108,6 +110,7 @@ export function EventAdmin({ event }: { event: PlatformEvent }) {
       </h2>
       <p className="mt-2 text-sm text-white/50">
         Envie Save the Date e convite por email. Sem Resend no localhost, o status é marcado mesmo assim.
+        Com Cloudflare + Resend, cada evento usa o remetente isolado do slug.
       </p>
       <div className="mt-6 overflow-x-auto rounded-2xl border border-white/10">
         <table className="w-full min-w-[800px] text-left text-sm">
@@ -144,5 +147,30 @@ export function EventAdmin({ event }: { event: PlatformEvent }) {
         </table>
       </div>
     </div>
+  )
+}
+
+function MailDomainStatus({
+  mail,
+  slug,
+}: {
+  mail: { status: string; fromEmail: string; sendingDomain: string; lastError: string }
+  slug: string
+}) {
+  const domain = mail.sendingDomain || eventMailDomainName(slug)
+  const from = mail.fromEmail || `convites@${domain}`
+  const label =
+    mail.status === 'verified'
+      ? `Email isolado · ${from}`
+      : mail.status === 'pending'
+        ? `Email DNS pendente · ${from}`
+        : mail.status === 'failed'
+          ? `Email: falha no domínio · ${from}`
+          : `Email compartilhado (configure Cloudflare + Resend para isolar ${domain})`
+  return (
+    <p className={`mt-2 text-sm ${mail.status === 'failed' ? 'text-rose-300' : 'text-white/40'}`}>
+      {label}
+      {mail.lastError && mail.status !== 'verified' ? ` — ${mail.lastError}` : ''}
+    </p>
   )
 }
