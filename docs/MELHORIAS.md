@@ -11,7 +11,7 @@ Conferido no código em 2026-08-13. Itens já entregues **saíram desta tabela**
 
 ### Já entregue (não repetir)
 
-Auth do studio + CRUD de eventos; wizard com preview ao vivo; template BarBeni config-driven (site: hero, countdown, welcome, about, programação, FAQ, hotéis, o que fazer, galeria, RSVP, contato); publish em `{slug}.mitzvah.pro`; RSVP público + lista de convidados; emails STD/convite (Resend + `mail.{slug}.mitzvah.pro` via DNS Vercel); dashboard do evento; duplicar/arquivar; upload de logo/hero; datepicker; isolamento BarBeni em `/BarBeni/*`; `/admin` no apex removido; landing `en`/`pt`/`es`/`he` (RTL no he); check autenticado `/api/platform/email-setup`; persistência durável (Postgres `DATABASE_URL` ou Vercel Blob; ficheiro em local); import/export CSV de convidados.
+Auth do studio + CRUD de eventos; wizard com preview ao vivo; template BarBeni config-driven (site: hero, countdown, welcome, about, programação, FAQ, hotéis, o que fazer, galeria, RSVP, contato); publish em `{slug}.mitzvah.pro`; RSVP público + lista de convidados; emails STD/convite (Resend + `mail.{slug}.mitzvah.pro` via DNS Vercel); dashboard do evento; duplicar/arquivar; upload de logo/hero; datepicker; isolamento BarBeni em `/BarBeni/*`; `/admin` no apex removido; landing `en`/`pt`/`es`/`he` (RTL no he); check autenticado `/api/platform/email-setup`; persistência durável (Postgres `DATABASE_URL` ou Vercel Blob; ficheiro em local); import/export CSV de convidados; formulário da landing em `/api/contact`.
 
 **Como usar:** `/dashboard/login` (senha `mitzvah`) → Novo evento → wizard. Publicar abre `{slug}.localhost:3000`. Landing: `/` e `/en`. Evento Beni (outro repo): `/BarBeni/en`. Admin Beni: `/BarBeni/admin/dashboard`. Demo do studio: `/e/beni`. **Não existe** `/admin` no apex.
 
@@ -151,7 +151,7 @@ Uma família (ou a equipe Mitzvah) consegue, sem deploy manual:
 2. **BarBeni como source of truth do template** — inventariar campos reais do Beni antes de fechar o wizard.
 3. **Preview ≠ Publish** — rascunho sempre; publicar é ação explícita.
 4. **Sem colisão de rotas** — studio em `/dashboard/*` (mitzvah-pro); evento Beni em `/BarBeni/*` (bar-beni, admin em `/BarBeni/admin/dashboard`); eventos novos em `{slug}.mitzvah.pro`. **Não existe** `/admin` no apex.
-5. **Uma origem de contato** — unificar form local vs `/BarBeni/api/platform/contact`.
+5. **Uma origem de contato** — landing usa `/api/contact` (Resend); BarBeni mantém o form do próprio app.
 6. **Segurança first** — upload de mídia com limites; sem XSS em rich text; RLS/tenant isolation.
 7. **Copy da landing** — hoje diz “você não monta sozinho”; atualizar quando o wizard for GA.
 
