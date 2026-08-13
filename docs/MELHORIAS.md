@@ -11,9 +11,7 @@ Conferido no código em 2026-08-13. Itens já entregues **saíram desta tabela**
 
 ### Já entregue (não repetir)
 
-Auth do studio + CRUD de eventos; wizard com preview ao vivo; template BarBeni config-driven (site: hero, countdown, welcome, about, programação, FAQ, hotéis, o que fazer, galeria, RSVP, contato); publish em `{slug}.mitzvah.pro`; RSVP público + lista de convidados; emails STD/convite (Resend + `mail.{slug}.mitzvah.pro` via DNS Vercel); dashboard do evento; duplicar/arquivar; upload de logo/hero; datepicker; isolamento BarBeni em `/BarBeni/*`; `/admin` no apex removido; landing `en`/`pt`/`es`/`he` (RTL no he); check autenticado `/api/platform/email-setup`.
-
-Persistência local: `data/platform.json` (em produção Vercel cai em `/tmp` e **não sobrevive** entre instâncias — ver P1).
+Auth do studio + CRUD de eventos; wizard com preview ao vivo; template BarBeni config-driven (site: hero, countdown, welcome, about, programação, FAQ, hotéis, o que fazer, galeria, RSVP, contato); publish em `{slug}.mitzvah.pro`; RSVP público + lista de convidados; emails STD/convite (Resend + `mail.{slug}.mitzvah.pro` via DNS Vercel); dashboard do evento; duplicar/arquivar; upload de logo/hero; datepicker; isolamento BarBeni em `/BarBeni/*`; `/admin` no apex removido; landing `en`/`pt`/`es`/`he` (RTL no he); check autenticado `/api/platform/email-setup`; persistência durável (Postgres `DATABASE_URL` ou Vercel Blob; ficheiro em local).
 
 **Como usar:** `/dashboard/login` (senha `mitzvah`) → Novo evento → wizard. Publicar abre `{slug}.localhost:3000`. Landing: `/` e `/en`. Evento Beni (outro repo): `/BarBeni/en`. Admin Beni: `/BarBeni/admin/dashboard`. Demo do studio: `/e/beni`. **Não existe** `/admin` no apex.
 
@@ -21,7 +19,6 @@ Persistência local: `data/platform.json` (em produção Vercel cai em `/tmp` e 
 
 | Prioridade | Melhoria | Estado atual |
 |------------|----------|--------------|
-| **P1** | Persistência durável (Postgres ou equivalente) | JSON local; `/tmp` na Vercel perde dados |
 | **P1** | Inventário fiel do repo `bar-beni` (paridade 1:1) | Template inspirado, não 1:1 |
 | **P1** | Multi-tenant (orgs, papéis, isolamento) | Senha única de studio |
 | **P1** | Import CSV de convidados | Lista manual no wizard |
@@ -86,7 +83,7 @@ Hoje o repo `mitzvah-pro` é landing + studio + **proxy** para o app `bar-beni`:
 | Template reutilizável | ✅ config-driven `barbeni` (não 1:1 com o repo) |
 | Wizard self-serve | ✅ preview ao vivo + publish |
 | Subdomínio por evento | ✅ `{slug}.mitzvah.pro` |
-| Persistência (DB / storage) | ⏳ JSON local; `/tmp` na Vercel |
+| Persistência (DB / storage) | ✅ Postgres / Blob / ficheiro (`lib/platform/persistence.ts`) |
 
 **Implicação:** o produto de evento “Beni” (STD, convite, RSVP, admin de convidados) está **no repo `bar-beni`**, não neste. O studio em `/dashboard` é da plataforma e não substitui `/BarBeni/admin/dashboard`.
 
@@ -419,7 +416,7 @@ Requisitos:
 - [x] Auth de studio + Event CRUD (`/dashboard`)  
 - [x] Dashboard lista/cria/arquiva/duplica  
 - [ ] Organization + papéis (multi-tenant)  
-- [ ] EventConfig na DB (hoje JSON / `/tmp`)  
+- [x] EventConfig durável (Postgres / Blob / ficheiro)  
 - [x] Rotas `/dashboard` sem colidir com proxy  
 
 ### Fase 2 — Template BarBeni config-driven
@@ -491,12 +488,11 @@ Requisitos:
 P0 e o subdomínio `{slug}.mitzvah.pro` **já saíram** da lista (ver §0).
 
 ### P1
-1. Persistência durável (Postgres) — JSON/`/tmp` não serve na Vercel  
-2. Inventário real do repo bar-beni → schema 1:1  
-3. Multi-tenant (orgs / papéis)  
-4. Import CSV convidados  
-5. Fluxo boutique assistido + aprovação  
-6. Preview público do rascunho  
+1. Inventário real do repo bar-beni → schema 1:1  
+2. Multi-tenant (orgs / papéis)  
+3. Import CSV convidados  
+4. Fluxo boutique assistido + aprovação  
+5. Preview público do rascunho  
 
 ### P2
 7. Domínio custom Signature + SSL  

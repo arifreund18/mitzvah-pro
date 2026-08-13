@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { requireSession } from '@/lib/platform/session'
 import { getResend } from '@/lib/email/send'
 import { probeVercelDns, vercelDnsConfigured } from '@/lib/email/vercel-dns'
+import { storageDriver } from '@/lib/platform/store'
 
 export async function GET() {
   const denied = await requireSession()
@@ -15,6 +16,7 @@ export async function GET() {
     vercelDnsAuthMode: dns.authMode || null,
     vercelDnsError: dns.error || null,
     vercelDnsRecords: dns.recordCount ?? null,
+    storageDriver: storageDriver(),
     siteHost: process.env.NEXT_PUBLIC_SITE_HOST || 'mitzvah.pro',
   })
 }

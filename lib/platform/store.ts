@@ -1,9 +1,8 @@
-import { mkdir, readFile, writeFile } from 'node:fs/promises'
-import path from 'node:path'
-import { createDefaultConfig, createSeedEvent } from './defaults'
+import { createDefaultConfig } from './defaults'
 import { slugify, uid } from './ids'
+import { loadPlatformStore, savePlatformStore } from './persistence'
 import { isReservedSlug } from './site-url'
-import { normalizeConfig, normalizeEvent, normalizeGuest } from './normalize'
+import { normalizeConfig, normalizeGuest } from './normalize'
 import type {
   EventConfig,
   EventLocale,
@@ -14,66 +13,16 @@ import type {
   WizardStepId,
 } from './types'
 
-const LOCAL_PATH = path.join(process.cwd(), 'data', 'platform.json')
-const TMP_PATH = path.join('/tmp', 'mitzvah-platform.json')
+export { storageDriver } from './persistence'
 
-let resolvedPath: string | null = null
 let writeChain: Promise<unknown> = Promise.resolve()
 
-function emptyStore(): PlatformStore {
-  return { events: [createSeedEvent()] }
-}
-
-async function tryRead(file: string): Promise<PlatformStore | null> {
-  try {
-    const raw = await readFile(file, 'utf8')
-    const parsed = JSON.parse(raw) as PlatformStore
-    if (!parsed || !Array.isArray(parsed.events)) return emptyStore()
-    return { events: parsed.events.map((event) => normalizeEvent(event)) }
-  } catch {
-    return null
-  }
-}
-
-async function persist(file: string, store: PlatformStore): Promise<void> {
-  await mkdir(path.dirname(file), { recursive: true })
-  await writeFile(file, JSON.stringify(store, null, 2), 'utf8')
-}
-
 async function loadStore(): Promise<PlatformStore> {
-  if (resolvedPath) {
-    return (await tryRead(resolvedPath)) ?? emptyStore()
-  }
-  const local = await tryRead(LOCAL_PATH)
-  if (local) {
-    resolvedPath = LOCAL_PATH
-    return local
-  }
-  const tmp = await tryRead(TMP_PATH)
-  if (tmp) {
-    resolvedPath = TMP_PATH
-    return tmp
-  }
-  const initial = emptyStore()
-  try {
-    await persist(LOCAL_PATH, initial)
-    resolvedPath = LOCAL_PATH
-  } catch {
-    await persist(TMP_PATH, initial)
-    resolvedPath = TMP_PATH
-  }
-  return initial
+  return loadPlatformStore()
 }
 
 async function saveStore(store: PlatformStore): Promise<void> {
-  const file = resolvedPath ?? LOCAL_PATH
-  try {
-    await persist(file, store)
-    resolvedPath = file
-  } catch {
-    await persist(TMP_PATH, store)
-    resolvedPath = TMP_PATH
-  }
+  await savePlatformStore(store)
 }
 
 function withLock<T>(fn: () => Promise<T>): Promise<T> {
