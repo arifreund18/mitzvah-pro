@@ -49,6 +49,18 @@ export async function getEventBySlug(slug: string): Promise<PlatformEvent | null
   return store.events.find((event) => event.slug === slug) ?? null
 }
 
+export async function getEventByCustomHost(host: string): Promise<PlatformEvent | null> {
+  const needle = host.split(':')[0].toLowerCase().replace(/^www\./, '')
+  if (!needle) return null
+  const store = await loadStore()
+  return (
+    store.events.find((event) => {
+      const custom = event.config.domain.customHost.replace(/^www\./, '')
+      return custom && custom === needle && event.config.domain.customHostStatus === 'verified'
+    }) ?? null
+  )
+}
+
 export async function getEventByPreviewToken(token: string): Promise<PlatformEvent | null> {
   if (!token) return null
   const store = await loadStore()

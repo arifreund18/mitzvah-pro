@@ -6,6 +6,7 @@ import {
   eventPublicUrl,
   eventSlugFromHost,
   isBarBeniSubdomain,
+  isPlatformManagedHost,
   isReservedSlug,
   protocolFor,
   supportsEventSubdomain,
@@ -69,6 +70,14 @@ export default function middleware(request: NextRequest) {
       return NextResponse.next()
     }
     return rewriteToEvent(request, `/e/${eventSlug}`)
+  }
+
+  if (!isPlatformManagedHost(host)) {
+    if (pathname.startsWith('/api') || pathname.startsWith('/_next') || pathname.startsWith('/dashboard')) {
+      return NextResponse.next()
+    }
+    const rest = pathname === '/' || pathname === '' ? '' : pathname
+    return rewriteToEvent(request, `/e/by-host${rest}`)
   }
 
   if (pathname.startsWith('/e/')) {

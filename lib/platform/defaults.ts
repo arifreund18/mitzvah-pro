@@ -107,6 +107,9 @@ export function createDefaultConfig(partial?: {
       seoTitle: copy.seoTitle,
       seoDescription: copy.seoDescription,
       mail: emptyMailDomain(),
+      customHost: '',
+      customHostStatus: 'none',
+      customHostToken: uid(),
     },
   }
 }

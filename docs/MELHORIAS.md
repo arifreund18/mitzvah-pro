@@ -11,7 +11,7 @@ Conferido no código em 2026-08-13. Itens já entregues **saíram desta tabela**
 
 ### Já entregue (não repetir)
 
-Auth do studio + CRUD de eventos; wizard com preview ao vivo; template BarBeni config-driven (site: hero, countdown, welcome, about, programação, FAQ, hotéis, o que fazer, galeria, RSVP, contato); publish em `{slug}.mitzvah.pro`; RSVP público + lista de convidados; emails STD/convite (Resend + `mail.{slug}.mitzvah.pro` via DNS Vercel); dashboard do evento; duplicar/arquivar; upload de logo/hero; datepicker; isolamento BarBeni em `/BarBeni/*`; `/admin` no apex removido; landing `en`/`pt`/`es`/`he` (RTL no he); check autenticado `/api/platform/email-setup`; persistência durável (Postgres `DATABASE_URL` ou Vercel Blob; ficheiro em local); import/export CSV de convidados; formulário da landing em `/api/contact`; preview público do rascunho em `/p/{token}`; fluxo boutique de aprovação em `/approve/{token}`.
+Auth do studio + CRUD de eventos; wizard com preview ao vivo; template BarBeni config-driven (site: hero, countdown, welcome, about, programação, FAQ, hotéis, o que fazer, galeria, RSVP, contato); publish em `{slug}.mitzvah.pro`; RSVP público + lista de convidados; emails STD/convite (Resend + `mail.{slug}.mitzvah.pro` via DNS Vercel); dashboard do evento; duplicar/arquivar; upload de logo/hero; datepicker; isolamento BarBeni em `/BarBeni/*`; `/admin` no apex removido; landing `en`/`pt`/`es`/`he` (RTL no he); check autenticado `/api/platform/email-setup`; persistência durável (Postgres `DATABASE_URL` ou Vercel Blob; ficheiro em local); import/export CSV de convidados; formulário da landing em `/api/contact`; preview público do rascunho em `/p/{token}`; fluxo boutique de aprovação em `/approve/{token}`; domínio custom Signature (CNAME + verificação).
 
 **Como usar:** `/dashboard/login` (senha `mitzvah`) → Novo evento → wizard. Publicar abre `{slug}.localhost:3000`. Landing: `/` e `/en`. Evento Beni (outro repo): `/BarBeni/en`. Admin Beni: `/BarBeni/admin/dashboard`. Demo do studio: `/e/beni`. **Não existe** `/admin` no apex.
 
@@ -21,7 +21,6 @@ Auth do studio + CRUD de eventos; wizard com preview ao vivo; template BarBeni c
 |------------|----------|--------------|
 | **P1** | Inventário fiel do repo `bar-beni` (paridade 1:1) | Template inspirado, não 1:1 |
 | **P1** | Multi-tenant (orgs, papéis, isolamento) | Senha única de studio |
-| **P2** | Domínio custom Signature + SSL | Só copy na landing |
 | **P2** | Mais templates além do BarBeni | Contrato único, só `barbeni` |
 | **P2** | Analytics de RSVP | Contagem no detalhe do evento |
 | **P2** | i18n completo do conteúdo do evento | Chrome do site em 4 idiomas; textos do evento únicos |
@@ -431,7 +430,7 @@ Requisitos:
 - [x] Steps STD, venues, FAQ, convidados manuais  
 - [x] Import CSV de convidados  
 - [x] Fluxo boutique assistido + aprovação  
-- [ ] Domínio custom (Signature)  
+- [x] Domínio custom (Signature)  
 - [ ] Atualizar landing (self-serve + assisted)  
 
 ### Fase 5 — Endurecimento
@@ -488,7 +487,6 @@ P0 e o subdomínio `{slug}.mitzvah.pro` **já saíram** da lista (ver §0).
 2. Multi-tenant (orgs / papéis)  
 
 ### P2
-7. Domínio custom Signature + SSL  
 8. Mais templates  
 9. Analytics de RSVP no dashboard  
 10. i18n do conteúdo do evento  

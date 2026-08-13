@@ -17,6 +17,7 @@ export const RESERVED_SUBDOMAINS = new Set([
   'static',
   'assets',
   'preview',
+  'by-host',
   'staging',
   'dev',
   'test',
@@ -123,6 +124,16 @@ export function supportsEventSubdomain(host: string): boolean {
   if (isVercelPreviewHost(host) || isIpHost(host)) return false
   const hostname = hostnameOf(host)
   if (hostname === 'localhost' || hostname.endsWith('.localhost')) return true
+  if (hostname === SITE_HOST || hostname === `www.${SITE_HOST}` || hostname.endsWith(`.${SITE_HOST}`)) {
+    return true
+  }
+  return false
+}
+
+export function isPlatformManagedHost(host: string): boolean {
+  const hostname = hostnameOf(host)
+  if (hostname === 'localhost' || hostname.endsWith('.localhost')) return true
+  if (isVercelPreviewHost(host) || isIpHost(host)) return true
   if (hostname === SITE_HOST || hostname === `www.${SITE_HOST}` || hostname.endsWith(`.${SITE_HOST}`)) {
     return true
   }

@@ -897,6 +897,22 @@ export const WizardStepForm = forwardRef<
             }
           />
         </Field>
+        <Field label="Domínio próprio (Signature)" hint="CNAME para cname.vercel-dns.com. Verifique no dashboard do evento.">
+          <TextInput
+            value={config.domain.customHost}
+            placeholder="www.familia.com"
+            onChange={(e) =>
+              set({
+                ...config,
+                domain: {
+                  ...config.domain,
+                  customHost: e.target.value.toLowerCase().trim(),
+                  customHostStatus: config.domain.customHostStatus === 'verified' ? 'pending' : config.domain.customHostStatus,
+                },
+              })
+            }
+          />
+        </Field>
       </div>
     )
   }

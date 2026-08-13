@@ -80,6 +80,9 @@ export function normalizeConfig(raw: EventConfig | null | undefined): EventConfi
       ...base.domain,
       ...raw.domain,
       mail: normalizeMailDomain(raw.domain?.mail),
+      customHost: (raw.domain?.customHost || '').toLowerCase().replace(/^www\./, '').replace(/\/$/, ''),
+      customHostStatus: raw.domain?.customHostStatus || 'none',
+      customHostToken: raw.domain?.customHostToken || uid(),
     },
   }
 }

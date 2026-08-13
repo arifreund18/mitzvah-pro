@@ -62,6 +62,8 @@ export type FaqItem = {
   answer: string
 }
 
+export type CustomHostStatus = 'none' | 'pending' | 'verified' | 'failed'
+
 export type EventConfig = {
   basics: {
     type: EventType
@@ -128,6 +130,9 @@ export type EventConfig = {
     seoTitle: string
     seoDescription: string
     mail: EventMailDomain
+    customHost: string
+    customHostStatus: CustomHostStatus
+    customHostToken: string
   }
 }
 

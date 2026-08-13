@@ -63,6 +63,7 @@ export function EventAdmin({ event }: { event: PlatformEvent }) {
         Família {event.config.basics.familyName || '—'} · {siteLabel}
       </p>
       <MailDomainStatus mail={event.config.domain.mail} slug={event.slug} />
+      <CustomDomainPanel eventId={event.id} domain={event.config.domain} />
       <div className="mt-8">
         <EventActions id={event.id} slug={event.slug} status={event.status} previewToken={event.previewToken} />
       </div>
@@ -156,6 +157,62 @@ export function EventAdmin({ event }: { event: PlatformEvent }) {
           </tbody>
         </table>
       </div>
+    </div>
+  )
+}
+
+function CustomDomainPanel({
+  eventId,
+  domain,
+}: {
+  eventId: string
+  domain: PlatformEvent['config']['domain']
+}) {
+  const router = useRouter()
+  const [host, setHost] = useState(domain.customHost)
+  const [busy, setBusy] = useState(false)
+  const [hint, setHint] = useState('')
+
+  async function save(verify = false) {
+    setBusy(true)
+    setHint('')
+    const res = await fetch(`/api/platform/events/${eventId}/custom-domain`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(verify ? { verify: true } : { host }),
+    })
+    const data = (await res.json().catch(() => null)) as { error?: string; hint?: string } | null
+    setBusy(false)
+    if (!res.ok) {
+      setHint(data?.error || 'Falha no domínio')
+      return
+    }
+    setHint(data?.hint || (verify ? 'Verificação concluída' : 'Domínio guardado'))
+    router.refresh()
+  }
+
+  return (
+    <div className="mt-4 rounded-2xl border border-white/10 bg-white/5 p-4 text-sm">
+      <p className="text-xs uppercase text-white/40">Domínio Signature</p>
+      <p className="mt-1 text-white/60">
+        Status: {domain.customHostStatus}
+        {domain.customHostToken ? ` · TXT mitzvah-site=${domain.customHostToken}` : ''}
+      </p>
+      <div className="mt-3 flex flex-wrap gap-2">
+        <input
+          value={host}
+          onChange={(e) => setHost(e.target.value)}
+          placeholder="www.familia.com"
+          className="min-w-56 flex-1 rounded-xl border border-white/15 bg-white/5 px-3 py-2 outline-none"
+        />
+        <button type="button" disabled={busy} onClick={() => void save(false)} className="rounded-full bg-white/10 px-4 py-2">
+          Guardar
+        </button>
+        <button type="button" disabled={busy} onClick={() => void save(true)} className="rounded-full bg-white/10 px-4 py-2">
+          Verificar DNS
+        </button>
+      </div>
+      {hint ? <p className="mt-2 text-cyan-200">{hint}</p> : null}
     </div>
   )
 }
