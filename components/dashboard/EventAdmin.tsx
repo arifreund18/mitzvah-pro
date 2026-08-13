@@ -3,6 +3,7 @@
 import { useRouter } from 'next/navigation'
 import { useMemo, useState } from 'react'
 import { EventActions } from '@/components/dashboard/EventActions'
+import { GuestCsvImport } from '@/components/dashboard/GuestCsvImport'
 import type { PlatformEvent } from '@/lib/platform/types'
 import { eventPublicHostLabel, eventPublicUrl } from '@/lib/platform/site-url'
 import { eventMailDomainName } from '@/lib/platform/mail-domain'
@@ -112,6 +113,15 @@ export function EventAdmin({ event }: { event: PlatformEvent }) {
         Envie Save the Date e convite por email. Sem Resend no localhost, o status é marcado mesmo assim.
         Com Vercel DNS + Resend, cada evento usa o remetente isolado do slug.
       </p>
+      <div className="mt-4 flex flex-wrap items-start gap-4">
+        <GuestCsvImport eventId={event.id} onImported={() => router.refresh()} />
+        <a
+          href={`/api/platform/events/${event.id}/guests/export`}
+          className="rounded-full border border-white/20 px-4 py-2 text-sm hover:bg-white/10"
+        >
+          Exportar CSV
+        </a>
+      </div>
       <div className="mt-6 overflow-x-auto rounded-2xl border border-white/10">
         <table className="w-full min-w-[800px] text-left text-sm">
           <thead className="bg-white/5 text-white/50">

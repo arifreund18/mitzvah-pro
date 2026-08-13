@@ -195,6 +195,25 @@ export async function addGuest(
   })
 }
 
+export async function addGuests(
+  eventId: string,
+  rows: Array<Partial<Guest> & { familyName: string }>,
+): Promise<Guest[] | null> {
+  return withLock(async () => {
+    const store = await loadStore()
+    const event = store.events.find((item) => item.id === eventId)
+    if (!event) return null
+    const now = new Date().toISOString()
+    const added = rows
+      .map((row) => row.familyName?.trim() && normalizeGuest({ ...row, id: uid(), createdAt: now }))
+      .filter((row): row is Guest => Boolean(row))
+    event.guests.push(...added)
+    event.updatedAt = now
+    await saveStore(store)
+    return added
+  })
+}
+
 export async function replaceGuests(eventId: string, guests: Guest[]): Promise<PlatformEvent | null> {
   return withLock(async () => {
     const store = await loadStore()

@@ -16,6 +16,7 @@ import {
 import { LOCALE_OPTIONS } from '@/lib/platform/locales'
 import { eventPublicHostLabel } from '@/lib/platform/site-url'
 import { reviewIssues } from '@/lib/platform/wizard'
+import { GuestCsvImport } from '@/components/dashboard/GuestCsvImport'
 
 function readFileAsDataUrl(file: File, tooBig: string): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -833,6 +834,12 @@ export const WizardStepForm = forwardRef<
     return (
       <div className="space-y-4">
         <p className="text-sm text-white/50">{ui.guestsHint}</p>
+        <GuestCsvImport
+          onImported={(rows) => {
+            if (!rows.length) return
+            onGuests([...guests, ...rows])
+          }}
+        />
         {guests.map((guest) => (
           <div key={guest.id} className="grid gap-2 rounded-2xl border border-white/10 p-3 sm:grid-cols-2">
             <TextInput value={guest.familyName} readOnly />
