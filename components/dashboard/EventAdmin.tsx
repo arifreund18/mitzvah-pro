@@ -110,7 +110,7 @@ export function EventAdmin({ event }: { event: PlatformEvent }) {
       </h2>
       <p className="mt-2 text-sm text-white/50">
         Envie Save the Date e convite por email. Sem Resend no localhost, o status é marcado mesmo assim.
-        Com Cloudflare + Resend, cada evento usa o remetente isolado do slug.
+        Com Vercel DNS + Resend, cada evento usa o remetente isolado do slug.
       </p>
       <div className="mt-6 overflow-x-auto rounded-2xl border border-white/10">
         <table className="w-full min-w-[800px] text-left text-sm">
@@ -166,7 +166,7 @@ function MailDomainStatus({
         ? `Email DNS pendente · ${from}`
         : mail.status === 'failed'
           ? `Email: falha no domínio · ${from}`
-          : `Email compartilhado (configure Cloudflare + Resend para isolar ${domain})`
+          : `Email compartilhado (configure VERCEL_TOKEN + Resend para isolar ${domain})`
   return (
     <p className={`mt-2 text-sm ${mail.status === 'failed' ? 'text-rose-300' : 'text-white/40'}`}>
       {label}

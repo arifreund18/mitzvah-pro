@@ -1,5 +1,5 @@
 import { getResend } from '@/lib/email/send'
-import { cloudflareConfigured, upsertCloudflareRecord, type DnsUpsert } from '@/lib/email/cloudflare'
+import { upsertVercelRecord, vercelDnsConfigured, type DnsUpsert } from '@/lib/email/vercel-dns'
 import {
   emptyMailDomain,
   eventFromAddress,
@@ -90,13 +90,13 @@ export async function provisionEventMailDomain(config: EventConfig): Promise<Eve
   const fromEmail = eventFromAddress(slug, config.basics.honoreeName)
   const previous = config.domain.mail
 
-  if (!getResend() || !cloudflareConfigured()) {
+  if (!getResend() || !vercelDnsConfigured()) {
     return {
       ...emptyMailDomain(),
       sendingDomain,
       fromEmail,
       status: 'skipped',
-      lastError: 'Resend ou Cloudflare não configurados — envio usa o remetente compartilhado.',
+      lastError: 'Resend ou Vercel DNS não configurados — envio usa o remetente compartilhado.',
     }
   }
 
@@ -123,7 +123,7 @@ export async function provisionEventMailDomain(config: EventConfig): Promise<Eve
     for (const record of domain.records) {
       const upsert = toDnsUpsert(record, sendingDomain)
       if (!upsert) continue
-      await upsertCloudflareRecord(upsert, comment)
+      await upsertVercelRecord(upsert, comment)
     }
 
     const resend = getResend()

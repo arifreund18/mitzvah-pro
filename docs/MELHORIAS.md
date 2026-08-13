@@ -15,7 +15,7 @@ Atualizado em: 2026-08-12
 | **P0** | Wizard passo a passo com **preview ao vivo** | ✅ site no preview; STD/convite como **email** |
 | **P0** | Publish do site do evento | ✅ `{slug}.mitzvah.pro` (local `{slug}.localhost`) |
 | **P0** | RSVP público + lista de convidados | ✅ site + dashboard do evento |
-| **P0** | Emails STD e convite | ✅ Resend; no publish cria `mail.{slug}.mitzvah.pro` (Cloudflare DNS) |
+| **P0** | Emails STD e convite | ✅ Resend; no publish cria `mail.{slug}.mitzvah.pro` (DNS Vercel) |
 | **P0** | Dashboard do evento (studio mitzvah-pro) | ✅ `/dashboard/events/[id]` |
 | **P1** | Inventário fiel do repo `bar-beni` (paridade 1:1) | ⏳ pendente (template inspirado) |
 | **P1** | Multi-tenant (orgs, papéis, isolamento) | ⏳ senha única de studio |
@@ -512,7 +512,8 @@ Requisitos:
 
 | Data | Mudança |
 |------|---------|
-| 2026-08-13 | Publish provisiona domínio Resend `mail.{slug}.mitzvah.pro` + DNS Cloudflare |
+| 2026-08-13 | DNS de email por slug na Vercel (não Cloudflare); `mitzvah.pro` permanece na Vercel |
+| 2026-08-13 | Publish provisiona domínio Resend `mail.{slug}.mitzvah.pro` + DNS |
 | 2026-08-12 | `/admin` no apex removido; admin BarBeni só em `/BarBeni/admin/dashboard`; docs separam os dois repos |
 | 2026-08-12 | `/en` volta a ser a landing Mitzvah.pro; BarBeni fica em `/BarBeni/en` |
 | 2026-08-12 | BarBeni legado permanece em `/BarBeni/en`; slug `beni` não vira subdomínio |
