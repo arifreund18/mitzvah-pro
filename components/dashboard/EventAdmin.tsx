@@ -43,15 +43,17 @@ export function EventAdmin({ event }: { event: PlatformEvent }) {
       error?: string
       sent?: number
       delivered?: number
-      local?: boolean
+      from?: string
+      sharedSender?: boolean
     } | null
     setBusy('')
     if (!res.ok) {
       setMessage(data?.error || 'Não foi possível enviar')
       return
     }
-    const local = data?.local ? ' (localhost: marcado como enviado, sem Resend)' : ''
-    setMessage(`${data?.sent || 0} email(s) na fila${local}`)
+    const via = data?.from ? ` · de ${data.from}` : ''
+    const shared = data?.sharedSender ? ' · remetente partilhado' : ''
+    setMessage(`${data?.delivered || data?.sent || 0} enviado(s)${via}${shared}`)
     router.refresh()
   }
 
@@ -233,7 +235,9 @@ function MailDomainStatus({
         ? `Email DNS pendente · ${from}`
         : mail.status === 'failed'
           ? `Email: falha no domínio · ${from}`
-          : `Email compartilhado (configure VERCEL_TOKEN + Resend para isolar ${domain})`
+          : mail.lastError?.includes('EVENT_MAIL_ISOLATION=0')
+            ? `Email partilhado (isolamento desligado) · usa RESEND_FROM_EMAIL`
+            : `Email compartilhado (configure VERCEL_TOKEN + Resend para isolar ${domain})`
   return (
     <p className={`mt-2 text-sm ${mail.status === 'failed' ? 'text-rose-300' : 'text-white/40'}`}>
       {label}

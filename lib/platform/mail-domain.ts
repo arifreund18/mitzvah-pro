@@ -43,8 +43,20 @@ export function eventFromAddress(slug: string, honoreeName?: string): string {
   return `${name} <${MAIL_FROM_LOCAL}@${domain}>`
 }
 
+export function eventMailIsolationEnabled(): boolean {
+  const raw = (process.env.EVENT_MAIL_ISOLATION ?? '1').trim().toLowerCase()
+  return !['0', 'false', 'off', 'no'].includes(raw)
+}
+
 export function eventSendFrom(config: EventConfig): string | null {
+  const shared = process.env.RESEND_FROM_EMAIL?.trim() || null
+  if (!eventMailIsolationEnabled()) {
+    if (!shared) return null
+    if (shared.includes('<')) return shared
+    const name = (config.basics.honoreeName || 'Mitzvah.pro').replace(/[<>]/g, '').trim() || 'Mitzvah.pro'
+    return `${name} <${shared}>`
+  }
   const mail = config.domain.mail
   if (mail?.status === 'verified' && mail.fromEmail) return mail.fromEmail
-  return process.env.RESEND_FROM_EMAIL || null
+  return shared
 }
