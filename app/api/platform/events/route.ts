@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { requireSession } from '@/lib/platform/session'
 import { resolveLocales } from '@/lib/platform/locales'
+import { platformApiError } from '@/lib/platform/api-error'
 import { createEvent, listEvents } from '@/lib/platform/store'
 
 export async function GET() {
@@ -25,11 +26,15 @@ export async function POST(request: Request) {
   if (!honoreeName) {
     return NextResponse.json({ error: 'Informe o nome do celebrante' }, { status: 400 })
   }
-  const event = await createEvent({
-    honoreeName,
-    familyName: familyName || honoreeName,
-    locale: locales.default,
-    enabled: locales.enabled,
-  })
-  return NextResponse.json({ event })
+  try {
+    const event = await createEvent({
+      honoreeName,
+      familyName: familyName || honoreeName,
+      locale: locales.default,
+      enabled: locales.enabled,
+    })
+    return NextResponse.json({ event })
+  } catch (error) {
+    return platformApiError(error, 'Não foi possível criar o evento')
+  }
 }

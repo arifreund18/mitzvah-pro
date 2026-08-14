@@ -13,7 +13,11 @@ import type {
   WizardStepId,
 } from './types'
 
-export { storageDriver } from './persistence'
+export {
+  EPHEMERAL_STORAGE_ERROR,
+  isEphemeralServerStorage,
+  storageDriver,
+} from './persistence'
 
 let writeChain: Promise<unknown> = Promise.resolve()
 

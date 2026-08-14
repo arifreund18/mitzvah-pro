@@ -1,4 +1,3 @@
-import { notFound } from 'next/navigation'
 import { WizardStudio } from '@/components/wizard/WizardStudio'
 import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
@@ -18,6 +17,6 @@ export default async function WizardPage({
   }
   const { id } = await params
   const event = await getEvent(id)
-  if (!event) notFound()
+  if (!event) redirect('/dashboard?missing=1')
   return <WizardStudio event={event} />
 }

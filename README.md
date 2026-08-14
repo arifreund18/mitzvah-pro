@@ -59,8 +59,8 @@ No DNS/Vercel, aponte o wildcard `*.mitzvah.pro` para **este** projeto. `/e/{slu
 | `DASHBOARD_PASSWORD` | Não | Senha do studio **mitzvah-pro** (default `mitzvah`) |
 | `DASHBOARD_SECRET` | Não | Segredo do cookie de sessão do studio |
 | `NEXT_PUBLIC_SITE_HOST` | Não | Host canónico (default `mitzvah.pro`) → `{slug}.mitzvah.pro` |
-| `DATABASE_URL` | Prod (recomendado) | Postgres/Neon — persiste eventos entre lambdas |
-| `BLOB_READ_WRITE_TOKEN` | Prod (alternativa) | Vercel Blob se não houver Postgres |
+| `DATABASE_URL` | **Obrigatória em prod** | Postgres/Neon — sem isto, criar evento → wizard 404 (storage `/tmp` por lambda) |
+| `BLOB_READ_WRITE_TOKEN` | Alternativa em prod | Vercel Blob se não houver Postgres |
 
 ## Rotas neste repo (`mitzvah-pro`)
 
