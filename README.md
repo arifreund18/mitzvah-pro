@@ -49,6 +49,7 @@ No DNS/Vercel, aponte o wildcard `*.mitzvah.pro` para **este** projeto. `/e/{slu
 | `BAR_BENI_ORIGIN` | Sim (prod) | URL do deploy **bar-beni** (outro repo), sem barra final. Só para o rewrite `/BarBeni/*` |
 | `RESEND_API_KEY` | Sim (contato e convites) | API Resend |
 | `RESEND_FROM_EMAIL` | Sim (contato; fallback de convites) | Remetente da landing e fallback se o domínio do evento ainda não verificou |
+| `EVENT_MAIL_ISOLATION` | Não (default `1`) | `0` desliga domínio por slug e envia tudo por `RESEND_FROM_EMAIL` |
 | `VERCEL_TOKEN` | Sim (isolamento de email) | Token da conta Vercel para gravar DNS em `mitzvah.pro` |
 | `VERCEL_TEAM_ID` | Se o projeto for de um team | Team ID (Settings do time na Vercel) |
 | `VERCEL_DNS_DOMAIN` | Não | Zona DNS (default `mitzvah.pro`) |

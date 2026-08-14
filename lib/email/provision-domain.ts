@@ -4,6 +4,7 @@ import {
   emptyMailDomain,
   eventFromAddress,
   eventMailDomainName,
+  eventMailIsolationEnabled,
 } from '@/lib/platform/mail-domain'
 import type { EventConfig, EventMailDomain } from '@/lib/platform/types'
 
@@ -89,6 +90,16 @@ export async function provisionEventMailDomain(config: EventConfig): Promise<Eve
   const sendingDomain = eventMailDomainName(slug)
   const fromEmail = eventFromAddress(slug, config.basics.honoreeName)
   const previous = config.domain.mail
+
+  if (!eventMailIsolationEnabled()) {
+    return {
+      ...emptyMailDomain(),
+      sendingDomain,
+      fromEmail: process.env.RESEND_FROM_EMAIL?.trim() || fromEmail,
+      status: 'skipped',
+      lastError: 'Isolamento por slug desligado (EVENT_MAIL_ISOLATION=0) — envio via RESEND_FROM_EMAIL.',
+    }
+  }
 
   if (!getResend() || !vercelDnsConfigured()) {
     return {
