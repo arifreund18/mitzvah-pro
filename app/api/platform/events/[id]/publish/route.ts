@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { requireSession } from '@/lib/platform/session'
+import { requireEventAccess } from '@/lib/platform/session'
 import { getEvent, updateEvent } from '@/lib/platform/store'
 import { reviewIssues } from '@/lib/platform/wizard'
 import { provisionEventMailDomain } from '@/lib/email/provision-domain'
@@ -9,9 +9,9 @@ export const maxDuration = 30
 type Ctx = { params: Promise<{ id: string }> }
 
 export async function POST(_request: Request, ctx: Ctx) {
-  const denied = await requireSession()
-  if (denied) return denied
   const { id } = await ctx.params
+  const denied = await requireEventAccess(id)
+  if (denied) return denied
   const current = await getEvent(id)
   if (!current) return NextResponse.json({ error: 'Evento não encontrado' }, { status: 404 })
   const issues = reviewIssues(current.config)

@@ -169,8 +169,27 @@ export type WizardProgress = {
   completedSteps: WizardStepId[]
 }
 
+export type UserRole = 'platform_admin' | 'org_owner' | 'org_member'
+
+export type Organization = {
+  id: string
+  name: string
+  createdAt: string
+}
+
+export type PlatformUser = {
+  id: string
+  email: string
+  name: string
+  passwordHash: string
+  role: UserRole
+  orgId: string
+  createdAt: string
+}
+
 export type PlatformEvent = {
   id: string
+  orgId: string
   slug: string
   status: EventStatus
   templateId: 'barbeni'
@@ -185,5 +204,7 @@ export type PlatformEvent = {
 }
 
 export type PlatformStore = {
+  orgs: Organization[]
+  users: PlatformUser[]
   events: PlatformEvent[]
 }

@@ -1,14 +1,14 @@
 import { NextResponse } from 'next/server'
-import { requireSession } from '@/lib/platform/session'
+import { requireEventAccess } from '@/lib/platform/session'
 import { getEvent, updateEvent } from '@/lib/platform/store'
 import { attachCustomHost, verifyCustomHost } from '@/lib/platform/custom-domain'
 
 type Ctx = { params: Promise<{ id: string }> }
 
 export async function POST(request: Request, ctx: Ctx) {
-  const denied = await requireSession()
-  if (denied) return denied
   const { id } = await ctx.params
+  const denied = await requireEventAccess(id)
+  if (denied) return denied
   const event = await getEvent(id)
   if (!event) return NextResponse.json({ error: 'Evento não encontrado' }, { status: 404 })
   const body = (await request.json().catch(() => null)) as { host?: string; verify?: boolean } | null

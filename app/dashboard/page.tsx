@@ -4,14 +4,19 @@ import { Suspense } from 'react'
 import { DashboardShell } from '@/components/dashboard/DashboardShell'
 import { EventActions } from '@/components/dashboard/EventActions'
 import { MissingEventNotice } from '@/components/dashboard/MissingEventNotice'
-import { listEvents } from '@/lib/platform/store'
+import { listEvents, getOrg } from '@/lib/platform/store'
 import { typeLabel } from '@/lib/platform/defaults'
 import { eventPublicHostLabel, hostFromHeaders } from '@/lib/platform/site-url'
+import { actorOrgId, currentActor } from '@/lib/platform/session'
+import { isPlatformAdmin } from '@/lib/platform/auth'
 
 export const dynamic = 'force-dynamic'
 
 export default async function DashboardPage() {
-  const events = await listEvents()
+  const actor = await currentActor()
+  const orgId = actorOrgId(actor)
+  const events = await listEvents(orgId)
+  const org = actor ? await getOrg(actor.orgId) : null
   const host = hostFromHeaders(await headers())
   return (
     <DashboardShell>
@@ -22,7 +27,9 @@ export default async function DashboardPage() {
         <div>
           <h1 className="font-display text-3xl">Eventos</h1>
           <p className="mt-2 text-sm text-white/50">
-            Crie um evento, customize no wizard com preview ao vivo e publique em slug.mitzvah.pro.
+            {isPlatformAdmin(actor)
+              ? 'Visão global — todos os eventos de todas as organizações.'
+              : `Eventos da organização ${org?.name || actor?.orgId}.`}
           </p>
         </div>
         <Link

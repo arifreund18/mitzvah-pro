@@ -3,8 +3,10 @@ import path from 'node:path'
 import postgres from 'postgres'
 import { list, put } from '@vercel/blob'
 import { createSeedEvent } from './defaults'
+import { DEFAULT_ORG_ID } from './auth'
+import { hashPassword } from './password'
 import { normalizeEvent } from './normalize'
-import type { PlatformStore } from './types'
+import type { Organization, PlatformStore, PlatformUser } from './types'
 
 export type StorageDriver = 'postgres' | 'blob' | 'file'
 
@@ -19,14 +21,37 @@ export const EPHEMERAL_STORAGE_ERROR =
 let filePath: string | null = null
 let pgClient: ReturnType<typeof postgres> | null = null
 
+function defaultOrg(): Organization {
+  return { id: DEFAULT_ORG_ID, name: 'Mitzvah', createdAt: new Date().toISOString() }
+}
+
+function seedOwner(): PlatformUser {
+  const now = new Date().toISOString()
+  return {
+    id: 'user-owner',
+    email: process.env.PLATFORM_OWNER_EMAIL || 'owner@mitzvah.pro',
+    name: 'Org owner',
+    passwordHash: hashPassword(process.env.PLATFORM_OWNER_PASSWORD || 'mitzvah'),
+    role: 'org_owner',
+    orgId: DEFAULT_ORG_ID,
+    createdAt: now,
+  }
+}
+
 function emptyStore(): PlatformStore {
-  return { events: [createSeedEvent()] }
+  return { orgs: [defaultOrg()], users: [seedOwner()], events: [createSeedEvent()] }
 }
 
 function parseStore(raw: unknown): PlatformStore {
   const parsed = raw as PlatformStore
   if (!parsed || !Array.isArray(parsed.events)) return emptyStore()
-  return { events: parsed.events.map((event) => normalizeEvent(event)) }
+  const orgs = Array.isArray(parsed.orgs) && parsed.orgs.length ? parsed.orgs : [defaultOrg()]
+  const users = Array.isArray(parsed.users) && parsed.users.length ? parsed.users : [seedOwner()]
+  return {
+    orgs,
+    users,
+    events: parsed.events.map((event) => normalizeEvent(event)),
+  }
 }
 
 export function storageDriver(): StorageDriver {

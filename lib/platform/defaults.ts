@@ -1,5 +1,6 @@
 import type { EventConfig, EventLocale, EventType, PlatformEvent } from './types'
 import { generatedCopy } from './copy'
+import { DEFAULT_ORG_ID } from './auth'
 import { uid } from './ids'
 import { emptyMailDomain } from './mail-domain'
 
@@ -207,6 +208,7 @@ export function createSeedEvent(): PlatformEvent {
 
   return {
     id: 'seed-beni',
+    orgId: DEFAULT_ORG_ID,
     slug: 'beni',
     status: 'published',
     templateId: 'barbeni',

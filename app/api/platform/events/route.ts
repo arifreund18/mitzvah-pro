@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { requireSession } from '@/lib/platform/session'
+import { actorOrgId, currentActor, requireSession } from '@/lib/platform/session'
 import { resolveLocales } from '@/lib/platform/locales'
 import { platformApiError } from '@/lib/platform/api-error'
 import { createEvent, listEvents } from '@/lib/platform/store'
@@ -7,13 +7,15 @@ import { createEvent, listEvents } from '@/lib/platform/store'
 export async function GET() {
   const denied = await requireSession()
   if (denied) return denied
-  const events = await listEvents()
+  const actor = await currentActor()
+  const events = await listEvents(actorOrgId(actor))
   return NextResponse.json({ events })
 }
 
 export async function POST(request: Request) {
   const denied = await requireSession()
   if (denied) return denied
+  const actor = await currentActor()
   const body = (await request.json().catch(() => null)) as {
     honoreeName?: string
     familyName?: string
@@ -32,6 +34,7 @@ export async function POST(request: Request) {
       familyName: familyName || honoreeName,
       locale: locales.default,
       enabled: locales.enabled,
+      orgId: actor?.orgId,
     })
     return NextResponse.json({ event })
   } catch (error) {

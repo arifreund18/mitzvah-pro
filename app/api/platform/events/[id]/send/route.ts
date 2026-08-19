@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { getEvent, markMailSent, updateEvent } from '@/lib/platform/store'
-import { requireSession } from '@/lib/platform/session'
+import { requireEventAccess } from '@/lib/platform/session'
 import { getResend } from '@/lib/email/send'
 import { provisionEventMailDomain, refreshEventMailDomain } from '@/lib/email/provision-domain'
 import { eventSendFrom } from '@/lib/platform/mail-domain'
@@ -11,9 +11,9 @@ type Ctx = { params: Promise<{ id: string }> }
 export const maxDuration = 30
 
 export async function POST(request: Request, ctx: Ctx) {
-  const denied = await requireSession()
-  if (denied) return denied
   const { id } = await ctx.params
+  const denied = await requireEventAccess(id)
+  if (denied) return denied
   const event = await getEvent(id)
   if (!event) return NextResponse.json({ error: 'Evento não encontrado' }, { status: 404 })
 
