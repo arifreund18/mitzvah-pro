@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
 import { LogoutButton } from '@/components/dashboard/LogoutButton'
+import { StorageAlert } from '@/components/dashboard/StorageAlert'
 import { isValidSession, SESSION_COOKIE } from '@/lib/platform/auth'
 
 export async function DashboardShell({ children }: { children: React.ReactNode }) {
@@ -27,7 +28,10 @@ export async function DashboardShell({ children }: { children: React.ReactNode }
           </nav>
         </div>
       </header>
-      <main className="mx-auto max-w-6xl px-6 py-10">{children}</main>
+      <main className="mx-auto max-w-6xl px-6 py-10">
+        <StorageAlert />
+        {children}
+      </main>
     </div>
   )
 }

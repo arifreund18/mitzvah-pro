@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { requireSession } from '@/lib/platform/session'
+import { platformApiError } from '@/lib/platform/api-error'
 import { getEvent, updateEvent, deleteEvent } from '@/lib/platform/store'
 import type { EventConfig, WizardProgress } from '@/lib/platform/types'
 
@@ -24,16 +25,24 @@ export async function PATCH(request: Request, ctx: Ctx) {
     slug?: string
   } | null
   if (!body) return NextResponse.json({ error: 'JSON inválido' }, { status: 400 })
-  const event = await updateEvent(id, body)
-  if (!event) return NextResponse.json({ error: 'Evento não encontrado' }, { status: 404 })
-  return NextResponse.json({ event })
+  try {
+    const event = await updateEvent(id, body)
+    if (!event) return NextResponse.json({ error: 'Evento não encontrado' }, { status: 404 })
+    return NextResponse.json({ event })
+  } catch (error) {
+    return platformApiError(error, 'Não foi possível atualizar o evento')
+  }
 }
 
 export async function DELETE(_request: Request, ctx: Ctx) {
   const denied = await requireSession()
   if (denied) return denied
   const { id } = await ctx.params
-  const ok = await deleteEvent(id)
-  if (!ok) return NextResponse.json({ error: 'Evento não encontrado' }, { status: 404 })
-  return NextResponse.json({ ok: true })
+  try {
+    const ok = await deleteEvent(id)
+    if (!ok) return NextResponse.json({ error: 'Evento não encontrado' }, { status: 404 })
+    return NextResponse.json({ ok: true })
+  } catch (error) {
+    return platformApiError(error, 'Não foi possível apagar o evento')
+  }
 }

@@ -1,7 +1,9 @@
 import { headers } from 'next/headers'
 import Link from 'next/link'
+import { Suspense } from 'react'
 import { DashboardShell } from '@/components/dashboard/DashboardShell'
 import { EventActions } from '@/components/dashboard/EventActions'
+import { MissingEventNotice } from '@/components/dashboard/MissingEventNotice'
 import { listEvents } from '@/lib/platform/store'
 import { typeLabel } from '@/lib/platform/defaults'
 import { eventPublicHostLabel, hostFromHeaders } from '@/lib/platform/site-url'
@@ -13,6 +15,9 @@ export default async function DashboardPage() {
   const host = hostFromHeaders(await headers())
   return (
     <DashboardShell>
+      <Suspense fallback={null}>
+        <MissingEventNotice />
+      </Suspense>
       <div className="flex items-end justify-between gap-4">
         <div>
           <h1 className="font-display text-3xl">Eventos</h1>

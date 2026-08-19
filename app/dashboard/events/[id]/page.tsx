@@ -1,4 +1,4 @@
-import { notFound } from 'next/navigation'
+import { redirect } from 'next/navigation'
 import { DashboardShell } from '@/components/dashboard/DashboardShell'
 import { EventAdmin } from '@/components/dashboard/EventAdmin'
 import { getEvent } from '@/lib/platform/store'
@@ -12,7 +12,7 @@ export default async function EventDetailPage({
 }) {
   const { id } = await params
   const event = await getEvent(id)
-  if (!event) notFound()
+  if (!event) redirect('/dashboard?missing=1')
 
   return (
     <DashboardShell>

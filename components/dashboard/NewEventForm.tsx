@@ -35,7 +35,12 @@ export function NewEventForm() {
     const data = (await res.json().catch(() => null)) as { event?: { id: string }; error?: string } | null
     setLoading(false)
     if (!res.ok || !data?.event) {
-      setError(data?.error || 'Não foi possível criar')
+      setError(
+        data?.error ||
+          (res.status === 503
+            ? 'Persistência não configurada na Vercel. Defina DATABASE_URL e faça redeploy.'
+            : 'Não foi possível criar'),
+      )
       return
     }
     router.push(`/dashboard/events/${data.event.id}/wizard`)

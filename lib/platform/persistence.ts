@@ -13,6 +13,9 @@ const TMP_PATH = path.join('/tmp', 'mitzvah-platform.json')
 const BLOB_PATH = 'mitzvah-platform.json'
 const PG_ROW_ID = 'default'
 
+export const EPHEMERAL_STORAGE_ERROR =
+  'Persistência efêmera na Vercel: configure DATABASE_URL (Postgres/Neon) ou BLOB_READ_WRITE_TOKEN. Sem isto, eventos criados somem e o wizard responde 404.'
+
 let filePath: string | null = null
 let pgClient: ReturnType<typeof postgres> | null = null
 
@@ -30,6 +33,17 @@ export function storageDriver(): StorageDriver {
   if (process.env.DATABASE_URL) return 'postgres'
   if (process.env.BLOB_READ_WRITE_TOKEN) return 'blob'
   return 'file'
+}
+
+/** True when running on Vercel without Postgres/Blob — /tmp does not survive across lambdas. */
+export function isEphemeralServerStorage(): boolean {
+  return storageDriver() === 'file' && Boolean(process.env.VERCEL)
+}
+
+export function assertDurableStorage(): void {
+  if (isEphemeralServerStorage()) {
+    throw new Error(EPHEMERAL_STORAGE_ERROR)
+  }
 }
 
 function sql() {
@@ -83,11 +97,8 @@ async function loadBlob(): Promise<PlatformStore> {
   const token = process.env.BLOB_READ_WRITE_TOKEN
   const { blobs } = await list({ prefix: BLOB_PATH, token, limit: 10 })
   const match = blobs.find((item) => item.pathname === BLOB_PATH) || blobs[0]
-  if (!match) {
-    const initial = emptyStore()
-    await saveBlob(initial)
-    return initial
-  }
+  // Do not write an empty store on miss — list can lag after put and would wipe fresh data.
+  if (!match) return emptyStore()
   const res = await fetch(match.url, {
     headers: token ? { Authorization: `Bearer ${token}` } : undefined,
     cache: 'no-store',
@@ -162,6 +173,7 @@ export async function loadPlatformStore(): Promise<PlatformStore> {
 }
 
 export async function savePlatformStore(store: PlatformStore): Promise<void> {
+  assertDurableStorage()
   const driver = storageDriver()
   if (driver === 'postgres') {
     await savePostgres(store)
