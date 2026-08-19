@@ -17,6 +17,7 @@ export function EventAdmin({ event }: { event: PlatformEvent }) {
   const router = useRouter()
   const [busy, setBusy] = useState('')
   const [message, setMessage] = useState('')
+  const [messageTone, setMessageTone] = useState<'ok' | 'err'>('ok')
   const siteLabel = eventPublicHostLabel(event.slug)
   const stdUrl = eventPublicUrl(event.slug, '/std')
   const inviteUrl = eventPublicUrl(event.slug, '/invite')
@@ -41,17 +42,53 @@ export function EventAdmin({ event }: { event: PlatformEvent }) {
     })
     const data = (await res.json().catch(() => null)) as {
       error?: string
+      warning?: string
       sent?: number
       delivered?: number
+      failed?: number
       local?: boolean
+      from?: string
     } | null
     setBusy('')
     if (!res.ok) {
+      setMessageTone('err')
       setMessage(data?.error || 'Não foi possível enviar')
+      router.refresh()
       return
     }
-    const local = data?.local ? ' (localhost: marcado como enviado, sem Resend)' : ''
-    setMessage(`${data?.sent || 0} email(s) na fila${local}`)
+    setMessageTone(data?.local || data?.failed ? 'err' : 'ok')
+    if (data?.local) {
+      setMessage(data.warning || `${data.sent || 0} marcado(s) localmente, sem envio real`)
+    } else {
+      const failed = data?.failed ? ` · ${data.failed} falha(s)` : ''
+      setMessage(`${data?.delivered || data?.sent || 0} enviado(s)${failed}${data?.from ? ` · de ${data.from}` : ''}`)
+    }
+    router.refresh()
+  }
+
+  async function retryMailDomain() {
+    setBusy('mail')
+    setMessage('')
+    const res = await fetch(`/api/platform/events/${event.id}/provision-mail`, { method: 'POST' })
+    const data = (await res.json().catch(() => null)) as {
+      error?: string
+      mail?: { status: string; fromEmail: string; lastError: string }
+    } | null
+    setBusy('')
+    if (!res.ok) {
+      setMessageTone('err')
+      setMessage(data?.error || 'Não foi possível provisionar o domínio de email')
+      router.refresh()
+      return
+    }
+    setMessageTone('ok')
+    setMessage(
+      data?.mail?.status === 'verified'
+        ? `Domínio isolado verificado · ${data.mail.fromEmail}`
+        : data?.mail?.status === 'pending'
+          ? `DNS criado; verificação Resend pendente · ${data.mail.fromEmail}`
+          : 'Domínio de email atualizado',
+    )
     router.refresh()
   }
 
@@ -62,7 +99,12 @@ export function EventAdmin({ event }: { event: PlatformEvent }) {
       <p className="mt-2 text-white/50">
         Família {event.config.basics.familyName || '—'} · {siteLabel}
       </p>
-      <MailDomainStatus mail={event.config.domain.mail} slug={event.slug} />
+      <MailDomainStatus
+        mail={event.config.domain.mail}
+        slug={event.slug}
+        busy={busy === 'mail'}
+        onRetry={() => void retryMailDomain()}
+      />
       <CustomDomainPanel eventId={event.id} domain={event.config.domain} />
       <div className="mt-8">
         <EventActions id={event.id} slug={event.slug} status={event.status} previewToken={event.previewToken} />
@@ -91,7 +133,9 @@ export function EventAdmin({ event }: { event: PlatformEvent }) {
           {busy === 'invite' ? 'Enviando…' : 'Enviar convites'}
         </button>
       </div>
-      {message ? <p className="mt-3 text-sm text-cyan-200">{message}</p> : null}
+      {message ? (
+        <p className={`mt-3 text-sm ${messageTone === 'err' ? 'text-rose-300' : 'text-cyan-200'}`}>{message}</p>
+      ) : null}
 
       <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {[
@@ -220,9 +264,13 @@ function CustomDomainPanel({
 function MailDomainStatus({
   mail,
   slug,
+  busy,
+  onRetry,
 }: {
   mail: { status: string; fromEmail: string; sendingDomain: string; lastError: string }
   slug: string
+  busy?: boolean
+  onRetry?: () => void
 }) {
   const domain = mail.sendingDomain || eventMailDomainName(slug)
   const from = mail.fromEmail || `convites@${domain}`
@@ -234,10 +282,23 @@ function MailDomainStatus({
         : mail.status === 'failed'
           ? `Email: falha no domínio · ${from}`
           : `Email compartilhado (configure VERCEL_TOKEN + Resend para isolar ${domain})`
+  const needsRetry = mail.status === 'failed' || mail.status === 'pending' || mail.status === 'skipped'
   return (
-    <p className={`mt-2 text-sm ${mail.status === 'failed' ? 'text-rose-300' : 'text-white/40'}`}>
-      {label}
-      {mail.lastError && mail.status !== 'verified' ? ` — ${mail.lastError}` : ''}
-    </p>
+    <div className="mt-2 flex flex-wrap items-center gap-3 text-sm">
+      <p className={mail.status === 'failed' ? 'text-rose-300' : 'text-white/40'}>
+        {label}
+        {mail.lastError && mail.status !== 'verified' ? ` — ${mail.lastError}` : ''}
+      </p>
+      {needsRetry && onRetry ? (
+        <button
+          type="button"
+          disabled={busy}
+          onClick={onRetry}
+          className="rounded-full border border-white/20 px-3 py-1 text-xs text-white/80 hover:bg-white/10 disabled:opacity-40"
+        >
+          {busy ? 'A provisionar…' : 'Reparar domínio de email'}
+        </button>
+      ) : null}
+    </div>
   )
 }
