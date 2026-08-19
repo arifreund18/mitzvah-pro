@@ -1,14 +1,14 @@
 import { NextResponse } from 'next/server'
 import { addGuest, getEvent, replaceGuests } from '@/lib/platform/store'
-import { requireSession } from '@/lib/platform/session'
+import { requireEventAccess } from '@/lib/platform/session'
 import type { Guest, GuestRsvp } from '@/lib/platform/types'
 
 type Ctx = { params: Promise<{ id: string }> }
 
 export async function GET(_request: Request, ctx: Ctx) {
-  const denied = await requireSession()
-  if (denied) return denied
   const { id } = await ctx.params
+  const denied = await requireEventAccess(id)
+  if (denied) return denied
   const event = await getEvent(id)
   if (!event) return NextResponse.json({ error: 'Evento não encontrado' }, { status: 404 })
   return NextResponse.json({ guests: event.guests })
@@ -34,7 +34,7 @@ export async function POST(request: Request, ctx: Ctx) {
     return NextResponse.json({ error: 'Evento ainda não publicado' }, { status: 403 })
   }
   if (!body?.fromPublic) {
-    const denied = await requireSession()
+    const denied = await requireEventAccess(id)
     if (denied) return denied
   }
 
@@ -56,9 +56,9 @@ export async function POST(request: Request, ctx: Ctx) {
 }
 
 export async function PUT(request: Request, ctx: Ctx) {
-  const denied = await requireSession()
-  if (denied) return denied
   const { id } = await ctx.params
+  const denied = await requireEventAccess(id)
+  if (denied) return denied
   const body = (await request.json().catch(() => null)) as { guests?: Guest[] } | null
   if (!body?.guests) return NextResponse.json({ error: 'Lista inválida' }, { status: 400 })
   const event = await replaceGuests(id, body.guests)

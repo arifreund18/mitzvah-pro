@@ -11,16 +11,15 @@ Conferido no código em 2026-08-13. Itens já entregues **saíram desta tabela**
 
 ### Já entregue (não repetir)
 
-Auth do studio + CRUD de eventos; wizard com preview ao vivo; template BarBeni config-driven (site: hero, countdown, welcome, about, programação, FAQ, hotéis, o que fazer, galeria, RSVP, contato); publish em `{slug}.mitzvah.pro`; RSVP público + lista de convidados; emails STD/convite (Resend + `mail.{slug}.mitzvah.pro` via DNS Vercel); dashboard do evento; duplicar/arquivar; upload de logo/hero; datepicker; isolamento BarBeni em `/BarBeni/*`; `/admin` no apex removido; landing `en`/`pt`/`es`/`he` (RTL no he); check autenticado `/api/platform/email-setup`; persistência durável (Postgres `DATABASE_URL` ou Vercel Blob; ficheiro em local); import/export CSV de convidados; formulário da landing em `/api/contact`; preview público do rascunho em `/p/{token}`; fluxo boutique de aprovação em `/approve/{token}`; domínio custom Signature (CNAME + verificação).
+Auth do studio + CRUD de eventos; wizard com preview ao vivo; template BarBeni config-driven (site: hero, countdown, welcome, about, programação, FAQ, hotéis, o que fazer, galeria, RSVP, contato); publish em `{slug}.mitzvah.pro`; RSVP público + lista de convidados; emails STD/convite (Resend + `mail.{slug}.mitzvah.pro` via DNS Vercel); dashboard do evento; duplicar/arquivar; upload de logo/hero; datepicker; isolamento BarBeni em `/BarBeni/*`; `/admin` no apex removido; landing `en`/`pt`/`es`/`he` (RTL no he); check autenticado `/api/platform/email-setup`; persistência durável (Postgres `DATABASE_URL` ou Vercel Blob; ficheiro em local); import/export CSV de convidados; formulário da landing em `/api/contact`; preview público do rascunho em `/p/{token}`; fluxo boutique de aprovação em `/approve/{token}`; domínio custom Signature (CNAME + verificação); multi-tenant (orgs, papéis org_owner/org_member, admin plataforma, isolamento por orgId).
 
-**Como usar:** `/dashboard/login` (senha `mitzvah`) → Novo evento → wizard. Publicar abre `{slug}.localhost:3000`. Landing: `/` e `/en`. Evento Beni (outro repo): `/BarBeni/en`. Admin Beni: `/BarBeni/admin/dashboard`. Demo do studio: `/e/beni`. **Não existe** `/admin` no apex.
+**Como usar:** `/dashboard/login` — admin plataforma: só senha `mitzvah` (`DASHBOARD_PASSWORD`); utilizador org: `owner@mitzvah.pro` + `mitzvah` → Novo evento → wizard. Publicar abre `{slug}.localhost:3000`. Landing: `/` e `/en`. Evento Beni (outro repo): `/BarBeni/en`. Admin Beni: `/BarBeni/admin/dashboard`. Demo do studio: `/e/beni`. **Não existe** `/admin` no apex.
 
 ### Pendente
 
 | Prioridade | Melhoria | Estado atual |
 |------------|----------|--------------|
 | **P1** | Inventário fiel do repo `bar-beni` (paridade 1:1) | Template inspirado, não 1:1 |
-| **P1** | Multi-tenant (orgs, papéis, isolamento) | Senha única de studio |
 | **P2** | Mais templates além do BarBeni | Contrato único, só `barbeni` |
 | **P2** | Analytics de RSVP | Contagem no detalhe do evento |
 | **P2** | i18n completo do conteúdo do evento | Chrome do site em 4 idiomas; textos do evento únicos |
@@ -73,8 +72,8 @@ Hoje o repo `mitzvah-pro` é landing + studio + **proxy** para o app `bar-beni`:
 | Landing comercial multilíngue (`en`/`pt`/`es`/`he`) | ✅ |
 | Proxy `/BarBeni/*` → `BAR_BENI_ORIGIN` (repo `bar-beni`) | ✅ (origem única) |
 | Formulário de contato (vendas/boutique) | ✅ |
-| Dashboard multi-evento | ✅ `/dashboard` (senha única; sem orgs) |
-| Auth / contas | ⏳ senha de studio; sem contas por org |
+| Dashboard multi-evento | ✅ `/dashboard` (orgs + papéis; admin plataforma ou utilizador org) |
+| Auth / contas | ✅ admin plataforma (senha) + utilizadores por org (email/senha) |
 | Template reutilizável | ✅ config-driven `barbeni` (não 1:1 com o repo) |
 | Wizard self-serve | ✅ preview ao vivo + publish |
 | Subdomínio por evento | ✅ `{slug}.mitzvah.pro` |
@@ -410,7 +409,7 @@ Requisitos:
 ### Fase 1 — Control Plane mínimo
 - [x] Auth de studio + Event CRUD (`/dashboard`)  
 - [x] Dashboard lista/cria/arquiva/duplica  
-- [ ] Organization + papéis (multi-tenant)  
+- [x] Organization + papéis (multi-tenant)  
 - [x] EventConfig durável (Postgres / Blob / ficheiro)  
 - [x] Rotas `/dashboard` sem colidir com proxy  
 
@@ -448,8 +447,8 @@ Requisitos:
 3. [x] Preview reflete o draft em tempo quase real (no wizard).  
 4. [x] Publish disponibiliza o site em `{slug}.mitzvah.pro`.  
 5. [x] RSVP/STD/convite funcionam no evento publicado (envio depende de Resend + DNS).  
-6. [ ] Operador Mitzvah consegue gerenciar múltiplos eventos e impersonar/editar.  
-7. [ ] Isolamento: org A não vê dados da org B.  
+6. [x] Operador Mitzvah consegue gerenciar múltiplos eventos e impersonar/editar.  
+7. [x] Isolamento: org A não vê dados da org B.  
 8. [x] Hebraico (RTL) e demais locales no chrome do site; conteúdo do evento ainda é um único texto.  
 9. [x] Sem regressão na landing nem no proxy do Beni legado (`/BarBeni/*`; `/admin` no apex não existe).
 
@@ -484,7 +483,6 @@ P0 e o subdomínio `{slug}.mitzvah.pro` **já saíram** da lista (ver §0).
 
 ### P1
 1. Inventário real do repo bar-beni → schema 1:1  
-2. Multi-tenant (orgs / papéis)  
 
 ### P2
 8. Mais templates  

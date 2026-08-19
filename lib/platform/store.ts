@@ -1,5 +1,7 @@
 import { createDefaultConfig } from './defaults'
+import { DEFAULT_ORG_ID } from './auth'
 import { slugify, uid } from './ids'
+import { hashPassword } from './password'
 import { loadPlatformStore, savePlatformStore } from './persistence'
 import { isReservedSlug } from './site-url'
 import { normalizeConfig, normalizeGuest } from './normalize'
@@ -7,8 +9,11 @@ import type {
   EventConfig,
   EventLocale,
   Guest,
+  Organization,
   PlatformEvent,
   PlatformStore,
+  PlatformUser,
+  UserRole,
   WizardProgress,
   WizardStepId,
 } from './types'
@@ -38,9 +43,85 @@ function withLock<T>(fn: () => Promise<T>): Promise<T> {
   return run
 }
 
-export async function listEvents(): Promise<PlatformEvent[]> {
+export async function listEvents(orgId?: string | null): Promise<PlatformEvent[]> {
   const store = await loadStore()
-  return [...store.events].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
+  const events = orgId ? store.events.filter((event) => event.orgId === orgId) : store.events
+  return [...events].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
+}
+
+export async function listOrgs(): Promise<Organization[]> {
+  const store = await loadStore()
+  return [...store.orgs].sort((a, b) => a.name.localeCompare(b.name))
+}
+
+export async function getOrg(id: string): Promise<Organization | null> {
+  const store = await loadStore()
+  return store.orgs.find((org) => org.id === id) ?? null
+}
+
+export async function createOrg(name: string): Promise<Organization> {
+  return withLock(async () => {
+    const store = await loadStore()
+    const org: Organization = { id: uid(), name: name.trim(), createdAt: new Date().toISOString() }
+    store.orgs.push(org)
+    await saveStore(store)
+    return org
+  })
+}
+
+export async function listUsers(orgId: string): Promise<PlatformUser[]> {
+  const store = await loadStore()
+  return store.users.filter((user) => user.orgId === orgId)
+}
+
+export async function findUserByEmail(email: string): Promise<PlatformUser | null> {
+  const store = await loadStore()
+  const needle = email.trim().toLowerCase()
+  return store.users.find((user) => user.email.toLowerCase() === needle) ?? null
+}
+
+export async function getUser(id: string): Promise<PlatformUser | null> {
+  const store = await loadStore()
+  return store.users.find((user) => user.id === id) ?? null
+}
+
+export async function createUser(input: {
+  email: string
+  name: string
+  password: string
+  role: UserRole
+  orgId: string
+}): Promise<PlatformUser> {
+  return withLock(async () => {
+    const store = await loadStore()
+    const email = input.email.trim().toLowerCase()
+    if (store.users.some((user) => user.email.toLowerCase() === email)) {
+      throw new Error('Email já registado')
+    }
+    const user: PlatformUser = {
+      id: uid(),
+      email,
+      name: input.name.trim(),
+      passwordHash: hashPassword(input.password),
+      role: input.role === 'platform_admin' ? 'org_owner' : input.role,
+      orgId: input.orgId,
+      createdAt: new Date().toISOString(),
+    }
+    store.users.push(user)
+    await saveStore(store)
+    return user
+  })
+}
+
+export async function deleteUser(id: string): Promise<boolean> {
+  return withLock(async () => {
+    const store = await loadStore()
+    const before = store.users.length
+    store.users = store.users.filter((user) => user.id !== id)
+    if (store.users.length === before) return false
+    await saveStore(store)
+    return true
+  })
 }
 
 export async function getEvent(id: string): Promise<PlatformEvent | null> {
@@ -115,10 +196,12 @@ export async function createEvent(input: {
   familyName: string
   locale?: EventLocale
   enabled?: EventLocale[]
+  orgId?: string
 }): Promise<PlatformEvent> {
   return withLock(async () => {
     const store = await loadStore()
     const now = new Date().toISOString()
+    const orgId = input.orgId || DEFAULT_ORG_ID
     const slug = uniqueSlug(
       store,
       slugify(input.familyName) || slugify(input.honoreeName) || 'evento',
@@ -132,6 +215,7 @@ export async function createEvent(input: {
     })
     const event: PlatformEvent = {
       id: uid(),
+      orgId,
       slug,
       status: 'draft',
       templateId: 'barbeni',
@@ -195,6 +279,7 @@ export async function duplicateEvent(id: string): Promise<PlatformEvent | null> 
     const copy: PlatformEvent = {
       ...structuredClone(source),
       id: uid(),
+      orgId: source.orgId,
       slug,
       status: 'draft',
       createdAt: now,

@@ -1,5 +1,6 @@
 import { createDefaultConfig } from './defaults'
 import { uid } from './ids'
+import { DEFAULT_ORG_ID } from './auth'
 import type { EventConfig, Guest, Hotel, LocalPlace, PlaceCategory, PlatformEvent } from './types'
 import { PLACE_CATEGORIES } from './types'
 import { resolveLocales } from './locales'
@@ -92,6 +93,7 @@ export function normalizeEvent(event: PlatformEvent): PlatformEvent {
     ...event,
     previewToken: event.previewToken || uid(),
     approvalToken: event.approvalToken || uid(),
+    orgId: event.orgId || DEFAULT_ORG_ID,
     config: normalizeConfig(event.config),
     guests: (event.guests || []).map((guest) => normalizeGuest(guest)),
   }

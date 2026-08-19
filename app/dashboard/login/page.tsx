@@ -16,7 +16,8 @@ export default async function DashboardLoginPage() {
           Mitzvah<span className="text-cyan-400">.pro</span>
         </h1>
         <p className="mt-2 mb-8 text-sm text-white/50">
-          Dashboard para criar eventos, abrir o wizard e ver o site nascer ao vivo.
+          Entre como admin da plataforma (só senha) ou como utilizador de uma organização (email +
+          senha).
         </p>
         <LoginForm />
       </div>

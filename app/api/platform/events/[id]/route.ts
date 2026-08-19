@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { requireSession } from '@/lib/platform/session'
+import { requireEventAccess } from '@/lib/platform/session'
 import { platformApiError } from '@/lib/platform/api-error'
 import { getEvent, updateEvent, deleteEvent } from '@/lib/platform/store'
 import type { EventConfig, WizardProgress } from '@/lib/platform/types'
@@ -7,18 +7,18 @@ import type { EventConfig, WizardProgress } from '@/lib/platform/types'
 type Ctx = { params: Promise<{ id: string }> }
 
 export async function GET(_request: Request, ctx: Ctx) {
-  const denied = await requireSession()
-  if (denied) return denied
   const { id } = await ctx.params
+  const denied = await requireEventAccess(id)
+  if (denied) return denied
   const event = await getEvent(id)
   if (!event) return NextResponse.json({ error: 'Evento não encontrado' }, { status: 404 })
   return NextResponse.json({ event })
 }
 
 export async function PATCH(request: Request, ctx: Ctx) {
-  const denied = await requireSession()
-  if (denied) return denied
   const { id } = await ctx.params
+  const denied = await requireEventAccess(id)
+  if (denied) return denied
   const body = (await request.json().catch(() => null)) as {
     config?: EventConfig
     wizard?: Partial<WizardProgress>
@@ -35,9 +35,9 @@ export async function PATCH(request: Request, ctx: Ctx) {
 }
 
 export async function DELETE(_request: Request, ctx: Ctx) {
-  const denied = await requireSession()
-  if (denied) return denied
   const { id } = await ctx.params
+  const denied = await requireEventAccess(id)
+  if (denied) return denied
   try {
     const ok = await deleteEvent(id)
     if (!ok) return NextResponse.json({ error: 'Evento não encontrado' }, { status: 404 })
