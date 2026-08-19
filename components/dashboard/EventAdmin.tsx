@@ -5,7 +5,7 @@ import { useMemo, useState } from 'react'
 import { EventActions } from '@/components/dashboard/EventActions'
 import { GuestCsvImport } from '@/components/dashboard/GuestCsvImport'
 import type { PlatformEvent } from '@/lib/platform/types'
-import { eventPublicHostLabel, eventPublicUrl } from '@/lib/platform/site-url'
+import { eventApexPathUrl, eventPublicHostLabel, eventPublicUrl } from '@/lib/platform/site-url'
 import { eventMailDomainName } from '@/lib/platform/mail-domain'
 
 function fmt(iso: string | null) {
@@ -19,6 +19,8 @@ export function EventAdmin({ event }: { event: PlatformEvent }) {
   const [message, setMessage] = useState('')
   const [messageTone, setMessageTone] = useState<'ok' | 'err'>('ok')
   const siteLabel = eventPublicHostLabel(event.slug)
+  const siteUrl = eventApexPathUrl(event.slug)
+  const subdomainUrl = eventPublicUrl(event.slug)
   const stdUrl = eventPublicUrl(event.slug, '/std')
   const inviteUrl = eventPublicUrl(event.slug, '/invite')
   const guests = event.guests
@@ -92,13 +94,56 @@ export function EventAdmin({ event }: { event: PlatformEvent }) {
     router.refresh()
   }
 
+  async function retrySiteDomain() {
+    setBusy('site')
+    setMessage('')
+    const res = await fetch(`/api/platform/events/${event.id}/provision-site`, { method: 'POST' })
+    const data = (await res.json().catch(() => null)) as {
+      error?: string
+      site?: { host: string; status: string; lastError: string }
+    } | null
+    setBusy('')
+    if (!res.ok) {
+      setMessageTone('err')
+      setMessage(data?.error || 'Não foi possível provisionar o subdomínio')
+      return
+    }
+    setMessageTone(data?.site?.status === 'failed' ? 'err' : 'ok')
+    setMessage(
+      data?.site?.status === 'failed'
+        ? data.site.lastError || 'Falha no subdomínio'
+        : `Subdomínio ${data?.site?.host} — ${data?.site?.lastError || 'DNS atualizado'}`,
+    )
+  }
+
   return (
     <div>
       <p className="text-xs uppercase tracking-[0.3em] text-cyan-300/80">Dashboard do evento</p>
       <h1 className="font-display mt-2 text-4xl">{event.config.basics.honoreeName || 'Evento'}</h1>
       <p className="mt-2 text-white/50">
-        Família {event.config.basics.familyName || '—'} · {siteLabel}
+        Família {event.config.basics.familyName || '—'} ·{' '}
+        <a href={siteUrl} className="text-cyan-200 hover:underline">
+          {siteUrl.replace(/^https?:\/\//, '')}
+        </a>
+        {event.status === 'published' ? (
+          <span className="text-white/35"> · canonical: {siteLabel}</span>
+        ) : null}
       </p>
+      {event.status === 'published' ? (
+        <div className="mt-2 flex flex-wrap items-center gap-3 text-sm">
+          <a href={subdomainUrl} className="text-white/50 hover:text-white">
+            Abrir {siteLabel}
+          </a>
+          <button
+            type="button"
+            disabled={!!busy}
+            onClick={() => void retrySiteDomain()}
+            className="rounded-full border border-white/20 px-3 py-1 text-xs text-white/80 hover:bg-white/10 disabled:opacity-40"
+          >
+            {busy === 'site' ? 'A provisionar…' : 'Ativar subdomínio DNS'}
+          </button>
+        </div>
+      ) : null}
       <MailDomainStatus
         mail={event.config.domain.mail}
         slug={event.slug}

@@ -6,7 +6,7 @@ import { LivePreview } from '@/components/wizard/LivePreview'
 import { WizardStepForm, type WizardStepFormHandle } from '@/components/wizard/WizardStepForm'
 import { applyGeneratedPatch, wizardUi } from '@/lib/platform/copy'
 import { LOCALE_OPTIONS } from '@/lib/platform/locales'
-import { eventPublicUrl } from '@/lib/platform/site-url'
+import { eventApexPathUrl } from '@/lib/platform/site-url'
 import { adjacentStep, normalizeWizardStep, reviewIssues, wizardSteps } from '@/lib/platform/wizard'
 import type { EventConfig, EventLocale, Guest, PlatformEvent, WizardStepId } from '@/lib/platform/types'
 import { cn } from '@/lib/utils'
@@ -88,7 +88,7 @@ export function WizardStudio({ event }: { event: PlatformEvent }) {
       setPublishError(data?.error || 'Não foi possível publicar')
       return
     }
-    window.location.href = eventPublicUrl(data?.event?.slug || config.domain.slug, '', {
+    window.location.href = eventApexPathUrl(data?.event?.slug || config.domain.slug, '', {
       host: window.location.host,
     })
   }

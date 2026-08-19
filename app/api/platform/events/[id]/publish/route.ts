@@ -3,6 +3,7 @@ import { requireEventAccess } from '@/lib/platform/session'
 import { getEvent, updateEvent } from '@/lib/platform/store'
 import { reviewIssues } from '@/lib/platform/wizard'
 import { provisionEventMailDomain } from '@/lib/email/provision-domain'
+import { provisionEventSiteDomain } from '@/lib/platform/provision-site'
 
 export const maxDuration = 30
 
@@ -25,12 +26,15 @@ export async function POST(_request: Request, ctx: Ctx) {
   })
   if (!published) return NextResponse.json({ error: 'Evento não encontrado' }, { status: 404 })
 
-  const mail = await provisionEventMailDomain(published.config)
+  const [mail, site] = await Promise.all([
+    provisionEventMailDomain(published.config),
+    provisionEventSiteDomain(published.slug),
+  ])
   const event = await updateEvent(id, {
     config: {
       ...published.config,
       domain: { ...published.config.domain, mail },
     },
   })
-  return NextResponse.json({ event })
+  return NextResponse.json({ event, site })
 }
