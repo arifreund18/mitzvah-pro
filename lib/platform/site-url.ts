@@ -168,3 +168,15 @@ export function eventPublicUrl(slug: string, path = '', opts?: { host?: string }
 export function eventPublicHostLabel(slug: string, opts?: { host?: string }): string {
   return eventPublicUrl(slug, '', opts).replace(/^https?:\/\//, '')
 }
+
+/** URL imediata no apex — funciona sem DNS de subdomínio ({slug}.mitzvah.pro). */
+export function eventApexPathUrl(slug: string, path = '', opts?: { host?: string }): string {
+  const host = opts?.host || defaultHost()
+  const hashIndex = path.indexOf('#')
+  const hash = hashIndex >= 0 ? path.slice(hashIndex) : ''
+  const rawPath = hashIndex >= 0 ? path.slice(0, hashIndex) : path
+  const suffix = !rawPath || rawPath === '/' ? '' : rawPath.startsWith('/') ? rawPath : `/${rawPath}`
+  const proto = protocolFor(host)
+  const apex = apexHost(host)
+  return `${proto}://${apex}/e/${slug}${suffix}${hash}`
+}

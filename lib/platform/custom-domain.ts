@@ -1,17 +1,7 @@
 import { resolveCname, resolveTxt } from 'node:dns/promises'
 import { SITE_HOST } from '@/lib/platform/site-url'
+import { addDomainToVercelProject } from '@/lib/platform/vercel-project'
 import type { CustomHostStatus, PlatformEvent } from '@/lib/platform/types'
-
-function vercelToken() {
-  return process.env.VERCEL_DNS_TOKEN || process.env.VERCEL_TOKEN || ''
-}
-
-function teamQuery(): string {
-  const team = process.env.VERCEL_TEAM_ID || ''
-  if (team.startsWith('team_')) return `?teamId=${encodeURIComponent(team)}`
-  if (team) return `?slug=${encodeURIComponent(team)}`
-  return ''
-}
 
 function normalizeHost(input: string): string {
   return input
@@ -24,24 +14,6 @@ function normalizeHost(input: string): string {
 
 export function customHostOf(event: PlatformEvent): string {
   return event.config.domain.customHost || ''
-}
-
-async function addDomainToVercelProject(host: string): Promise<string> {
-  const token = vercelToken()
-  if (!token) return 'Adicione o domínio no projeto Vercel (ou configure VERCEL_TOKEN).'
-  const project = process.env.VERCEL_PROJECT_ID || 'mitzvah-pro'
-  const res = await fetch(`https://api.vercel.com/v10/projects/${project}/domains${teamQuery()}`, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${token}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ name: host }),
-  })
-  const body = (await res.json().catch(() => null)) as { error?: { message?: string }; name?: string } | null
-  if (res.status === 409) return ''
-  if (!res.ok) return body?.error?.message || `Vercel domains HTTP ${res.status}`
-  return ''
 }
 
 async function dnsVerified(host: string, token: string): Promise<boolean> {

@@ -3,13 +3,10 @@ import { type NextRequest, NextResponse } from 'next/server'
 import { routing } from './i18n/routing'
 import {
   apexHost,
-  eventPublicUrl,
   eventSlugFromHost,
   isBarBeniSubdomain,
   isPlatformManagedHost,
-  isReservedSlug,
   protocolFor,
-  supportsEventSubdomain,
 } from './lib/platform/site-url'
 
 const intlMiddleware = createMiddleware(routing)
@@ -81,14 +78,6 @@ export default function middleware(request: NextRequest) {
   }
 
   if (pathname.startsWith('/e/')) {
-    const parts = pathname.split('/').filter(Boolean)
-    const slug = parts[1]
-    if (slug && !isReservedSlug(slug) && supportsEventSubdomain(host)) {
-      const rest = parts.slice(2).join('/')
-      const dest = new URL(eventPublicUrl(slug, rest ? `/${rest}` : '', { host }))
-      dest.search = request.nextUrl.search
-      return NextResponse.redirect(dest, 308)
-    }
     return NextResponse.next()
   }
 
@@ -145,6 +134,8 @@ export const config = {
     '/invite/:path*',
     '/BarBeni',
     '/BarBeni/:path*',
+    '/e',
+    '/e/:path*',
     '/api/:path*',
   ],
 }
