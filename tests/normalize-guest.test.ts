@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test'
 import assert from 'node:assert/strict'
-import { normalizeGuest, normalizePerson } from '../lib/platform/normalize-guest'
+import { normalizeGuest, normalizePerson } from '../lib/platform/normalize-guest.ts'
 
 describe('normalizeGuest', () => {
   it('creates people[] from partySize when missing', () => {

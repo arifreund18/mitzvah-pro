@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test'
 import assert from 'node:assert/strict'
-import { familyToken } from '../lib/platform/tokens'
+import { familyToken } from '../lib/platform/tokens.ts'
 
 describe('familyToken', () => {
   it('returns a 12-char URL-safe token', () => {
