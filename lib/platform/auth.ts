@@ -10,11 +10,14 @@ function fnv1a(value: string): string {
   return (hash >>> 0).toString(16).padStart(8, '0')
 }
 
+/**
+ * True for the Vercel Production target (or explicit override).
+ * Do NOT use NODE_ENV alone — `next build` always sets NODE_ENV=production
+ * and would break preview/local builds if secrets throw at import/seed time.
+ */
 export function isProductionEnv(): boolean {
   return (
-    process.env.VERCEL_ENV === 'production' ||
-    process.env.NODE_ENV === 'production' ||
-    process.env.MITZVAH_REQUIRE_SECRETS === '1'
+    process.env.VERCEL_ENV === 'production' || process.env.MITZVAH_REQUIRE_SECRETS === '1'
   )
 }
 
@@ -36,8 +39,23 @@ export function sessionSecret(): string {
   return 'mitzvah-local-secret'
 }
 
+/** Safe for build/seed paths — never throws. */
+export function sessionSecretOrFallback(): string {
+  try {
+    return sessionSecret()
+  } catch {
+    return `unconfigured-${process.env.VERCEL_GIT_COMMIT_SHA || 'build'}`
+  }
+}
+
 export function sessionToken(): string {
-  return fnv1a(`${sessionSecret()}:${dashboardPassword()}:v1`)
+  const secret = sessionSecretOrFallback()
+  const password = process.env.DASHBOARD_PASSWORD
+  if (!password && isProductionEnv()) {
+    // Unusable token when password missing — login route still refuses admin login.
+    return fnv1a(`${secret}:unconfigured-admin:v1`)
+  }
+  return fnv1a(`${secret}:${password || dashboardPassword()}:v1`)
 }
 
 export type SessionActor =
@@ -46,7 +64,7 @@ export type SessionActor =
 
 export function encodeUserSession(userId: string, orgId: string, role: SessionActor['role']): string {
   const payload = `u.${userId}.${orgId}.${role}`
-  return `${payload}.${fnv1a(`${sessionSecret()}:${payload}`)}`
+  return `${payload}.${fnv1a(`${sessionSecretOrFallback()}:${payload}`)}`
 }
 
 export function readSession(value: string | undefined | null): SessionActor | null {
@@ -60,7 +78,7 @@ export function readSession(value: string | undefined | null): SessionActor | nu
   const sig = value.slice(dot + 1)
   const payload = value.slice(0, dot)
   if (!payload.startsWith('u.')) return null
-  if (fnv1a(`${sessionSecret()}:${payload}`) !== sig) return null
+  if (fnv1a(`${sessionSecretOrFallback()}:${payload}`) !== sig) return null
   const parts = payload.split('.')
   if (parts.length !== 4) return null
   const [, userId, orgId, role] = parts
