@@ -1,9 +1,11 @@
 'use client'
 
-import { forwardRef, useImperativeHandle, useRef } from 'react'
+import { forwardRef, useImperativeHandle, useRef, useState } from 'react'
 import { DatePicker } from '@/components/wizard/DatePicker'
+import { CardDesignFields } from '@/components/wizard/CardDesignFields'
 import { Field, TextArea, TextInput } from '@/components/wizard/fields'
 import { applyGeneratedPatch, typeLabel, wizardUi } from '@/lib/platform/copy'
+import { getLocalized } from '@/lib/platform/i18n-content'
 import { uid } from '@/lib/platform/ids'
 import {
   EVENT_TYPES,
@@ -234,44 +236,7 @@ export const WizardStepForm = forwardRef<
   }
 
   if (step === 'story') {
-    return (
-      <div className="space-y-4">
-        <Field label={ui.headline}>
-          <TextInput
-            value={config.story.headline}
-            onChange={(e) => set({ ...config, story: { ...config.story, headline: e.target.value } })}
-          />
-        </Field>
-        <Field label={ui.subtitle}>
-          <TextInput
-            value={config.story.subtitle}
-            onChange={(e) => set({ ...config, story: { ...config.story, subtitle: e.target.value } })}
-          />
-        </Field>
-        <Field label={ui.parentsMessage}>
-          <TextArea
-            value={config.story.parentsMessage}
-            onChange={(e) =>
-              set({ ...config, story: { ...config.story, parentsMessage: e.target.value } })
-            }
-          />
-        </Field>
-        <Field label={ui.about}>
-          <TextArea
-            value={config.story.about}
-            onChange={(e) => set({ ...config, story: { ...config.story, about: e.target.value } })}
-          />
-        </Field>
-        <Field label={ui.honoreeBio}>
-          <TextArea
-            value={config.story.honoreeBio}
-            onChange={(e) =>
-              set({ ...config, story: { ...config.story, honoreeBio: e.target.value } })
-            }
-          />
-        </Field>
-      </div>
-    )
+    return <StoryStepForm config={config} onChange={set} ui={ui} />
   }
 
   if (step === 'schedule') {
@@ -853,6 +818,12 @@ export const WizardStepForm = forwardRef<
             }
           />
         </Field>
+        <CardDesignFields
+          design={config.saveTheDate.design}
+          onChange={(design) =>
+            set({ ...config, saveTheDate: { ...config.saveTheDate, design } })
+          }
+        />
       </div>
     )
   }
@@ -930,6 +901,12 @@ export const WizardStepForm = forwardRef<
             }
           />
         </Field>
+        <CardDesignFields
+          design={config.invitation.design}
+          onChange={(design) =>
+            set({ ...config, invitation: { ...config.invitation, design } })
+          }
+        />
       </div>
     )
   }
@@ -1345,3 +1322,90 @@ export const WizardStepForm = forwardRef<
     </div>
   )
 })
+
+function StoryStepForm({
+  config,
+  onChange,
+  ui,
+}: {
+  config: EventConfig
+  onChange: (next: EventConfig) => void
+  ui: ReturnType<typeof wizardUi>
+}) {
+  const locales = config.locales.enabled.length
+    ? config.locales.enabled
+    : ([config.locales.default] as EventLocale[])
+  const [editLocale, setEditLocale] = useState<EventLocale>(config.locales.default)
+  const active = locales.includes(editLocale) ? editLocale : config.locales.default
+  const isDefault = active === config.locales.default
+
+  function valueOf(key: 'headline' | 'subtitle' | 'parentsMessage' | 'about' | 'honoreeBio') {
+    return isDefault ? config.story[key] : getLocalized(config, active, key)
+  }
+
+  function patchField(
+    key: 'headline' | 'subtitle' | 'parentsMessage' | 'about' | 'honoreeBio',
+    value: string,
+  ) {
+    if (isDefault) {
+      onChange({ ...config, story: { ...config.story, [key]: value } })
+      return
+    }
+    const contentI18n = { ...(config.contentI18n || {}) }
+    contentI18n[active] = { ...contentI18n[active], [key]: value }
+    onChange({ ...config, contentI18n })
+  }
+
+  return (
+    <div className="space-y-4">
+      {locales.length > 1 ? (
+        <div className="flex flex-wrap gap-2">
+          {locales.map((locale) => {
+            const option = LOCALE_OPTIONS.find((item) => item.value === locale)
+            return (
+              <button
+                key={locale}
+                type="button"
+                onClick={() => setEditLocale(locale)}
+                className={`rounded-full border px-3 py-1.5 text-xs ${
+                  active === locale
+                    ? 'border-cyan-400 bg-cyan-400/10 text-cyan-100'
+                    : 'border-white/15 bg-white/5 text-white/70'
+                }`}
+              >
+                {option?.label || locale}
+                {locale === config.locales.default ? ' ★' : ''}
+              </button>
+            )
+          })}
+        </div>
+      ) : null}
+      {!isDefault ? (
+        <p className="text-xs text-white/40">
+          Overlay para {active}. Vazio usa o texto do idioma padrão ({config.locales.default}).
+        </p>
+      ) : null}
+      <Field label={ui.headline}>
+        <TextInput value={valueOf('headline')} onChange={(e) => patchField('headline', e.target.value)} />
+      </Field>
+      <Field label={ui.subtitle}>
+        <TextInput value={valueOf('subtitle')} onChange={(e) => patchField('subtitle', e.target.value)} />
+      </Field>
+      <Field label={ui.parentsMessage}>
+        <TextArea
+          value={valueOf('parentsMessage')}
+          onChange={(e) => patchField('parentsMessage', e.target.value)}
+        />
+      </Field>
+      <Field label={ui.about}>
+        <TextArea value={valueOf('about')} onChange={(e) => patchField('about', e.target.value)} />
+      </Field>
+      <Field label={ui.honoreeBio}>
+        <TextArea
+          value={valueOf('honoreeBio')}
+          onChange={(e) => patchField('honoreeBio', e.target.value)}
+        />
+      </Field>
+    </div>
+  )
+}

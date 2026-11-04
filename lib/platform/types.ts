@@ -173,6 +173,19 @@ export type EventConfig = {
     about: string
     honoreeBio: string
   }
+  /** Per-locale overlays for story fields; falls back to `story.*`. */
+  contentI18n?: Partial<
+    Record<
+      EventLocale,
+      {
+        headline?: string
+        subtitle?: string
+        parentsMessage?: string
+        about?: string
+        honoreeBio?: string
+      }
+    >
+  >
   schedule: { items: ScheduleItem[] }
   venues: {
     dressCode: string

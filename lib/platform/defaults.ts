@@ -82,6 +82,7 @@ export function createDefaultConfig(partial?: {
       about: '',
       honoreeBio: '',
     },
+    contentI18n: {},
     schedule: {
       items: [
         {

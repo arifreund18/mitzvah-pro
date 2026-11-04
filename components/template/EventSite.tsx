@@ -1,5 +1,6 @@
 import type { EventConfig, EventLocale, Guest, ThemeId, WizardStepId } from '@/lib/platform/types'
 import { formatEventDate, typeLabel, wizardUi } from '@/lib/platform/copy'
+import { getLocalizedStory } from '@/lib/platform/i18n-content'
 import { templateUi } from '@/lib/platform/template-copy'
 import { googleCalendarUrl } from '@/lib/platform/calendar'
 import { EventAmbientAudio } from '@/components/template/EventAmbientAudio'
@@ -76,6 +77,7 @@ export function EventSite({
   const theme = THEME_PRESETS[config.branding.theme]
   const accent = config.branding.accentColor || '#22d3ee'
   const locale = displayLocale || config.locales.default
+  const story = getLocalizedStory(config, locale)
   const site = wizardUi(locale).site
   const ui = templateUi(locale)
   const dir = locale === 'he' ? 'rtl' : 'ltr'
@@ -131,8 +133,8 @@ export function EventSite({
       : ''
 
   const nav = [
-    { href: '#welcome', label: ui.welcome, show: Boolean(config.story.parentsMessage) },
-    { href: '#about', label: ui.about, show: Boolean(config.story.about || config.story.honoreeBio) },
+    { href: '#welcome', label: ui.welcome, show: Boolean(story.parentsMessage) },
+    { href: '#about', label: ui.about, show: Boolean(story.about || story.honoreeBio) },
     { href: '#schedule', label: ui.schedule, show: config.schedule.items.length > 0 },
     { href: '#faq', label: ui.faq, show: publishedFaq.length > 0 },
     { href: '#hotels', label: ui.hotels, show: hotels.length > 0 },
@@ -225,16 +227,16 @@ export function EventSite({
           </div>
         ) : null}
         <h1 className="font-display relative mt-4 text-4xl font-bold md:text-6xl">
-          {config.story.headline || `${type} · ${name}`}
+          {story.headline || `${type} · ${name}`}
         </h1>
         <p className="relative mt-4 text-lg" style={{ color: theme.muted }}>
           {dateLabel}
           {config.basics.startTime ? ` · ${config.basics.startTime}` : ''}
           {place ? ` · ${place}` : ''}
         </p>
-        {config.story.subtitle ? (
+        {story.subtitle ? (
           <p className="relative mx-auto mt-3 max-w-xl" style={{ color: theme.muted }}>
-            {config.story.subtitle}
+            {story.subtitle}
           </p>
         ) : null}
         <EventCountdown
@@ -263,7 +265,7 @@ export function EventSite({
         </div>
       </section>
 
-      {config.story.parentsMessage ? (
+      {story.parentsMessage ? (
         <section
           id="welcome"
           data-preview="story"
@@ -273,25 +275,25 @@ export function EventSite({
             {ui.welcome}
           </p>
           <p className="mt-2 text-sm opacity-70">{ui.theFamily}</p>
-          <p className="font-display mt-6 text-xl leading-relaxed">{config.story.parentsMessage}</p>
+          <p className="font-display mt-6 text-xl leading-relaxed">{story.parentsMessage}</p>
         </section>
       ) : null}
 
-      {(config.story.about || config.story.honoreeBio) && (
+      {(story.about || story.honoreeBio) && (
         <section id="about" className={`mx-auto max-w-3xl px-6 py-16 ${mark('story')}`}>
-          {config.story.about ? (
+          {story.about ? (
             <>
               <h2 className="font-display text-center text-3xl">{ui.about}</h2>
               <p className="mt-6 leading-relaxed" style={{ color: theme.muted }}>
-                {config.story.about}
+                {story.about}
               </p>
             </>
           ) : null}
-          {config.story.honoreeBio ? (
+          {story.honoreeBio ? (
             <>
               <h3 className="font-display mt-10 text-2xl">{ui.aboutHonoree}</h3>
               <p className="mt-4 leading-relaxed" style={{ color: theme.muted }}>
-                {config.story.honoreeBio}
+                {story.honoreeBio}
               </p>
             </>
           ) : null}

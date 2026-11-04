@@ -1,9 +1,11 @@
 'use client'
 
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useMemo, useState } from 'react'
 import { EventActions } from '@/components/dashboard/EventActions'
 import { GuestCsvImport } from '@/components/dashboard/GuestCsvImport'
+import { SECTION_EDITOR_IDS, SECTION_LABELS } from '@/lib/platform/section-editor'
 import type { PlatformEvent } from '@/lib/platform/types'
 import { eventApexPathUrl, eventPublicHostLabel, eventPublicUrl } from '@/lib/platform/site-url'
 import { eventMailDomainName } from '@/lib/platform/mail-domain'
@@ -193,6 +195,22 @@ export function EventAdmin({ event }: { event: PlatformEvent }) {
             <p className="text-xs uppercase text-white/40">{label}</p>
             <p className="mt-2 text-lg font-semibold">{value}</p>
           </div>
+        ))}
+      </div>
+
+      <h2 className="font-display mt-12 text-2xl">Editar seção</h2>
+      <p className="mt-2 text-sm text-white/50">
+        Edite uma seção do evento publicado sem reabrir o wizard completo.
+      </p>
+      <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        {SECTION_EDITOR_IDS.map((section) => (
+          <Link
+            key={section}
+            href={`/dashboard/events/${event.id}/sections/${section}`}
+            className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm hover:border-cyan-400/40 hover:bg-cyan-400/5"
+          >
+            {SECTION_LABELS[section]}
+          </Link>
         ))}
       </div>
 

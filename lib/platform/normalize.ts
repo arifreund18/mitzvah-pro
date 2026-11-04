@@ -134,6 +134,7 @@ export function normalizeConfig(raw: EventConfig | null | undefined): EventConfi
     locales: resolveLocales(raw.locales?.enabled, raw.locales?.default),
     branding: { ...base.branding, ...raw.branding },
     story: { ...base.story, ...raw.story, honoreeBio: raw.story?.honoreeBio || '' },
+    contentI18n: raw.contentI18n && typeof raw.contentI18n === 'object' ? raw.contentI18n : {},
     schedule: {
       items: (raw.schedule?.items?.length ? raw.schedule.items : base.schedule.items).map((item) =>
         scheduleItem(item),
