@@ -31,22 +31,38 @@ export default async function PublicEventPage({
   searchParams,
 }: {
   params: Promise<{ slug: string }>
-  searchParams: Promise<{ lang?: string }>
+  searchParams: Promise<{ lang?: string; guest?: string; token?: string }>
 }) {
   const { slug } = await params
-  const { lang } = await searchParams
+  const { lang, guest: guestParam, token } = await searchParams
+  const guestToken = guestParam || token
   const event = await getEventBySlug(slug)
   if (!event || event.status !== 'published') notFound()
   const enabled = event.config.locales.enabled
   const displayLocale =
     lang && isEventLocale(lang) && enabled.includes(lang) ? lang : event.config.locales.default
+  const guest = guestToken
+    ? event.guests.find((item) => item.token === guestToken) || null
+    : null
+  const showPublicForm =
+    event.config.rsvp.publicFormEnabled || Boolean(guest?.openRsvp) || Boolean(guest)
 
   return (
     <div className="bg-[#0b1020] text-white">
-      <EventSite config={event.config} mode="live" displayLocale={displayLocale} slug={event.slug} />
-      <section className="mx-auto max-w-xl px-6 pb-24">
-        <EventRsvpForm event={event} />
-      </section>
+      <EventSite
+        config={event.config}
+        mode="live"
+        displayLocale={displayLocale}
+        slug={event.slug}
+        eventId={event.id}
+        guestToken={guestToken}
+        guest={guest}
+      />
+      {showPublicForm ? (
+        <section className="mx-auto max-w-xl px-6 pb-24">
+          <EventRsvpForm event={event} />
+        </section>
+      ) : null}
     </div>
   )
 }

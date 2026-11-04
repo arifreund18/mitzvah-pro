@@ -212,6 +212,7 @@ export function WizardStudio({ event }: { event: PlatformEvent }) {
               step={step}
               config={config}
               guests={guests}
+              eventId={event.id}
               onChange={setConfig}
               onGuests={persistGuests}
             />

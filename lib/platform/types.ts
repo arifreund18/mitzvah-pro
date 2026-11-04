@@ -10,8 +10,25 @@ export type EventLocale = (typeof EVENT_LOCALES)[number]
 export const EVENT_STATUSES = ['draft', 'pending_review', 'approved', 'published', 'archived'] as const
 export type EventStatus = (typeof EVENT_STATUSES)[number]
 
-export const PLACE_CATEGORIES = ['restaurant', 'shopping', 'museum', 'park', 'other'] as const
+export const PLACE_CATEGORIES = [
+  'restaurant',
+  'shopping',
+  'museum',
+  'park',
+  'family',
+  'tips',
+  'other',
+] as const
 export type PlaceCategory = (typeof PLACE_CATEGORIES)[number]
+
+export const SCHEDULE_INVITE_MODES = ['all', 'subset', 'none'] as const
+export type ScheduleInviteMode = (typeof SCHEDULE_INVITE_MODES)[number]
+
+export const PERSON_TYPES = ['adult', 'child'] as const
+export type PersonType = (typeof PERSON_TYPES)[number]
+
+export const NOTIFY_MODES = ['instant', 'daily', 'weekly', 'monthly', 'off'] as const
+export type NotifyMode = (typeof NOTIFY_MODES)[number]
 
 export const WIZARD_STEP_IDS = [
   'basics',
@@ -19,23 +36,36 @@ export const WIZARD_STEP_IDS = [
   'story',
   'schedule',
   'venues',
+  'places',
   'media',
   'faq',
+  'contact',
   'rsvp',
   'saveTheDate',
   'invitation',
+  'reminders',
   'guestsBootstrap',
+  'legal',
   'domain',
   'review',
 ] as const
 export type WizardStepId = (typeof WIZARD_STEP_IDS)[number]
 
+export type LocalizedString = Partial<Record<EventLocale, string>> & { default?: string }
+
 export type ScheduleItem = {
   id: string
   title: string
   time: string
+  timeEnd: string
+  date: string
   place: string
   address: string
+  mapUrl: string
+  dressCode: string
+  notes: string
+  dayLabel: string
+  visibility: 'public' | 'invite'
 }
 
 export type Hotel = {
@@ -45,6 +75,10 @@ export type Hotel = {
   notes: string
   walking: string
   mapUrl: string
+  photoUrl: string
+  stars: number
+  featured: boolean
+  bookUrl: string
 }
 
 export type LocalPlace = {
@@ -54,15 +88,103 @@ export type LocalPlace = {
   url: string
   mapUrl: string
   notes: string
+  photoUrl: string
 }
 
 export type FaqItem = {
   id: string
   question: string
   answer: string
+  published: boolean
+}
+
+export type ContactPerson = {
+  id: string
+  name: string
+  phone: string
+  email: string
+  whatsapp: string
+  whatsappLabel: string
+}
+
+export type GalleryItem = {
+  id: string
+  url: string
+  type: 'image' | 'video'
+  caption: string
+  approved: boolean
+  showOnSite: boolean
+  sortOrder: number
 }
 
 export type CustomHostStatus = 'none' | 'pending' | 'verified' | 'failed'
+
+/**
+ * Shared STD + invitation card design (~50 keys × 2 surfaces ≈ inventário ~100).
+ * Text overlays per locale live in `contentI18n.*.card` / `contentI18n.*.stdCard`.
+ */
+export type CardDesign = {
+  // Page / envelope chrome
+  pageColor: string
+  pageTexture: string
+  envelopeColor: string
+  envelopeTexture: string
+  envelopeLiner: string
+  envelopeExterior: string
+  envelopeNameColor: string
+  sealUrl: string
+  sealBg: string
+  sealLabel: string
+  openLabel: string
+  forLabel: string
+  fontKey: string
+  // Card surface
+  cardColor: string
+  cardTextColor: string
+  cardImageUrl: string
+  // Typography
+  greetingColor: string
+  nameColor: string
+  bodyColor: string
+  introColor: string
+  headingColor: string
+  bodySizePx: number
+  bodyBold: boolean
+  introSizePx: number
+  introBold: boolean
+  headingSizePx: number
+  headingBold: boolean
+  // Panel photo
+  panelPhotoUrl: string
+  panelPhotoShape: 'circle' | 'rectangle'
+  // Location / labels
+  mapUrl: string
+  address1: string
+  address2: string
+  timeLabel: string
+  placeLabel: string
+  cityLabel: string
+  dateLabel: string
+  // Card copy
+  title: string
+  eventName: string
+  heading: string
+  hosts: string
+  message: string
+  tip: string
+  greeting: string
+  intro: string
+  // Email / CTA
+  subject: string
+  ctaView: string
+  ctaCalendar: string
+  ctaMap: string
+  ctaRsvp: string
+  rsvpLabel: string
+  rsvpHint: string
+  /** Comma-separated hex suggestions shown in the wizard. */
+  suggestedPalette: string
+}
 
 export type EventConfig = {
   basics: {
@@ -70,6 +192,7 @@ export type EventConfig = {
     honoreeName: string
     familyName: string
     date: string
+    startTime: string
     city: string
     country: string
   }
@@ -89,6 +212,82 @@ export type EventConfig = {
     about: string
     honoreeBio: string
   }
+  /**
+   * Per-locale overlays. Story fields fall back to `story.*`.
+   * Entity maps are keyed by schedule/faq/hotel/place id.
+   */
+  contentI18n?: Partial<
+    Record<
+      EventLocale,
+      {
+        headline?: string
+        subtitle?: string
+        parentsMessage?: string
+        about?: string
+        honoreeBio?: string
+        schedule?: Record<string, { title?: string; notes?: string; dressCode?: string; place?: string }>
+        faq?: Record<string, { question?: string; answer?: string }>
+        hotels?: Record<string, { name?: string; notes?: string }>
+        places?: Record<string, { name?: string; notes?: string }>
+        legal?: { privacyHtml?: string; termsHtml?: string; comingSoonMessage?: string }
+        /** Invitation card text overlays */
+        card?: Partial<
+          Pick<
+            CardDesign,
+            | 'title'
+            | 'eventName'
+            | 'heading'
+            | 'hosts'
+            | 'message'
+            | 'tip'
+            | 'greeting'
+            | 'intro'
+            | 'subject'
+            | 'ctaView'
+            | 'ctaCalendar'
+            | 'ctaMap'
+            | 'ctaRsvp'
+            | 'rsvpLabel'
+            | 'rsvpHint'
+            | 'openLabel'
+            | 'forLabel'
+            | 'sealLabel'
+            | 'timeLabel'
+            | 'placeLabel'
+            | 'cityLabel'
+            | 'dateLabel'
+            | 'address1'
+            | 'address2'
+          >
+        >
+        /** Save-the-date card text overlays */
+        stdCard?: Partial<
+          Pick<
+            CardDesign,
+            | 'title'
+            | 'eventName'
+            | 'heading'
+            | 'hosts'
+            | 'message'
+            | 'tip'
+            | 'greeting'
+            | 'intro'
+            | 'subject'
+            | 'ctaView'
+            | 'ctaCalendar'
+            | 'ctaMap'
+            | 'openLabel'
+            | 'forLabel'
+            | 'sealLabel'
+            | 'timeLabel'
+            | 'placeLabel'
+            | 'cityLabel'
+            | 'dateLabel'
+          >
+        >
+      }
+    >
+  >
   schedule: { items: ScheduleItem[] }
   venues: {
     dressCode: string
@@ -100,15 +299,27 @@ export type EventConfig = {
     phone: string
     email: string
     whatsapp: string
+    people: ContactPerson[]
+    formEnabled: boolean
+  }
+  travel: {
+    enabled: boolean
+    airports: string
+    currency: string
+    transport: string
+    emergency: string
   }
   media: {
     heroUrl: string
     gallery: string[]
+    galleryItems: GalleryItem[]
+    ambientAudioUrl: string
   }
   saveTheDate: {
     enabled: boolean
     message: string
     envelopeLabel: string
+    design: CardDesign
   }
   invitation: {
     greeting: string
@@ -116,15 +327,37 @@ export type EventConfig = {
     hostLine: string
     sealLabel: string
     sealImageUrl: string
+    intro: string
+    design: CardDesign
   }
   rsvp: {
     deadline: string
     meals: string[]
     allowPlusOne: boolean
     collectDietary: boolean
+    collectMeal: boolean
     notes: string
+    publicFormEnabled: boolean
+    openRsvpDefault: boolean
+    notifyMode: NotifyMode
+    notifyEmails: string[]
+    confirmationMessage: string
+  }
+  reminders: {
+    enabled: boolean
+    d30: boolean
+    d7: boolean
+    d2: boolean
+    onlyConfirmedForD7D2: boolean
+    message: string
   }
   faq: { items: FaqItem[] }
+  legal: {
+    privacyHtml: string
+    termsHtml: string
+    comingSoon: boolean
+    comingSoonMessage: string
+  }
   domain: {
     slug: string
     seoTitle: string
@@ -149,19 +382,40 @@ export type EventMailDomain = {
 
 export type GuestRsvp = 'pending' | 'yes' | 'no'
 
+export type GuestPerson = {
+  id: string
+  name: string
+  type: PersonType
+  status: GuestRsvp
+  meal: string
+  dietary: string
+}
+
+/** Family invite record (legacy name Guest). people[] = individual RSVPs. */
 export type Guest = {
   id: string
   familyName: string
+  /** Primary email (compat + first of emails[]). */
   email: string
+  emails: string[]
   partySize: number
+  /** Aggregate status derived from people when present. */
   status: GuestRsvp
   meal: string
   dietary: string
   message: string
   createdAt: string
   token: string
+  inviteLocale: EventLocale
+  scheduleInviteMode: ScheduleInviteMode
+  scheduleItemIds: string[]
+  openRsvp: boolean
+  notes: string
+  people: GuestPerson[]
   stdSentAt: string | null
   inviteSentAt: string | null
+  stdOpenedAt: string | null
+  invitationOpenedAt: string | null
 }
 
 export type WizardProgress = {
@@ -203,8 +457,43 @@ export type PlatformEvent = {
   wizard: WizardProgress
 }
 
+export type MailJobStatus = 'pending' | 'processing' | 'completed' | 'failed'
+
+export type MailJob = {
+  id: string
+  eventId: string
+  kind: 'std' | 'invite'
+  status: MailJobStatus
+  guestIds: string[]
+  pendingGuestIds: string[]
+  processed: number
+  succeeded: number
+  failed: number
+  errors: string[]
+  host: string
+  from: string
+  createdAt: string
+  updatedAt: string
+  attempts: number
+  lastError: string
+}
+
 export type PlatformStore = {
   orgs: Organization[]
   users: PlatformUser[]
   events: PlatformEvent[]
+  emailLogs?: EmailLog[]
+  mailJobs?: MailJob[]
+}
+
+export type EmailLog = {
+  id: string
+  eventId: string
+  familyId: string | null
+  type: string
+  status: string
+  resendId: string | null
+  toEmail: string
+  error: string
+  sentAt: string
 }

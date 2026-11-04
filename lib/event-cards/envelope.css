@@ -1,0 +1,124 @@
+.mp-envelope-stage {
+  perspective: 1400px;
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem 1rem;
+  box-sizing: border-box;
+}
+
+.mp-envelope {
+  position: relative;
+  width: min(420px, 92vw);
+  height: 280px;
+  cursor: pointer;
+  transform-style: preserve-3d;
+  transition: transform 0.6s ease;
+}
+
+.mp-envelope.is-open {
+  cursor: default;
+}
+
+.mp-envelope-back,
+.mp-envelope-front,
+.mp-envelope-flap,
+.mp-envelope-liner {
+  position: absolute;
+  inset: 0;
+  border-radius: 8px;
+}
+
+.mp-envelope-back {
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.35);
+}
+
+.mp-envelope-liner {
+  inset: 12px;
+  border-radius: 4px;
+  opacity: 0.95;
+}
+
+.mp-envelope-front {
+  clip-path: polygon(0 40%, 50% 70%, 100% 40%, 100% 100%, 0 100%);
+  z-index: 2;
+}
+
+.mp-envelope-flap {
+  clip-path: polygon(0 0, 100% 0, 50% 55%);
+  transform-origin: top center;
+  transition: transform 0.7s ease;
+  z-index: 3;
+}
+
+.mp-envelope.is-open .mp-envelope-flap {
+  transform: rotateX(180deg);
+}
+
+.mp-envelope-seal {
+  position: absolute;
+  left: 50%;
+  top: 48%;
+  z-index: 4;
+  width: 56px;
+  height: 56px;
+  margin-left: -28px;
+  margin-top: -28px;
+  border-radius: 999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.25);
+  transition: opacity 0.4s ease, transform 0.4s ease;
+}
+
+.mp-envelope.is-open .mp-envelope-seal {
+  opacity: 0;
+  transform: scale(0.6);
+}
+
+.mp-envelope-seal img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  padding: 4px;
+}
+
+.mp-envelope-label {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -2.75rem;
+  text-align: center;
+  font-size: 0.75rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  opacity: 0.8;
+  transition: opacity 0.3s ease;
+}
+
+.mp-envelope.is-open .mp-envelope-label {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.mp-envelope-card {
+  position: absolute;
+  left: 8%;
+  right: 8%;
+  top: 18%;
+  z-index: 1;
+  transform: translateY(12px) scale(0.96);
+  opacity: 0;
+  transition: transform 0.7s ease 0.15s, opacity 0.5s ease 0.15s;
+  pointer-events: none;
+}
+
+.mp-envelope.is-open .mp-envelope-card {
+  transform: translateY(-42%) scale(1);
+  opacity: 1;
+  pointer-events: auto;
+  z-index: 5;
+}

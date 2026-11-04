@@ -59,27 +59,39 @@ export function EventPlaces({
       ) : null}
       <div className="mx-auto grid max-w-4xl gap-4 md:grid-cols-2">
         {visible.map((place) => (
-          <div key={place.id} className="rounded-2xl p-5" style={{ background: card }}>
-            <p className="text-xs uppercase tracking-widest" style={{ color: accent }}>
-              {labels[place.category] || place.category}
-            </p>
-            <h3 className="mt-1 text-lg font-semibold">{place.name}</h3>
-            {place.notes ? (
-              <p className="mt-2 text-sm" style={{ color: muted }}>
-                {place.notes}
-              </p>
+          <div key={place.id} className="overflow-hidden rounded-2xl" style={{ background: card }}>
+            {place.photoUrl ? (
+              <div
+                className="aspect-[16/9] bg-black/20"
+                style={{
+                  backgroundImage: `url(${place.photoUrl})`,
+                  backgroundSize: 'cover',
+                  backgroundPosition: 'center',
+                }}
+              />
             ) : null}
-            <div className="mt-3 flex gap-3 text-sm" style={{ color: accent }}>
-              {place.url ? (
-                <a href={place.url} target="_blank" rel="noreferrer">
-                  Website
-                </a>
+            <div className="p-5">
+              <p className="text-xs uppercase tracking-widest" style={{ color: accent }}>
+                {labels[place.category] || place.category}
+              </p>
+              <h3 className="mt-1 text-lg font-semibold">{place.name}</h3>
+              {place.notes ? (
+                <p className="mt-2 text-sm" style={{ color: muted }}>
+                  {place.notes}
+                </p>
               ) : null}
-              {place.mapUrl ? (
-                <a href={place.mapUrl} target="_blank" rel="noreferrer">
-                  Map
-                </a>
-              ) : null}
+              <div className="mt-3 flex gap-3 text-sm" style={{ color: accent }}>
+                {place.url ? (
+                  <a href={place.url} target="_blank" rel="noreferrer">
+                    Website
+                  </a>
+                ) : null}
+                {place.mapUrl ? (
+                  <a href={place.mapUrl} target="_blank" rel="noreferrer">
+                    Map
+                  </a>
+                ) : null}
+              </div>
             </div>
           </div>
         ))}

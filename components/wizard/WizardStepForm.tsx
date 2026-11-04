@@ -1,22 +1,28 @@
 'use client'
 
-import { forwardRef, useImperativeHandle, useRef } from 'react'
+import { forwardRef, useImperativeHandle, useRef, useState } from 'react'
 import { DatePicker } from '@/components/wizard/DatePicker'
+import { CardDesignFields } from '@/components/wizard/CardDesignFields'
 import { Field, TextArea, TextInput } from '@/components/wizard/fields'
 import { applyGeneratedPatch, typeLabel, wizardUi } from '@/lib/platform/copy'
+import { getLocalized } from '@/lib/platform/i18n-content'
 import { uid } from '@/lib/platform/ids'
 import {
   EVENT_TYPES,
+  NOTIFY_MODES,
   PLACE_CATEGORIES,
   THEMES,
   type EventConfig,
   type EventLocale,
   type Guest,
+  type NotifyMode,
 } from '@/lib/platform/types'
 import { LOCALE_OPTIONS } from '@/lib/platform/locales'
+import { normalizeGuest } from '@/lib/platform/normalize'
 import { eventPublicHostLabel } from '@/lib/platform/site-url'
 import { reviewIssues } from '@/lib/platform/wizard'
 import { GuestCsvImport } from '@/components/dashboard/GuestCsvImport'
+import { GooglePhotosImport } from '@/components/wizard/GooglePhotosImport'
 
 function readFileAsDataUrl(file: File, tooBig: string): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -43,8 +49,9 @@ export const WizardStepForm = forwardRef<
     guests: Guest[]
     onChange: (next: EventConfig) => void
     onGuests: (next: Guest[]) => void
+    eventId?: string
   }
->(function WizardStepForm({ step, config, guests, onChange, onGuests }, ref) {
+>(function WizardStepForm({ step, config, guests, onChange, onGuests, eventId }, ref) {
   const ui = wizardUi(config.locales.default)
   const set = (next: EventConfig) => onChange(next)
   const patch = (fn: (draft: EventConfig) => EventConfig) => onChange(applyGeneratedPatch(config, fn))
@@ -56,20 +63,14 @@ export const WizardStepForm = forwardRef<
     if (!familyName) return
     onGuests([
       ...guests,
-      {
-        id: uid(),
+      normalizeGuest({
         familyName,
         email: String(data.get('email') || '').trim(),
         partySize: Number(data.get('partySize') || 1) || 1,
         status: 'pending',
-        meal: '',
-        dietary: '',
-        message: '',
-        createdAt: new Date().toISOString(),
-        token: uid(),
-        stdSentAt: null,
-        inviteSentAt: null,
-      },
+        openRsvp: config.rsvp.openRsvpDefault,
+        inviteLocale: config.locales.default,
+      }),
     ])
     form.reset()
   }
@@ -81,7 +82,9 @@ export const WizardStepForm = forwardRef<
   }))
 
   if (step === 'basics') {
-    const wizardLocales = (config.locales.enabled.length ? config.locales.enabled : LOCALE_OPTIONS.map((item) => item.value))
+    const wizardLocales = config.locales.enabled.length
+      ? config.locales.enabled
+      : LOCALE_OPTIONS.map((item) => item.value)
     return (
       <div className="space-y-5">
         <Field label={ui.language} hint={ui.languageHint}>
@@ -162,6 +165,15 @@ export const WizardStepForm = forwardRef<
             onChange={(iso) => set({ ...config, basics: { ...config.basics, date: iso } })}
           />
         </Field>
+        <Field label={ui.time}>
+          <TextInput
+            value={config.basics.startTime}
+            placeholder="10:00"
+            onChange={(e) =>
+              set({ ...config, basics: { ...config.basics, startTime: e.target.value } })
+            }
+          />
+        </Field>
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label={ui.city}>
             <TextInput
@@ -172,7 +184,9 @@ export const WizardStepForm = forwardRef<
           <Field label={ui.country}>
             <TextInput
               value={config.basics.country}
-              onChange={(e) => set({ ...config, basics: { ...config.basics, country: e.target.value } })}
+              onChange={(e) =>
+                set({ ...config, basics: { ...config.basics, country: e.target.value } })
+              }
             />
           </Field>
         </div>
@@ -224,47 +238,17 @@ export const WizardStepForm = forwardRef<
   }
 
   if (step === 'story') {
-    return (
-      <div className="space-y-4">
-        <Field label={ui.headline}>
-          <TextInput
-            value={config.story.headline}
-            onChange={(e) => set({ ...config, story: { ...config.story, headline: e.target.value } })}
-          />
-        </Field>
-        <Field label={ui.subtitle}>
-          <TextInput
-            value={config.story.subtitle}
-            onChange={(e) => set({ ...config, story: { ...config.story, subtitle: e.target.value } })}
-          />
-        </Field>
-        <Field label={ui.parentsMessage}>
-          <TextArea
-            value={config.story.parentsMessage}
-            onChange={(e) =>
-              set({ ...config, story: { ...config.story, parentsMessage: e.target.value } })
-            }
-          />
-        </Field>
-        <Field label={ui.about}>
-          <TextArea
-            value={config.story.about}
-            onChange={(e) => set({ ...config, story: { ...config.story, about: e.target.value } })}
-          />
-        </Field>
-        <Field label={ui.honoreeBio}>
-          <TextArea
-            value={config.story.honoreeBio}
-            onChange={(e) =>
-              set({ ...config, story: { ...config.story, honoreeBio: e.target.value } })
-            }
-          />
-        </Field>
-      </div>
-    )
+    return <StoryStepForm config={config} onChange={set} ui={ui} />
   }
 
   if (step === 'schedule') {
+    const patchItem = (id: string, next: Partial<(typeof config.schedule.items)[number]>) =>
+      set({
+        ...config,
+        schedule: {
+          items: config.schedule.items.map((row) => (row.id === id ? { ...row, ...next } : row)),
+        },
+      })
     return (
       <div className="space-y-4">
         {config.schedule.items.map((item, index) => (
@@ -290,59 +274,66 @@ export const WizardStepForm = forwardRef<
               <TextInput
                 placeholder={ui.title}
                 value={item.title}
-                onChange={(e) =>
-                  set({
-                    ...config,
-                    schedule: {
-                      items: config.schedule.items.map((row) =>
-                        row.id === item.id ? { ...row, title: e.target.value } : row,
-                      ),
-                    },
-                  })
-                }
+                onChange={(e) => patchItem(item.id, { title: e.target.value })}
+              />
+              <TextInput
+                placeholder="Day label"
+                value={item.dayLabel}
+                onChange={(e) => patchItem(item.id, { dayLabel: e.target.value })}
               />
               <TextInput
                 placeholder={ui.time}
                 value={item.time}
-                onChange={(e) =>
-                  set({
-                    ...config,
-                    schedule: {
-                      items: config.schedule.items.map((row) =>
-                        row.id === item.id ? { ...row, time: e.target.value } : row,
-                      ),
-                    },
-                  })
-                }
+                onChange={(e) => patchItem(item.id, { time: e.target.value })}
+              />
+              <TextInput
+                placeholder="End time"
+                value={item.timeEnd}
+                onChange={(e) => patchItem(item.id, { timeEnd: e.target.value })}
+              />
+              <DatePicker
+                value={item.date}
+                locale={config.locales.default}
+                placeholder={ui.pickDate}
+                onChange={(iso) => patchItem(item.id, { date: iso })}
               />
               <TextInput
                 placeholder={ui.place}
                 value={item.place}
-                onChange={(e) =>
-                  set({
-                    ...config,
-                    schedule: {
-                      items: config.schedule.items.map((row) =>
-                        row.id === item.id ? { ...row, place: e.target.value } : row,
-                      ),
-                    },
-                  })
-                }
+                onChange={(e) => patchItem(item.id, { place: e.target.value })}
               />
               <TextInput
                 placeholder={ui.address}
                 value={item.address}
+                onChange={(e) => patchItem(item.id, { address: e.target.value })}
+              />
+              <TextInput
+                placeholder={ui.mapUrl}
+                value={item.mapUrl}
+                onChange={(e) => patchItem(item.id, { mapUrl: e.target.value })}
+              />
+              <TextInput
+                placeholder="Dress code"
+                value={item.dressCode}
+                onChange={(e) => patchItem(item.id, { dressCode: e.target.value })}
+              />
+              <TextInput
+                placeholder={ui.notes}
+                value={item.notes}
+                onChange={(e) => patchItem(item.id, { notes: e.target.value })}
+              />
+              <select
+                value={item.visibility}
                 onChange={(e) =>
-                  set({
-                    ...config,
-                    schedule: {
-                      items: config.schedule.items.map((row) =>
-                        row.id === item.id ? { ...row, address: e.target.value } : row,
-                      ),
-                    },
+                  patchItem(item.id, {
+                    visibility: e.target.value === 'invite' ? 'invite' : 'public',
                   })
                 }
-              />
+                className="w-full rounded-xl border border-white/15 bg-[#12182a] px-3 py-2.5 text-sm"
+              >
+                <option value="public">Public</option>
+                <option value="invite">Invite only</option>
+              </select>
             </div>
           </div>
         ))}
@@ -355,7 +346,20 @@ export const WizardStepForm = forwardRef<
               schedule: {
                 items: [
                   ...config.schedule.items,
-                  { id: uid(), title: '', time: '', place: '', address: '' },
+                  {
+                    id: uid(),
+                    title: '',
+                    time: '',
+                    timeEnd: '',
+                    date: '',
+                    place: '',
+                    address: '',
+                    mapUrl: '',
+                    dressCode: '',
+                    notes: '',
+                    dayLabel: '',
+                    visibility: 'public',
+                  },
                 ],
               },
             })
@@ -368,18 +372,30 @@ export const WizardStepForm = forwardRef<
   }
 
   if (step === 'venues') {
+    const patchHotel = (id: string, next: Partial<(typeof config.venues.hotels)[number]>) =>
+      set({
+        ...config,
+        venues: {
+          ...config.venues,
+          hotels: config.venues.hotels.map((row) => (row.id === id ? { ...row, ...next } : row)),
+        },
+      })
     return (
       <div className="space-y-4">
         <Field label="Dress code">
           <TextInput
             value={config.venues.dressCode}
-            onChange={(e) => set({ ...config, venues: { ...config.venues, dressCode: e.target.value } })}
+            onChange={(e) =>
+              set({ ...config, venues: { ...config.venues, dressCode: e.target.value } })
+            }
           />
         </Field>
         <Field label={ui.parking}>
           <TextInput
             value={config.venues.parking}
-            onChange={(e) => set({ ...config, venues: { ...config.venues, parking: e.target.value } })}
+            onChange={(e) =>
+              set({ ...config, venues: { ...config.venues, parking: e.target.value } })
+            }
           />
         </Field>
         {config.venues.hotels.map((hotel) => (
@@ -387,80 +403,58 @@ export const WizardStepForm = forwardRef<
             <TextInput
               placeholder={ui.hotels}
               value={hotel.name}
-              onChange={(e) =>
-                set({
-                  ...config,
-                  venues: {
-                    ...config.venues,
-                    hotels: config.venues.hotels.map((row) =>
-                      row.id === hotel.id ? { ...row, name: e.target.value } : row,
-                    ),
-                  },
-                })
-              }
+              onChange={(e) => patchHotel(hotel.id, { name: e.target.value })}
             />
             <div className="grid gap-2 sm:grid-cols-2">
               <TextInput
                 placeholder={ui.walking}
                 value={hotel.walking}
-                onChange={(e) =>
-                  set({
-                    ...config,
-                    venues: {
-                      ...config.venues,
-                      hotels: config.venues.hotels.map((row) =>
-                        row.id === hotel.id ? { ...row, walking: e.target.value } : row,
-                      ),
-                    },
-                  })
-                }
+                onChange={(e) => patchHotel(hotel.id, { walking: e.target.value })}
               />
               <TextInput
                 placeholder="URL"
                 value={hotel.url}
+                onChange={(e) => patchHotel(hotel.id, { url: e.target.value })}
+              />
+              <TextInput
+                placeholder="Photo URL"
+                value={hotel.photoUrl}
+                onChange={(e) => patchHotel(hotel.id, { photoUrl: e.target.value })}
+              />
+              <TextInput
+                placeholder="Book URL"
+                value={hotel.bookUrl}
+                onChange={(e) => patchHotel(hotel.id, { bookUrl: e.target.value })}
+              />
+              <TextInput
+                placeholder={ui.mapUrl}
+                value={hotel.mapUrl}
+                onChange={(e) => patchHotel(hotel.id, { mapUrl: e.target.value })}
+              />
+              <TextInput
+                type="number"
+                min={0}
+                max={5}
+                placeholder="Stars"
+                value={hotel.stars || ''}
                 onChange={(e) =>
-                  set({
-                    ...config,
-                    venues: {
-                      ...config.venues,
-                      hotels: config.venues.hotels.map((row) =>
-                        row.id === hotel.id ? { ...row, url: e.target.value } : row,
-                      ),
-                    },
-                  })
+                  patchHotel(hotel.id, { stars: Math.max(0, Math.min(5, Number(e.target.value) || 0)) })
                 }
               />
             </div>
             <TextInput
-              placeholder={ui.mapUrl}
-              value={hotel.mapUrl}
-              onChange={(e) =>
-                set({
-                  ...config,
-                  venues: {
-                    ...config.venues,
-                    hotels: config.venues.hotels.map((row) =>
-                      row.id === hotel.id ? { ...row, mapUrl: e.target.value } : row,
-                    ),
-                  },
-                })
-              }
-            />
-            <TextInput
               placeholder={ui.notes}
               value={hotel.notes}
-              onChange={(e) =>
-                set({
-                  ...config,
-                  venues: {
-                    ...config.venues,
-                    hotels: config.venues.hotels.map((row) =>
-                      row.id === hotel.id ? { ...row, notes: e.target.value } : row,
-                    ),
-                  },
-                })
-              }
+              onChange={(e) => patchHotel(hotel.id, { notes: e.target.value })}
             />
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={hotel.featured}
+                onChange={(e) => patchHotel(hotel.id, { featured: e.target.checked })}
+              />
+              Featured
+            </label>
           </div>
         ))}
         <button
@@ -473,7 +467,18 @@ export const WizardStepForm = forwardRef<
                 ...config.venues,
                 hotels: [
                   ...config.venues.hotels,
-                  { id: uid(), name: '', url: '', notes: '', walking: '', mapUrl: '' },
+                  {
+                    id: uid(),
+                    name: '',
+                    url: '',
+                    notes: '',
+                    walking: '',
+                    mapUrl: '',
+                    photoUrl: '',
+                    stars: 0,
+                    featured: false,
+                    bookUrl: '',
+                  },
                 ],
               },
             })
@@ -481,30 +486,30 @@ export const WizardStepForm = forwardRef<
         >
           {ui.addHotel}
         </button>
+      </div>
+    )
+  }
+
+  if (step === 'places') {
+    const patchPlace = (id: string, next: Partial<(typeof config.places)[number]>) =>
+      set({
+        ...config,
+        places: config.places.map((row) => (row.id === id ? { ...row, ...next } : row)),
+      })
+    return (
+      <div className="space-y-4">
         {config.places.map((item) => (
           <div key={item.id} className="space-y-2 rounded-2xl border border-white/10 p-4">
             <TextInput
               placeholder={ui.place}
               value={item.name}
-              onChange={(e) =>
-                set({
-                  ...config,
-                  places: config.places.map((row) =>
-                    row.id === item.id ? { ...row, name: e.target.value } : row,
-                  ),
-                })
-              }
+              onChange={(e) => patchPlace(item.id, { name: e.target.value })}
             />
             <select
               value={item.category}
               onChange={(e) =>
-                set({
-                  ...config,
-                  places: config.places.map((row) =>
-                    row.id === item.id
-                      ? { ...row, category: e.target.value as (typeof PLACE_CATEGORIES)[number] }
-                      : row,
-                  ),
+                patchPlace(item.id, {
+                  category: e.target.value as (typeof PLACE_CATEGORIES)[number],
                 })
               }
               className="w-full rounded-xl border border-white/15 bg-[#12182a] px-3 py-2.5 text-sm"
@@ -516,16 +521,24 @@ export const WizardStepForm = forwardRef<
               ))}
             </select>
             <TextInput
+              placeholder="Photo URL"
+              value={item.photoUrl}
+              onChange={(e) => patchPlace(item.id, { photoUrl: e.target.value })}
+            />
+            <TextInput
+              placeholder="URL"
+              value={item.url}
+              onChange={(e) => patchPlace(item.id, { url: e.target.value })}
+            />
+            <TextInput
+              placeholder={ui.mapUrl}
+              value={item.mapUrl}
+              onChange={(e) => patchPlace(item.id, { mapUrl: e.target.value })}
+            />
+            <TextInput
               placeholder={ui.notes}
               value={item.notes}
-              onChange={(e) =>
-                set({
-                  ...config,
-                  places: config.places.map((row) =>
-                    row.id === item.id ? { ...row, notes: e.target.value } : row,
-                  ),
-                })
-              }
+              onChange={(e) => patchPlace(item.id, { notes: e.target.value })}
             />
           </div>
         ))}
@@ -537,30 +550,173 @@ export const WizardStepForm = forwardRef<
               ...config,
               places: [
                 ...config.places,
-                { id: uid(), name: '', category: 'restaurant', url: '', mapUrl: '', notes: '' },
+                {
+                  id: uid(),
+                  name: '',
+                  category: 'restaurant',
+                  url: '',
+                  mapUrl: '',
+                  notes: '',
+                  photoUrl: '',
+                },
               ],
             })
           }
         >
           {ui.addPlace}
         </button>
-        <Field label="Telefone">
+      </div>
+    )
+  }
+
+  if (step === 'contact') {
+    const patchPerson = (
+      id: string,
+      next: Partial<(typeof config.contact.people)[number]>,
+    ) =>
+      set({
+        ...config,
+        contact: {
+          ...config.contact,
+          people: config.contact.people.map((row) => (row.id === id ? { ...row, ...next } : row)),
+        },
+      })
+    return (
+      <div className="space-y-4">
+        <label className="flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={config.contact.formEnabled}
+            onChange={(e) =>
+              set({ ...config, contact: { ...config.contact, formEnabled: e.target.checked } })
+            }
+          />
+          Enable contact form on site
+        </label>
+        <Field label="Legacy phone">
           <TextInput
             value={config.contact.phone}
             onChange={(e) => set({ ...config, contact: { ...config.contact, phone: e.target.value } })}
           />
         </Field>
-        <Field label="Email">
+        <Field label="Legacy email">
           <TextInput
             value={config.contact.email}
             onChange={(e) => set({ ...config, contact: { ...config.contact, email: e.target.value } })}
           />
         </Field>
-        <Field label="WhatsApp">
+        <Field label="Legacy WhatsApp">
           <TextInput
             value={config.contact.whatsapp}
             onChange={(e) =>
               set({ ...config, contact: { ...config.contact, whatsapp: e.target.value } })
+            }
+          />
+        </Field>
+        {config.contact.people.map((person) => (
+          <div key={person.id} className="space-y-2 rounded-2xl border border-white/10 p-4">
+            <TextInput
+              placeholder="Name"
+              value={person.name}
+              onChange={(e) => patchPerson(person.id, { name: e.target.value })}
+            />
+            <div className="grid gap-2 sm:grid-cols-2">
+              <TextInput
+                placeholder="Phone"
+                value={person.phone}
+                onChange={(e) => patchPerson(person.id, { phone: e.target.value })}
+              />
+              <TextInput
+                placeholder="Email"
+                value={person.email}
+                onChange={(e) => patchPerson(person.id, { email: e.target.value })}
+              />
+              <TextInput
+                placeholder="WhatsApp"
+                value={person.whatsapp}
+                onChange={(e) => patchPerson(person.id, { whatsapp: e.target.value })}
+              />
+              <TextInput
+                placeholder="WhatsApp label"
+                value={person.whatsappLabel}
+                onChange={(e) => patchPerson(person.id, { whatsappLabel: e.target.value })}
+              />
+            </div>
+            <button
+              type="button"
+              className="text-sm text-rose-300"
+              onClick={() =>
+                set({
+                  ...config,
+                  contact: {
+                    ...config.contact,
+                    people: config.contact.people.filter((row) => row.id !== person.id),
+                  },
+                })
+              }
+            >
+              {ui.remove}
+            </button>
+          </div>
+        ))}
+        <button
+          type="button"
+          className="rounded-full border border-white/20 px-4 py-2 text-sm"
+          onClick={() =>
+            set({
+              ...config,
+              contact: {
+                ...config.contact,
+                people: [
+                  ...config.contact.people,
+                  { id: uid(), name: '', phone: '', email: '', whatsapp: '', whatsappLabel: '' },
+                ],
+              },
+            })
+          }
+        >
+          + Contact person
+        </button>
+        <Field label="Travel">
+          <label className="mb-2 flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={config.travel.enabled}
+              onChange={(e) =>
+                set({ ...config, travel: { ...config.travel, enabled: e.target.checked } })
+              }
+            />
+            Show travel section
+          </label>
+          <TextArea
+            placeholder="Airports"
+            value={config.travel.airports}
+            onChange={(e) =>
+              set({ ...config, travel: { ...config.travel, airports: e.target.value } })
+            }
+          />
+          <TextInput
+            className="mt-2"
+            placeholder="Currency"
+            value={config.travel.currency}
+            onChange={(e) =>
+              set({ ...config, travel: { ...config.travel, currency: e.target.value } })
+            }
+          />
+          <TextArea
+            className="mt-2"
+            placeholder="Transport"
+            value={config.travel.transport}
+            onChange={(e) =>
+              set({ ...config, travel: { ...config.travel, transport: e.target.value } })
+            }
+          />
+          <TextInput
+            className="mt-2"
+            placeholder="Emergency"
+            value={config.travel.emergency}
+            onChange={(e) =>
+              set({ ...config, travel: { ...config.travel, emergency: e.target.value } })
             }
           />
         </Field>
@@ -597,17 +753,51 @@ export const WizardStepForm = forwardRef<
         <Field label={ui.gallery}>
           <TextArea
             value={config.media.gallery.join('\n')}
-            onChange={(e) =>
+            onChange={(e) => {
+              const urls = e.target.value.split('\n').map((line) => line.trim()).filter(Boolean)
               set({
                 ...config,
                 media: {
                   ...config.media,
-                  gallery: e.target.value.split('\n').map((line) => line.trim()).filter(Boolean),
+                  gallery: urls,
+                  galleryItems: urls.map((url, i) => ({
+                    id: config.media.galleryItems[i]?.id || uid(),
+                    url,
+                    type: 'image' as const,
+                    caption: config.media.galleryItems[i]?.caption || '',
+                    approved: true,
+                    showOnSite: true,
+                    sortOrder: i,
+                  })),
                 },
               })
+            }}
+          />
+        </Field>
+        <Field label="Ambient audio URL">
+          <TextInput
+            value={config.media.ambientAudioUrl}
+            placeholder="https://…/ambient.mp3"
+            onChange={(e) =>
+              set({ ...config, media: { ...config.media, ambientAudioUrl: e.target.value } })
             }
           />
         </Field>
+        <GooglePhotosImport
+          eventId={eventId}
+          onImported={(galleryItems) =>
+            set({
+              ...config,
+              media: {
+                ...config.media,
+                galleryItems,
+                gallery: galleryItems
+                  .filter((g) => g.type === 'image' && g.showOnSite)
+                  .map((g) => g.url),
+              },
+            })
+          }
+        />
       </div>
     )
   }
@@ -645,6 +835,12 @@ export const WizardStepForm = forwardRef<
             }
           />
         </Field>
+        <CardDesignFields
+          design={config.saveTheDate.design}
+          onChange={(design) =>
+            set({ ...config, saveTheDate: { ...config.saveTheDate, design } })
+          }
+        />
       </div>
     )
   }
@@ -722,6 +918,12 @@ export const WizardStepForm = forwardRef<
             }
           />
         </Field>
+        <CardDesignFields
+          design={config.invitation.design}
+          onChange={(design) =>
+            set({ ...config, invitation: { ...config.invitation, design } })
+          }
+        />
       </div>
     )
   }
@@ -755,7 +957,9 @@ export const WizardStepForm = forwardRef<
           <input
             type="checkbox"
             checked={config.rsvp.allowPlusOne}
-            onChange={(e) => set({ ...config, rsvp: { ...config.rsvp, allowPlusOne: e.target.checked } })}
+            onChange={(e) =>
+              set({ ...config, rsvp: { ...config.rsvp, allowPlusOne: e.target.checked } })
+            }
           />
           {ui.plusOne}
         </label>
@@ -769,6 +973,71 @@ export const WizardStepForm = forwardRef<
           />
           {ui.dietary}
         </label>
+        <label className="flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={config.rsvp.collectMeal}
+            onChange={(e) =>
+              set({ ...config, rsvp: { ...config.rsvp, collectMeal: e.target.checked } })
+            }
+          />
+          Collect meal choice
+        </label>
+        <label className="flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={config.rsvp.publicFormEnabled}
+            onChange={(e) =>
+              set({ ...config, rsvp: { ...config.rsvp, publicFormEnabled: e.target.checked } })
+            }
+          />
+          Public RSVP form on site
+        </label>
+        <label className="flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={config.rsvp.openRsvpDefault}
+            onChange={(e) =>
+              set({ ...config, rsvp: { ...config.rsvp, openRsvpDefault: e.target.checked } })
+            }
+          />
+          Open RSVP by default for new guests
+        </label>
+        <Field label="Notify mode">
+          <select
+            value={config.rsvp.notifyMode}
+            onChange={(e) =>
+              set({
+                ...config,
+                rsvp: { ...config.rsvp, notifyMode: e.target.value as NotifyMode },
+              })
+            }
+            className="w-full rounded-xl border border-white/15 bg-[#12182a] px-3 py-2.5 text-sm"
+          >
+            {NOTIFY_MODES.map((mode) => (
+              <option key={mode} value={mode}>
+                {mode}
+              </option>
+            ))}
+          </select>
+        </Field>
+        <Field label="Notify emails (one per line)">
+          <TextArea
+            value={config.rsvp.notifyEmails.join('\n')}
+            onChange={(e) =>
+              set({
+                ...config,
+                rsvp: {
+                  ...config.rsvp,
+                  notifyEmails: e.target.value
+                    .split('\n')
+                    .map((line) => line.trim())
+                    .filter(Boolean),
+                },
+              })
+            }
+          />
+        </Field>
         <Field label={ui.rsvpNotes}>
           <TextArea
             value={config.rsvp.notes}
@@ -812,6 +1081,23 @@ export const WizardStepForm = forwardRef<
                 })
               }
             />
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={item.published !== false}
+                onChange={(e) =>
+                  set({
+                    ...config,
+                    faq: {
+                      items: config.faq.items.map((row) =>
+                        row.id === item.id ? { ...row, published: e.target.checked } : row,
+                      ),
+                    },
+                  })
+                }
+              />
+              Published
+            </label>
           </div>
         ))}
         <button
@@ -820,12 +1106,127 @@ export const WizardStepForm = forwardRef<
           onClick={() =>
             set({
               ...config,
-              faq: { items: [...config.faq.items, { id: uid(), question: '', answer: '' }] },
+              faq: {
+                items: [
+                  ...config.faq.items,
+                  { id: uid(), question: '', answer: '', published: true },
+                ],
+              },
             })
           }
         >
           {ui.addQuestion}
         </button>
+      </div>
+    )
+  }
+
+  if (step === 'reminders') {
+    return (
+      <div className="space-y-4">
+        <label className="flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={config.reminders.enabled}
+            onChange={(e) =>
+              set({ ...config, reminders: { ...config.reminders, enabled: e.target.checked } })
+            }
+          />
+          Enable reminder emails
+        </label>
+        <label className="flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={config.reminders.d30}
+            onChange={(e) =>
+              set({ ...config, reminders: { ...config.reminders, d30: e.target.checked } })
+            }
+          />
+          30 days before
+        </label>
+        <label className="flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={config.reminders.d7}
+            onChange={(e) =>
+              set({ ...config, reminders: { ...config.reminders, d7: e.target.checked } })
+            }
+          />
+          7 days before
+        </label>
+        <label className="flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={config.reminders.d2}
+            onChange={(e) =>
+              set({ ...config, reminders: { ...config.reminders, d2: e.target.checked } })
+            }
+          />
+          2 days before
+        </label>
+        <label className="flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={config.reminders.onlyConfirmedForD7D2}
+            onChange={(e) =>
+              set({
+                ...config,
+                reminders: { ...config.reminders, onlyConfirmedForD7D2: e.target.checked },
+              })
+            }
+          />
+          Only confirmed guests for D-7 / D-2
+        </label>
+        <Field label={ui.message}>
+          <TextArea
+            value={config.reminders.message}
+            onChange={(e) =>
+              set({ ...config, reminders: { ...config.reminders, message: e.target.value } })
+            }
+          />
+        </Field>
+      </div>
+    )
+  }
+
+  if (step === 'legal') {
+    return (
+      <div className="space-y-4">
+        <label className="flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={config.legal.comingSoon}
+            onChange={(e) =>
+              set({ ...config, legal: { ...config.legal, comingSoon: e.target.checked } })
+            }
+          />
+          Coming soon mode
+        </label>
+        <Field label="Coming soon message">
+          <TextArea
+            value={config.legal.comingSoonMessage}
+            placeholder="O site estará disponível em breve…"
+            onChange={(e) =>
+              set({ ...config, legal: { ...config.legal, comingSoonMessage: e.target.value } })
+            }
+          />
+        </Field>
+        <Field label="Privacy HTML">
+          <TextArea
+            value={config.legal.privacyHtml}
+            onChange={(e) =>
+              set({ ...config, legal: { ...config.legal, privacyHtml: e.target.value } })
+            }
+          />
+        </Field>
+        <Field label="Terms HTML">
+          <TextArea
+            value={config.legal.termsHtml}
+            onChange={(e) =>
+              set({ ...config, legal: { ...config.legal, termsHtml: e.target.value } })
+            }
+          />
+        </Field>
       </div>
     )
   }
@@ -874,7 +1275,10 @@ export const WizardStepForm = forwardRef<
             onChange={(e) =>
               set({
                 ...config,
-                domain: { ...config.domain, slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-') },
+                domain: {
+                  ...config.domain,
+                  slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-'),
+                },
               })
             }
           />
@@ -886,7 +1290,9 @@ export const WizardStepForm = forwardRef<
         <Field label={ui.seoTitle}>
           <TextInput
             value={config.domain.seoTitle}
-            onChange={(e) => set({ ...config, domain: { ...config.domain, seoTitle: e.target.value } })}
+            onChange={(e) =>
+              set({ ...config, domain: { ...config.domain, seoTitle: e.target.value } })
+            }
           />
         </Field>
         <Field label={ui.seoDescription}>
@@ -897,7 +1303,10 @@ export const WizardStepForm = forwardRef<
             }
           />
         </Field>
-        <Field label="Domínio próprio (Signature)" hint="CNAME para cname.vercel-dns.com. Verifique no dashboard do evento.">
+        <Field
+          label="Domínio próprio (Signature)"
+          hint="CNAME para cname.vercel-dns.com. Verifique no dashboard do evento."
+        >
           <TextInput
             value={config.domain.customHost}
             placeholder="www.familia.com"
@@ -907,7 +1316,10 @@ export const WizardStepForm = forwardRef<
                 domain: {
                   ...config.domain,
                   customHost: e.target.value.toLowerCase().trim(),
-                  customHostStatus: config.domain.customHostStatus === 'verified' ? 'pending' : config.domain.customHostStatus,
+                  customHostStatus:
+                    config.domain.customHostStatus === 'verified'
+                      ? 'pending'
+                      : config.domain.customHostStatus,
                 },
               })
             }
@@ -936,3 +1348,90 @@ export const WizardStepForm = forwardRef<
     </div>
   )
 })
+
+function StoryStepForm({
+  config,
+  onChange,
+  ui,
+}: {
+  config: EventConfig
+  onChange: (next: EventConfig) => void
+  ui: ReturnType<typeof wizardUi>
+}) {
+  const locales = config.locales.enabled.length
+    ? config.locales.enabled
+    : ([config.locales.default] as EventLocale[])
+  const [editLocale, setEditLocale] = useState<EventLocale>(config.locales.default)
+  const active = locales.includes(editLocale) ? editLocale : config.locales.default
+  const isDefault = active === config.locales.default
+
+  function valueOf(key: 'headline' | 'subtitle' | 'parentsMessage' | 'about' | 'honoreeBio') {
+    return isDefault ? config.story[key] : getLocalized(config, active, key)
+  }
+
+  function patchField(
+    key: 'headline' | 'subtitle' | 'parentsMessage' | 'about' | 'honoreeBio',
+    value: string,
+  ) {
+    if (isDefault) {
+      onChange({ ...config, story: { ...config.story, [key]: value } })
+      return
+    }
+    const contentI18n = { ...(config.contentI18n || {}) }
+    contentI18n[active] = { ...contentI18n[active], [key]: value }
+    onChange({ ...config, contentI18n })
+  }
+
+  return (
+    <div className="space-y-4">
+      {locales.length > 1 ? (
+        <div className="flex flex-wrap gap-2">
+          {locales.map((locale) => {
+            const option = LOCALE_OPTIONS.find((item) => item.value === locale)
+            return (
+              <button
+                key={locale}
+                type="button"
+                onClick={() => setEditLocale(locale)}
+                className={`rounded-full border px-3 py-1.5 text-xs ${
+                  active === locale
+                    ? 'border-cyan-400 bg-cyan-400/10 text-cyan-100'
+                    : 'border-white/15 bg-white/5 text-white/70'
+                }`}
+              >
+                {option?.label || locale}
+                {locale === config.locales.default ? ' ★' : ''}
+              </button>
+            )
+          })}
+        </div>
+      ) : null}
+      {!isDefault ? (
+        <p className="text-xs text-white/40">
+          Overlay para {active}. Vazio usa o texto do idioma padrão ({config.locales.default}).
+        </p>
+      ) : null}
+      <Field label={ui.headline}>
+        <TextInput value={valueOf('headline')} onChange={(e) => patchField('headline', e.target.value)} />
+      </Field>
+      <Field label={ui.subtitle}>
+        <TextInput value={valueOf('subtitle')} onChange={(e) => patchField('subtitle', e.target.value)} />
+      </Field>
+      <Field label={ui.parentsMessage}>
+        <TextArea
+          value={valueOf('parentsMessage')}
+          onChange={(e) => patchField('parentsMessage', e.target.value)}
+        />
+      </Field>
+      <Field label={ui.about}>
+        <TextArea value={valueOf('about')} onChange={(e) => patchField('about', e.target.value)} />
+      </Field>
+      <Field label={ui.honoreeBio}>
+        <TextArea
+          value={valueOf('honoreeBio')}
+          onChange={(e) => patchField('honoreeBio', e.target.value)}
+        />
+      </Field>
+    </div>
+  )
+}
