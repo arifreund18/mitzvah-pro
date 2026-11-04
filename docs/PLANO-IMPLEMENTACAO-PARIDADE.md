@@ -1,293 +1,264 @@
-# Plano de implementação — Paridade Bar-Beni no Mitzvah Pro
+# Plano de implementação — Paridade BarBeni no Mitzvah Pro
 
-Objetivo: o studio **mitzvah-pro** oferecer os **mesmos recursos e funcionalidades** que o evento Bar-Beni em produção, para qualquer evento novo criado no dashboard.
+Derivado do inventário estático em [`PARIDADE-BARBENI.md`](./PARIDADE-BARBENI.md) (BarBeni@`2e754ab` × mitzvah-pro@`fa53897`).
 
-**Não-negociável:** nenhuma alteração no app/repo `bar-beni` (já no ar). O proxy `/BarBeni/*` fica como está.
+## Restrições (não negociáveis)
 
-Inventário de gaps: [`PARIDADE-BARBENI.md`](./PARIDADE-BARBENI.md).
+1. **BarBeni intocado** — zero commits, deploys, refactors ou pacotes compartilhados no app em produção. Proxy `/BarBeni/*` + `BAR_BENI_ORIGIN` permanecem.
+2. **Só `mitzvah-pro` muda** — copiar ideias/código de referência; não extrair monorepo compartilhado com o Beni.
+3. **4 idiomas por evento** (`en`/`pt`/`es`/`he`) com RTL no hebraico (site, RSVP, envelopes, e-mails).
+4. **Validação de paridade** = evento de teste recriado + comparação read-only com Beni em produção. Sem importar o banco do Beni.
+5. Manter diferenciais do studio: multi-tenant, subdomínio, domínio custom, e-mail isolado por evento, prazo/+1 no RSVP (L18), aprovação boutique.
+
+## Tese arquitetural (do relatório §6.1)
+
+Paridade **não** se resolve ampliando só o `EventConfig` JSON.
+
+| Camada | Onde vive | Exemplos |
+|--------|-----------|----------|
+| Config / design | `events.config` JSONB (versionável) | tema, ~100 chaves STD/convite, SEO, flags |
+| Operacional | Tabelas relacionais com `event_id` | families, guests (pessoas), schedule, gallery, email_logs, rate_limits |
+| Mídia | Vercel Blob (ou equivalente) + `assets` | hero, galeria, vídeo, selo — **não** data-URL no JSON |
+
+Pré-requisito explícito: sair de `platform_store` monolítico (L14) antes de RSVP concorrente, logs, cron e galerias reais.
 
 ---
 
-## Visão da entrega
+## Ordem de execução
 
 ```
-mitzvah-pro (único sítio de mudança)
-├── EventConfig + Guest model  →  campos que o Beni já tem
-├── Wizard                     →  captura esses campos
-├── Runtime {slug}.mitzvah.pro →  renderiza como o Beni
-├── Convite tokenizado         →  /invite|card|rsvp/{token}
-└── Dashboard do evento        →  guests, envio, stats
-
-bar-beni (intocado)
-└── continua em /BarBeni/* via BAR_BENI_ORIGIN
+Hotfix L2 (proteger RSVP)     ── paralelo, imediato
+        │
+Fase 0 Fundação (relacional+Blob+CI)
+        │
+Fase 1 Famílias / pessoas / import-export / QR
+        │
+Fase 2 Rotas token + RSVP + cookie + notificações base
+        │
+Fase 3 E-mails ricos + fila + tracking + cron lembretes
+        │
+Fase 4 Envelope animado (packages/event-cards interno)
+        │
+Fase 5 Site completo + i18n por campo
+        │
+Fase 6 Wizard completo + painel pós-publicação
+        │
+Fase 7 Validação de paridade (read-only vs Beni)
 ```
 
-Critério de sucesso: um operador cria um evento no `/dashboard`, completa o wizard, publica, envia STD/convites, e o convidado vive o mesmo fluxo funcional do Beni (card → RSVP por pessoa → update → calendar multi-provider → site completo), **sem tocar no código do Beni**.
+Dependência dura: **0 → 1 → 2**. Fases 3–5 podem paralelizar parcialmente após 2. Fase 4 pode começar após 2 (precisa token pages) em paralelo com 3.
 
 ---
 
-## Fases
+## Hotfix imediato (P0 #4 — independente)
 
-### Fase A — Contrato de dados (fundação)
+| Item | Trabalho | Aceite |
+|------|----------|--------|
+| H1 | Desligar ou proteger `POST .../guests` `fromPublic` | Sem token válido (ou open-RSVP explícito + Turnstile/captcha) → 403/429 |
+| H2 | Rate limit em login + RSVP | Tabela/`rsvp_rate_limits` ou Upstash; limites alinhados ao Beni (5/h fechado, 60/h open) |
+| H3 | Exigir secrets em prod | Boot falha sem `DASHBOARD_PASSWORD` / `DASHBOARD_SECRET` / owner password |
 
-**Porquê primeiro:** o wizard e o runtime só conseguem paridade se o schema cobrir os campos reais do Beni.
-
-| # | Trabalho | Ficheiros-alvo | Aceite |
-|---|----------|----------------|--------|
-| A1 | Estender `EventConfig` | `lib/platform/types.ts`, `defaults.ts`, `normalize.ts` | Schema tipado com defaults seguros |
-| A2 | Estender modelo `Guest` / party | `types.ts`, APIs de guests | Party com pessoas (adult/child), meal/dietary por pessoa, token opaco |
-| A3 | Schedule linkável a guests | `ScheduleItem` + opcional `guestIds[]` / `visibility: public\|invite` | Item pode ser “só no convite” |
-| A4 | Persistência | `persistence.ts` / JSON store | Eventos antigos migrados com defaults (sem quebrar publish) |
-
-**Campos novos mínimos (A1):**
-
-```ts
-// contact: lista em vez de escalares
-contact: {
-  people: { id; name?; phone?; email?; whatsapp? }[]
-  formEnabled: boolean
-}
-
-// hotels
-Hotel: { …existing; stars?: number; bookUrl?: string; photoUrl?: string }
-
-// places
-LocalPlace: { …existing; photoUrl?: string }
-// PLACE_CATEGORIES += 'family' | 'tips'
-
-// travel (opcional por evento)
-travel: {
-  enabled: boolean
-  airports: string
-  currency: string
-  transport: string
-  emergency: string
-}
-
-// legal
-legal: { privacyHtml: string; termsHtml: string }
-
-// media / hero
-media: { …existing; ambientAudioUrl?: string }
-
-// schedule
-ScheduleItem: { …existing; visibility: 'public' | 'invite'; guestIds?: string[] }
-```
-
-**Guest (A2):**
-
-```ts
-GuestPerson = { id; name; type: 'adult' | 'child'; status; meal; dietary }
-Guest = {
-  …existing // familyName, email, token, stdSentAt, inviteSentAt
-  people: GuestPerson[]
-  // partySize derivado de people.length (compat)
-}
-```
-
-**Risco:** eventos já publicados com contact escalar — migrar em `normalize.ts` (`phone/email/whatsapp` → `people[0]`).
-
-**Fora desta fase:** UI do wizard (só tipos + normalização + testes de migrate).
+Entregar como PR pequeno **antes ou em paralelo** à Fase 0.
 
 ---
 
-### Fase B — Convite e RSVP tokenizados (paridade crítica)
+## Fase 0 — Fundação (storage + qualidade)
 
-O maior gap funcional. No Beni o convidado não preenche um form aberto: abre um **link com token**.
+**Fecha:** L14, base de L15, prepara tudo.
 
-| # | Trabalho | Rotas / APIs | Aceite |
-|---|----------|--------------|--------|
-| B1 | Página card/convite por token | `/e/[slug]/invite/[token]`, `/card/[token]` (rewrite no host do evento) | Saudação personalizada + lista da party |
-| B2 | RSVP por token | `/e/[slug]/rsvp/[token]` + `POST` guests API | Add/remove person, adult/child, meal, dietary, message |
-| B3 | Update RSVP | Mesmo endpoint com regra de update | Convidado altera após submit; erros: invalid / rate-limit / cross-family |
-| B4 | Guest status | Bloco “Your RSVP” no card | attending / declined / pending + Change RSVP |
-| B5 | Envio de email com token | `send` route | Link `https://{slug}.mitzvah.pro/rsvp/{token}` (e invite/card) |
-| B6 | Manter RSVP público opcional | flag `rsvp.publicFormEnabled` | Form aberto atual continua disponível se ligado |
+| # | Entrega |
+|---|---------|
+| 0.1 | Schema SQL: `orgs`, `users`, `events`, `families`, `guests` (pessoas), `schedule_items`, `family_schedule_items`, `hotels`, `faqs`, `things_to_do`, `gallery_items`, `email_logs`, `rsvp_rate_limits`, `assets` |
+| 0.2 | Script idempotente `platform_store` JSON → tabelas (backup JSON mantido na transição) |
+| 0.3 | Camada de acesso (Drizzle ou SQL cru) sempre com `event_id` + checagem `org_id` |
+| 0.4 | Upload → Blob; remover data-URL do caminho feliz do wizard (limite 1,5 MB deixa de ser o modelo) |
+| 0.5 | Testes de base (migrate, tokens, auth isolation) + CI |
+| 0.6 | Rate limit infra reutilizável (login/RSVP/contato) |
 
-**Compat:** guests antigos sem `people[]` → uma pessoa adult com `familyName`.
+**Aceite:** criar evento, listar, publish e RSVP (mesmo o fluxo atual) sem lost update sob 2 lambdas concorrentes; imagens em Blob.
 
-**Não fazer:** alterar templates/emails do app Bar-Beni.
-
----
-
-### Fase C — Site runtime (paridade de secções)
-
-| # | Trabalho | Notas | Aceite |
-|---|----------|-------|--------|
-| C1 | Gallery lightbox | Componente client; teclado Esc; swipe opcional | Paridade com GalleryLightbox |
-| C2 | Calendar multi-provider | `lib/platform/calendar.ts` + UI menu | Google, Apple (data URL/ICS), Outlook, download `.ics` |
-| C3 | API ICS | `app/api/platform/events/[id]/calendar/[itemId]` ou por slug público | `text/calendar` |
-| C4 | Hotels: stars + bookUrl + foto | Wizard + EventSite | Cards alinhados ao Beni |
-| C5 | Places: photoUrl + categorias family/tips | Tabs como ThingsToDoTabs | Fotos nos cards |
-| C6 | Contact multi + form | Lista de pessoas; form POST `/api/platform/events/[id]/contact` → Resend para `contact.people` emails | |
-| C7 | Travel section | Render se `travel.enabled` | airports / currency / transport / emergency |
-| C8 | Privacy & Terms | `/e/[slug]/privacy`, `/terms` (+ rewrite no subdomain) | Footer links |
-| C9 | Ambient audio (opcional) | Toggle no hero se URL configurada | Mute/unmute |
-| C10 | Schedule visibility | Público só `visibility=public`; invite vê também os do guest | |
-
-Ordem sugerida dentro de C: **C2 → C1 → C4/C5 → C6 → C7 → C8 → C9 → C10**.
+**Não fazer nesta fase:** UI nova de envelope; não tocar BarBeni.
 
 ---
 
-### Fase D — Wizard (captura self-serve)
+## Fase 1 — Convidados no padrão BarBeni
 
-Cada campo novo da Fase A precisa de UI no wizard e preview.
+**Fecha:** L3, parte de L1/L16, P0 #2, P1 #8.
 
-| Step | Extensões |
-|------|-----------|
-| `venues` | stars, bookUrl, photoUrl nos hotels; travel block |
-| `media` | ambientAudioUrl; (lightbox é só runtime) |
-| `story` / novo `contact` | pessoas de contacto (N); toggle form |
-| `schedule` | visibility + guests opcionais |
-| `rsvp` | publicFormEnabled; copy de meal labels |
-| `faq` | (já ok) |
-| `domain` / `review` | links privacy/terms se preenchidos |
-| novo step opcional `legal` | privacy + terms (markdown/HTML sanitizado) |
-| `guestsBootstrap` | editar people[] na importação CSV (colunas adult/child) |
+| # | Entrega |
+|---|---------|
+| 1.1 | Modelo `Family` (token 12 chars global, `emails[]`, `invite_locale`, `schedule_invite_mode`, `open_rsvp`, notes, sent/opened timestamps) |
+| 1.2 | Modelo `Guest` = pessoa (`adult`/`child`, meal, dietary, rsvp individual) ligada à família |
+| 1.3 | Migração dos `Guest` planos atuais → família + 1 pessoa adult |
+| 1.4 | Dashboard: busca, filtros (RSVP, STD/invite sent, opened), ordenação, métricas adultos/crianças |
+| 1.5 | Import Excel/CSV com **preview**, colunas `family_name, email, guest_name, type, notes, language`, dedupe |
+| 1.6 | Export XLSX (convidados + RSVPs) |
+| 1.7 | QR PNG do link da família (`/api/.../qr/[token]`) |
+| 1.8 | Ligar famílias a subset de `schedule_items` |
 
-**Preview:** `LivePreview` deve refletir lightbox/calendar/contact multi sem publish.
-
-**Validação publish:** reviewIssues atualizados (ex.: se formEnabled, pelo menos 1 email de destino).
+**Aceite:** operador importa lista mista, edita família com 2 e-mails + 3 pessoas, copia link tokenizado, vê métricas por tipo.
 
 ---
 
-### Fase E — Dashboard do evento
+## Fase 2 — Páginas por token + RSVP
 
-| # | Trabalho | Aceite |
-|---|----------|--------|
-| E1 | Stats por pessoa (não só por família) | total people attending/pending/declined |
-| E2 | UI guests com party expandível | ver/editar people |
-| E3 | Links por guest (copiar invite/rsvp URL) | operador testa sem email |
-| E4 | CSV: colunas people / type / meal | import/export round-trip |
-| E5 | (P2) Check-in simples | flag `checkedInAt` por pessoa |
+**Fecha:** L1, L2 (completo), L8 (i18n RSVP), parte de L6/L13 status.
 
-Auth magic-link do Beni **não** é portada; o studio mantém `/dashboard/login`.
+| # | Entrega |
+|---|---------|
+| 2.1 | Rotas no host do evento: `/card/[token]`, `/std/[token]`, `/rsvp/[token]`; `/invite/[token]` → `/card/` |
+| 2.2 | Middleware/cookie: `?token=` ou path → cookie de convidado reutilizado no site |
+| 2.3 | Resolver família por token **global** (não só por slug/host) |
+| 2.4 | RSVP por pessoa + update; open-RSVP controlado; validação Zod; cross-family check |
+| 2.5 | Confirmação por e-mail a todos os e-mails da família |
+| 2.6 | Notificação ao admin (instant no mínimo; digest na fase 3) |
+| 2.7 | Bloco “meu RSVP” na home quando há cookie/token |
+| 2.8 | Calendar API por token: Google + Outlook + `.ics` com data/hora/local (fecha L17 parcial) |
 
----
+**Aceite:** link do e-mail abre card/RSVP personalizado; editar RSVP funciona; anônimo sem open-RSVP não cria guests.
 
-### Fase F — Polish visual e motion (paridade de sensação)
-
-Só depois das fases B–E estáveis.
-
-| # | Trabalho |
-|---|----------|
-| F1 | Tipografia do template alinhada (display serif + sans) sem partir a landing |
-| F2 | 2–3 motions: hero entrance, FAQ accordion, gallery open |
-| F3 | Nav sticky / âncoras iguais ao Beni (`#welcome` … `#contact`) |
-| F4 | Comparar lado a lado: Beni produção (read-only) vs evento demo do studio |
-
-**Não** copiar assets privados do Beni (fotos da família) para o seed — só estrutura/UI.
+**Nota:** cartões podem ser **placeholder estático** até a Fase 4; o importante é a rota + token + RSVP.
 
 ---
 
-### Fase G — i18n de conteúdo (P2, já em MELHORIAS)
+## Fase 3 — E-mails e automação
 
-Hoje o chrome do site tem 4 idiomas; o conteúdo do evento é um único texto.
+**Fecha:** L4, L5, L6, P1 #5–7.
 
-| # | Trabalho |
-|---|----------|
-| G1 | `EventConfig` com overrides por locale (`i18n.pt.story.headline`, …) ou mapas por campo |
-| G2 | Wizard: editar locale ativo |
-| G3 | Runtime escolhe copy pelo `?lang=` / path |
+| # | Entrega |
+|---|---------|
+| 3.1 | Templates HTML ricos (selo/fonte/calendário/mapa), escape HTML; idioma = `invite_locale` (4 locales + RTL) |
+| 3.2 | Pixel de abertura `/api/invite/open/[token]`, `/api/std/open/[token]` → `invitation_opened_at` / `std_opened_at` |
+| 3.3 | Fila de envio (QStash/Inngest/Vercel Queues), lotes 25–50, retry, progresso por polling |
+| 3.4 | `email_logs` + webhook Resend (delivered/bounced/complained) |
+| 3.5 | Envio individual/massa com filtros e `skipIfSent`; teste de envio no dashboard |
+| 3.6 | Cron multi-evento `/api/cron/reminders`: 30d / 7d / 2d (7d e 2d só confirmados) + digest admin |
+| 3.7 | Manter remetente `mail.{slug}.mitzvah.pro` |
 
-Pode correr em paralelo tardio; **não bloqueia** paridade funcional en/pt se o operador preencher no idioma do evento.
-
----
-
-## Ordem de execução recomendada
-
-```
-A (schema) ──► B (invite/RSVP token) ──► C (site) ──► D (wizard) ──► E (dashboard)
-                      │
-                      └──► F (polish) quando B+C ok
-G (i18n conteúdo) em paralelo após A, prioridade P2
-```
-
-Justificativa: sem schema (A) e token RSVP (B), o resto é cosmética. O Beni “sente-se completo” sobretudo no fluxo convite→RSVP.
+**Aceite:** lista de 200 famílias envia sem estourar `maxDuration`; logs auditáveis; lembrete dispara em evento de teste com data ajustada.
 
 ---
 
-## Fatias de PR (mitzvah-pro only)
+## Fase 4 — Motor de cartões (envelope)
 
-Cada PR pequeno, testável, **sem** mudanças em `BAR_BENI_ORIGIN` / rewrite além do necessário para novas rotas do studio.
+**Fecha:** L7, P2 #9. **Só código dentro de mitzvah-pro** (copiar referência do Beni; não partilhar pacote).
 
-| PR | Conteúdo | Dependência |
-|----|----------|-------------|
-| PR1 | Fase A: types + normalize + migrate | — |
-| PR2 | Fase B1–B4: páginas token + API RSVP | PR1 |
-| PR3 | Fase B5–B6: emails com links token + flag form público | PR2 |
-| PR4 | Fase C2–C3: calendar multi + ICS | PR1 |
-| PR5 | Fase C1, C4, C5: lightbox, hotels, places | PR1 |
-| PR6 | Fase C6–C8: contact multi/form, travel, legal | PR1 |
-| PR7 | Fase D: wizard fields | PR1 + preferir após C |
-| PR8 | Fase E: dashboard guests/stats/CSV | PR2 |
-| PR9 | Fase F: polish visual | PR5–PR6 |
-| PR10 | Fase G: i18n conteúdo (opcional) | PR1 |
+| # | Entrega |
+|---|---------|
+| 4.1 | `packages/event-cards` (ou `lib/event-cards`): CSS/JS envelope **sem** `basePath` do Beni; `window.ENVELOPE_CONFIG` |
+| 4.2 | Tipagem `StdConfig` / `InviteCardConfig` (~100 chaves) no `events.config` |
+| 4.3 | Páginas `/card` e `/std` usam o motor; preview no wizard; RTL he |
+| 4.4 | Processamento de selo (sharp) + texturas |
+| 4.5 | Wizard steps `saveTheDate` / `invitation` expostos com preview ao vivo + envio de teste |
 
-Proxy `/BarBeni/*` e docs que digam “não alterar bar-beni” devem permanecer verdadeiros em todos os PRs.
+**Aceite:** preview do wizard ≈ página pública do token; PT/EN/ES/HE renderizam; hebraico com `dir=rtl` legível.
 
 ---
 
-## Testes e aceite (checklist)
+## Fase 5 — Site completo + i18n de conteúdo
 
-### Funcional (evento demo no studio)
+**Fecha:** L9–L13, L17, P2 #10–11.
 
-1. Criar evento → wizard preenche hotels com stars, places com foto, travel, contact N pessoas, legal.
-2. Importar CSV de guests com 2 adults + 1 child.
-3. Publish → `{slug}.mitzvah.pro` mostra todas as secções.
-4. Enviar STD e Invite → email contém link com token.
-5. Abrir card → ver party → RSVP por pessoa → success → Change RSVP.
-6. Add to calendar: Google / Apple / Outlook / ICS.
-7. Gallery abre lightbox; Esc fecha.
-8. Form de contacto do evento envia email.
-9. `/privacy` e `/terms` respondem 200.
-10. Org B não vê guests da org A.
+| # | Entrega |
+|---|---------|
+| 5.1 | Helper `t(field, locale)` + campos `{ en, pt, es, he }` com fallback |
+| 5.2 | Schedule rico (data, início/fim, mapa, dress/notas i18n) + filtro por família/`schedule_invite_mode` |
+| 5.3 | Hotéis (foto, estrelas, destaque, reserva), FAQ (publicado/oculto), places (6 cats + foto) |
+| 5.4 | Galeria: foto/vídeo, lightbox, legenda i18n, aprovação, `show_on_site`, ordem; import Google Fotos (opcional se credenciais) |
+| 5.5 | Contato multi WhatsApp `Nome|link` + formulário → Resend |
+| 5.6 | Áudio ambiente (upload + toggle) |
+| 5.7 | Privacy / Terms / coming-soon |
+| 5.8 | Calendar menu completo na UI do site |
 
-### Regressão (Bar-Beni intocado)
-
-1. `https://mitzvah.pro/BarBeni/en` continua 200.
-2. `https://mitzvah.pro/BarBeni/admin/login` continua magic-link.
-3. Atalhos `/en/invite` → redirect para `/BarBeni/...` inalterados.
-4. Nenhuma mudança de env no deploy do projeto `bar-beni`.
-5. Diff do PR **não** inclui ficheiros fora de `mitzvah-pro`.
-
-### Manual visual
-
-- Abrir Beni (produção) e um evento seed do studio lado a lado (desktop + mobile).
-- Anotar só gaps de layout remanescentes para Fase F (não bloquear merge de B/C).
+**Aceite:** checklist da matriz §5 do relatório sem ❌ nas linhas de Site (exceto polish fino).
 
 ---
 
-## Riscos e mitigações
+## Fase 6 — Wizard + painel pós-publicação
 
-| Risco | Mitigação |
-|-------|-----------|
-| Tentar “aproveitar” código no repo bar-beni | Proibido; reimplementar no template do studio |
-| Quebrar eventos já publicados ao mudar schema | `normalizeEventConfig()` com defaults; testes de migrate |
-| Confundir admin Beni com dashboard Mitzvah | Docs + UI copy claros; não criar `/admin` no apex |
-| Escopo virar page-builder | Manter wizard form-based |
-| ICS/calendar errado em timezones | Usar data local do evento + testes com `basics.date` |
-| XSS em privacy/terms HTML | Sanitizar (allowlist tags) ou markdown-only |
-| RSVP aberto + token misturados | Flag explícita; token sempre ganha no link |
+**Fecha:** §6.5 do relatório; P3 parcial.
+
+| # | Entrega |
+|---|---------|
+| 6.1 | Novos/estendidos steps: locales, places, contact, reminders, legal; schedule/venues/media/rsvp/STD/invite conforme tabela do relatório |
+| 6.2 | Abas por idioma em cada passo + “traduzir a partir do padrão” (API de tradução = opcional) |
+| 6.3 | Criador de evento: em branco / clonar / modelo BarBeni; token vs open-RSVP; checklist pós-criação |
+| 6.4 | Painel pós-publicação por seção (reusa forms do wizard), save granular, aviso unsaved |
+| 6.5 | Review checklist de paridade (selo, teste e-mail, ≥1 família, cron, domínio mail verificado) |
+
+---
+
+## Fase 7 — Validação de paridade
+
+**Fecha:** critério de aceite #2 do `MELHORIAS.md` (paridade), **sem** migrar Beni.
+
+| # | Entrega |
+|---|---------|
+| 7.1 | Evento-teste “Beni-like” recriado manualmente no studio (conteúdo fictício ou sanitizado) |
+| 7.2 | Matriz §5 reavaliada item a item (atualizar status no relatório) |
+| 7.3 | Comparação visual/funcional read-only com `https://mitzvah.pro/BarBeni/en` |
+| 7.4 | E2E: criar → wizard → publish → import famílias → enviar → RSVP token → lembrete |
+| 7.5 | Smoke regressão Beni: `/BarBeni/en`, `/BarBeni/admin/login`, redirects `/en/invite` |
+
+---
+
+## Fatias de PR sugeridas (só mitzvah-pro)
+
+| PR | Conteúdo |
+|----|----------|
+| PR-H | Hotfix RSVP + rate limit login |
+| PR0a | Schema SQL + migrate script (dual-read JSON) |
+| PR0b | Blob assets + CI/testes base |
+| PR1a | Families/guests model + API + migrate guests |
+| PR1b | Dashboard filtros/métricas/import preview/export/QR |
+| PR2a | Rotas token + cookie + RSVP API |
+| PR2b | Confirmação e-mail + notificação instant + calendar API |
+| PR3a | Templates ricos + tracking pixel + email_logs |
+| PR3b | Fila de envio + progresso UI |
+| PR3c | Cron reminders + digest |
+| PR4a | Pacote event-cards + páginas card/std |
+| PR4b | Wizard STD/invite ~100 campos + preview |
+| PR5a | i18n por campo + schedule/hotels/places/faq ricos |
+| PR5b | Galeria + contato form + áudio + legal |
+| PR6 | Wizard steps restantes + painel pós-publish |
+| PR7 | E2E + atualização da matriz no relatório |
+
+Cada PR: sem mudança em `BAR_BENI_ORIGIN` além do necessário para **não** regressar o proxy; diff não inclui o repo bar-beni.
+
+---
+
+## Mapeamento limitações → fase
+
+| Limitação | Fase |
+|-----------|------|
+| L14 storage JSON | 0 |
+| L15 testes/secrets | 0 + H |
+| L2 RSVP aberto | H + 2 |
+| L3 guest plano | 1 |
+| L1 sem rotas token | 2 |
+| L8 RSVP PT hardcoded | 2 |
+| L4/L5/L6 e-mail | 3 |
+| L7 envelope | 4 |
+| L9–L13, L17 site | 5 |
+| L16 métricas/export/QR/log | 1 + 3 |
+| L18 prazo/+1 | manter (diferencial) |
+
+---
+
+## Critérios de “paridade alcançada”
+
+1. Backlog P0 e P1 do relatório §7 concluídos.
+2. Matriz §5 sem ❌ em Convidados, RSVP, E-mail (operacional); P2 Site/Cartões podem fechar em seguida.
+3. Checklist E2E da Fase 7 verde.
+4. Smoke BarBeni produção inalterado.
+5. `MELHORIAS.md` critério de aceite #2 marcado feito **só** após Fase 7.
 
 ---
 
 ## Explicitamente fora de escopo
 
-- Qualquer commit/deploy no `bar-beni`
-- Migrar o evento Beni legado para o studio (decisão futura)
-- Editor drag-and-drop
-- App mobile nativo
-- Portar auth magic-link do Beni para o studio (studio já tem orgs)
-
----
-
-## Definição de “paridade alcançada”
-
-O épico fecha quando:
-
-1. A matriz da §4 em `PARIDADE-BARBENI.md` não tem mais ❌ nas linhas P0/P1 (token RSVP, calendar multi, lightbox, contact multi, travel, legal, hotels/places ricos).
-2. Checklist da secção de testes acima passa num evento novo.
-3. Bar-Beni em produção continua idêntico (smoke `/BarBeni/en` + admin login).
-
-Itens P2 (i18n conteúdo, check-in, analytics avançado) podem ficar abertos em `MELHORIAS.md` sem bloquear o fecho da paridade funcional.
+- Qualquer alteração no repo/deploy BarBeni (incl. README/TechSpec desse repo, até haver manutenção separada).
+- Migrar dados reais do evento Beni para o studio.
+- Publicar pacote npm compartilhado consumido pelo Beni.
+- Editor visual drag-and-drop.
+- Remover diferenciais do mitzvah-pro (temas, multi-tenant, DNS, prazo/+1).

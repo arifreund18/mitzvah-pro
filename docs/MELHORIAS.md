@@ -19,7 +19,7 @@ Auth do studio + CRUD de eventos; wizard com preview ao vivo; template BarBeni c
 
 | Prioridade | Melhoria | Estado atual |
 |------------|----------|--------------|
-| **P1** | Paridade funcional Bar-Beni → studio (sem alterar `bar-beni`) | Inventário + plano em [`PARIDADE-BARBENI.md`](./PARIDADE-BARBENI.md) e [`PLANO-IMPLEMENTACAO-PARIDADE.md`](./PLANO-IMPLEMENTACAO-PARIDADE.md) |
+| **P1** | Paridade funcional Bar-Beni → studio (sem alterar `bar-beni`) | Inventário estático completo em [`PARIDADE-BARBENI.md`](./PARIDADE-BARBENI.md); execução em [`PLANO-IMPLEMENTACAO-PARIDADE.md`](./PLANO-IMPLEMENTACAO-PARIDADE.md) (fases 0–7; storage relacional primeiro) |
 | **P2** | Mais templates além do BarBeni | Contrato único, só `barbeni` |
 | **P2** | Analytics de RSVP | Contagem no detalhe do evento |
 | **P2** | i18n completo do conteúdo do evento | Chrome do site em 4 idiomas; textos do evento únicos |
