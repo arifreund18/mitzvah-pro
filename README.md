@@ -17,6 +17,8 @@ O app `bar-beni` é servido só sob o prefixo **`/BarBeni/*`**, via rewrite para
 ## Documentação
 
 - [`docs/MELHORIAS.md`](docs/MELHORIAS.md) — backlog pendente e o que já foi entregue
+- [`docs/PARIDADE-BARBENI.md`](docs/PARIDADE-BARBENI.md) — inventário de gaps vs Bar-Beni (produção intocada)
+- [`docs/PLANO-IMPLEMENTACAO-PARIDADE.md`](docs/PLANO-IMPLEMENTACAO-PARIDADE.md) — plano faseado para fechar a paridade só no mitzvah-pro
 - [`docs/github-issue-dashboard-wizard.md`](docs/github-issue-dashboard-wizard.md) — issue do épico studio
 
 ## Scripts
