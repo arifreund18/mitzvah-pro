@@ -58,20 +58,22 @@ export function GuestAdminPanel({ event }: { event: PlatformEvent }) {
     return list
   }, [event.guests, query, rsvp, std, invite, sort])
 
-  async function persist(next: Guest[]) {
-    const res = await fetch(`/api/platform/events/${event.id}/guests`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ guests: next }),
-    })
-    if (res.ok) router.refresh()
-  }
-
-  async function patchGuest(guestId: string, patch: Partial<Guest>) {
+  async function patchGuest(
+    guestId: string,
+    patch: Pick<Guest, 'scheduleInviteMode' | 'scheduleItemIds'> | Partial<Guest>,
+  ) {
     setBusyId(guestId)
-    const next = event.guests.map((g) => (g.id === guestId ? { ...g, ...patch } : g))
-    await persist(next)
+    const res = await fetch(`/api/platform/events/${event.id}/guests`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        guestId,
+        scheduleInviteMode: patch.scheduleInviteMode,
+        scheduleItemIds: patch.scheduleItemIds,
+      }),
+    })
     setBusyId('')
+    if (res.ok) router.refresh()
   }
 
   return (

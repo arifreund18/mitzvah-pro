@@ -1,12 +1,11 @@
 import { NextResponse } from 'next/server'
-import { getEvent, appendEmailLog } from '@/lib/platform/store'
+import { getEvent, appendEmailLog, updateEvent } from '@/lib/platform/store'
 import { requireEventAccess } from '@/lib/platform/session'
 import { getResend } from '@/lib/email/send'
 import { provisionEventMailDomain, refreshEventMailDomain } from '@/lib/email/provision-domain'
 import { eventSendFrom } from '@/lib/platform/mail-domain'
 import { mailHtml, mailSubject } from '@/lib/platform/mail'
 import { normalizeGuest } from '@/lib/platform/normalize-guest'
-import { updateEvent } from '@/lib/platform/store'
 import type { EventConfig } from '@/lib/platform/types'
 
 type Ctx = { params: Promise<{ id: string }> }
