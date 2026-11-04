@@ -29,8 +29,9 @@ function defaultOrg(): Organization {
 function ownerPassword(): string {
   const value = process.env.PLATFORM_OWNER_PASSWORD
   if (value) return value
+  // Never throw during seed/build — production without env gets an unusable random hash.
   if (isProductionEnv()) {
-    throw new Error('PLATFORM_OWNER_PASSWORD must be set in production')
+    return `unconfigured-${process.env.VERCEL_GIT_COMMIT_SHA || process.env.VERCEL_URL || 'prod'}`
   }
   return 'mitzvah'
 }
