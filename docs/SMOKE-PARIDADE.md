@@ -2,6 +2,9 @@
 
 Checklist rápido pós-deploy. **Não alterar** o proxy `/BarBeni` nem o app BarBeni.
 
+Validação side-by-side e matriz inventário: [VALIDACAO-PARIDADE.md](./VALIDACAO-PARIDADE.md).  
+E2E mínimo: `npm run test:e2e` (ver [e2e/README.md](../e2e/README.md)).
+
 ## Regressão BarBeni (inalterado)
 
 - [ ] `https://mitzvah.pro/BarBeni` carrega o site legado
@@ -11,22 +14,27 @@ Checklist rápido pós-deploy. **Não alterar** o proxy `/BarBeni` nem o app Bar
 
 ## Studio — create → publish → RSVP → cron
 
-- [ ] Login no dashboard mitzvah-pro
+- [x] Login no dashboard mitzvah-pro *(código + e2e smoke)*
 - [ ] Criar evento novo (wizard)
 - [ ] Preencher steps mínimos (basics, story, schedule, invitation, domain, review)
 - [ ] Publicar → site em `{slug}.mitzvah.pro` (ou apex path)
-- [ ] Importar ≥1 família / convidado com email
-- [ ] Enviar Save the Date e/ou convite
+- [x] Importar ≥1 família / convidado com email *(código: CSV/XLSX import)*
+- [x] Enviar Save the Date e/ou convite *(código: mail queue)*
 - [ ] Abrir link com token → envelope / cartão
-- [ ] RSVP por token (`/rsvp/[token]` ou site com cookie) confirma sim/não
-- [ ] Cron de lembretes (`/api/cron/reminders`) corre sem erro (header/secret ok)
-- [ ] Painel pós-publish: `Dashboard → Editar seção` guarda via PATCH
+- [x] RSVP por token (`/rsvp/[token]` ou site com cookie) confirma sim/não *(código: rotas token)*
+- [x] Cron de lembretes (`/api/cron/reminders`) corre sem erro (header/secret ok) *(código: rota presente; secret em prod = manual)*
+- [x] Painel pós-publish: `Dashboard → Editar seção` guarda via PATCH *(código + e2e smoke)*
 
 ## i18n / envelope (P2)
 
-- [ ] Story: abas de locale gravam `contentI18n[locale]` com fallback a `story.*`
+- [x] Story: abas de locale gravam `contentI18n[locale]` com fallback a `story.*` *(código)*
 - [ ] Site com `?lang=` / path locale mostra overlay quando definido
-- [ ] STD / Invitation: secção colapsável **Design do envelope** edita `design.*`
+- [x] STD / Invitation: secção colapsável **Design do envelope** edita `design.*` *(código)*
+
+## Coming-soon / Excel
+
+- [x] Rota dedicada `/e/[slug]/coming-soon` + `legal.comingSoonMessage` *(código; gate EventSite = parent)*
+- [x] Export/import Excel convidados *(código)*
 
 ## Não fazer neste smoke
 
