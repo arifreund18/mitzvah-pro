@@ -16,9 +16,11 @@ Ver também: [SMOKE-PARIDADE.md](./SMOKE-PARIDADE.md).
 | **Convidados** | Lista famílias / convidados, import | Código: painel Convidados, CSV/XLSX import+export | Manual: importar ≥1 família e conferir stats |
 | **RSVP token** | Link com token → confirma sim/não | Código: `/e/[slug]/rsvp/[token]`, API RSVP | Manual: abrir token e confirmar |
 | **E-mail fila** | Envio STD/convite em lote | Código: mail queue (`send` / `process` / `status`) | Manual: enfileirar envio (Resend opcional em local) |
-| **Envelope design** | Tema / selo / tipografia do cartão | Código: `CardDesignFields` + `design.*` no wizard | Side-by-side visual vs BarBeni EN |
-| **Site i18n** | Locales EN/PT/ES/HE | Código: `contentI18n` overlays + `?lang=` | Manual: trocar locale no site publicado |
-| **Coming-soon** | Página “em breve” | Código: flag `legal.comingSoon` + rota `/e/[slug]/coming-soon` | Manual: ativar flag e abrir rota (gate EventSite: parent) |
+| **Envelope design** | ~100 chaves STD/convite | Código: `CardDesign` expandido + `CardDesignFields` (pageTexture, tipografia, CTAs, etc.) | Side-by-side visual vs BarBeni EN |
+| **Site i18n** | Conteúdo por campo / locale | Código: `contentI18n` story + schedule/faq/hotels/places/legal/card overlays | Manual: trocar `?lang=` no site |
+| **Coming-soon** | Página “em breve” | Código: `legal.comingSoon` gate no `EventSite` + `/e/[slug]/coming-soon` | Manual: ativar flag e abrir site |
+| **Google Fotos** | Import álbum → galeria | Código: API `media/google-photos` (opcional via `GOOGLE_PHOTOS_API_KEY`) | Manual se houver credenciais |
+| **Dual-write guests** | Pessoas em tabela relacional | Código: sync `families` + linhas `guests` no Postgres | Manual com `DATABASE_URL` |
 | **Excel** | Import/export XLSX | Código: `xlsx-guests` + rotas guests import/export | Manual: round-trip XLSX |
 | **Cron** | Lembretes D-30 / D-7 / D-2 | Código: `/api/cron/reminders` | Manual: chamar com secret e ver 200 |
 

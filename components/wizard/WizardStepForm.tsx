@@ -22,6 +22,7 @@ import { normalizeGuest } from '@/lib/platform/normalize'
 import { eventPublicHostLabel } from '@/lib/platform/site-url'
 import { reviewIssues } from '@/lib/platform/wizard'
 import { GuestCsvImport } from '@/components/dashboard/GuestCsvImport'
+import { GooglePhotosImport } from '@/components/wizard/GooglePhotosImport'
 
 function readFileAsDataUrl(file: File, tooBig: string): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -48,8 +49,9 @@ export const WizardStepForm = forwardRef<
     guests: Guest[]
     onChange: (next: EventConfig) => void
     onGuests: (next: Guest[]) => void
+    eventId?: string
   }
->(function WizardStepForm({ step, config, guests, onChange, onGuests }, ref) {
+>(function WizardStepForm({ step, config, guests, onChange, onGuests, eventId }, ref) {
   const ui = wizardUi(config.locales.default)
   const set = (next: EventConfig) => onChange(next)
   const patch = (fn: (draft: EventConfig) => EventConfig) => onChange(applyGeneratedPatch(config, fn))
@@ -781,6 +783,21 @@ export const WizardStepForm = forwardRef<
             }
           />
         </Field>
+        <GooglePhotosImport
+          eventId={eventId}
+          onImported={(galleryItems) =>
+            set({
+              ...config,
+              media: {
+                ...config.media,
+                galleryItems,
+                gallery: galleryItems
+                  .filter((g) => g.type === 'image' && g.showOnSite)
+                  .map((g) => g.url),
+              },
+            })
+          }
+        />
       </div>
     )
   }
@@ -1185,6 +1202,15 @@ export const WizardStepForm = forwardRef<
           />
           Coming soon mode
         </label>
+        <Field label="Coming soon message">
+          <TextArea
+            value={config.legal.comingSoonMessage}
+            placeholder="O site estará disponível em breve…"
+            onChange={(e) =>
+              set({ ...config, legal: { ...config.legal, comingSoonMessage: e.target.value } })
+            }
+          />
+        </Field>
         <Field label="Privacy HTML">
           <TextArea
             value={config.legal.privacyHtml}

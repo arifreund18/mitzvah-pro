@@ -1,8 +1,15 @@
-import type { EventConfig, EventLocale, Guest, ThemeId, WizardStepId } from '@/lib/platform/types'
+import type { EventConfig, EventLocale, Guest, WizardStepId } from '@/lib/platform/types'
 import { formatEventDate, typeLabel, wizardUi } from '@/lib/platform/copy'
-import { getLocalizedStory } from '@/lib/platform/i18n-content'
+import {
+  getLocalizedFaqItem,
+  getLocalizedHotel,
+  getLocalizedPlace,
+  getLocalizedScheduleItem,
+  getLocalizedStory,
+} from '@/lib/platform/i18n-content'
 import { templateUi } from '@/lib/platform/template-copy'
 import { googleCalendarUrl } from '@/lib/platform/calendar'
+import { ComingSoon } from '@/components/template/ComingSoon'
 import { EventAmbientAudio } from '@/components/template/EventAmbientAudio'
 import { EventContactForm } from '@/components/template/EventContactForm'
 import { EventCountdown } from '@/components/template/EventCountdown'
@@ -10,44 +17,9 @@ import { EventFaq } from '@/components/template/EventFaq'
 import { EventGalleryLightbox } from '@/components/template/EventGalleryLightbox'
 import { EventPlaces } from '@/components/template/EventPlaces'
 import { EventSiteLocales } from '@/components/template/EventSiteLocales'
+import { THEME_PRESETS } from '@/components/template/theme-presets'
 
-export const THEME_PRESETS: Record<
-  ThemeId,
-  { bg: string; text: string; muted: string; card: string; inviteBg: string; inviteText: string }
-> = {
-  navy: {
-    bg: '#0b1020',
-    text: '#ffffff',
-    muted: 'rgba(255,255,255,0.68)',
-    card: 'rgba(255,255,255,0.07)',
-    inviteBg: '#f7f1e4',
-    inviteText: '#1c1630',
-  },
-  ivory: {
-    bg: '#f6f0e4',
-    text: '#241c14',
-    muted: '#6a5b4c',
-    card: '#ffffff',
-    inviteBg: '#fffaf2',
-    inviteText: '#3b2418',
-  },
-  forest: {
-    bg: '#102018',
-    text: '#f4efe4',
-    muted: 'rgba(244,239,228,0.72)',
-    card: 'rgba(255,255,255,0.07)',
-    inviteBg: '#f3ead6',
-    inviteText: '#142018',
-  },
-  burgundy: {
-    bg: '#1a0b12',
-    text: '#f7e7d0',
-    muted: 'rgba(247,231,208,0.72)',
-    card: 'rgba(255,255,255,0.07)',
-    inviteBg: '#f8ecd8',
-    inviteText: '#3a121c',
-  },
-}
+export { THEME_PRESETS }
 
 function starsLabel(stars: number): string {
   const n = Math.max(0, Math.min(5, Math.round(stars || 0)))
@@ -77,6 +49,9 @@ export function EventSite({
   const theme = THEME_PRESETS[config.branding.theme]
   const accent = config.branding.accentColor || '#22d3ee'
   const locale = displayLocale || config.locales.default
+  if (mode === 'live' && config.legal.comingSoon) {
+    return <ComingSoon config={config} locale={locale} />
+  }
   const story = getLocalizedStory(config, locale)
   const site = wizardUi(locale).site
   const ui = templateUi(locale)
@@ -102,7 +77,12 @@ export function EventSite({
         ]
       : []
   const hasContact = people.length > 0 || Boolean(config.contact.formEnabled && eventId)
-  const publishedFaq = config.faq.items.filter((item) => item.published !== false)
+  const publishedFaq = config.faq.items
+    .filter((item) => item.published !== false)
+    .map((item) => getLocalizedFaqItem(config, locale, item))
+  const scheduleItems = config.schedule.items.map((item) =>
+    getLocalizedScheduleItem(config, locale, item),
+  )
   const galleryItems = (config.media.galleryItems?.length
     ? config.media.galleryItems
     : (config.media.gallery || []).map((url, i) => ({
@@ -117,7 +97,10 @@ export function EventSite({
   )
     .filter((item) => item.showOnSite !== false && item.approved !== false && item.url)
     .sort((a, b) => a.sortOrder - b.sortOrder)
-  const hotels = [...config.venues.hotels].sort((a, b) => Number(b.featured) - Number(a.featured))
+  const hotels = [...config.venues.hotels]
+    .map((hotel) => getLocalizedHotel(config, locale, hotel))
+    .sort((a, b) => Number(b.featured) - Number(a.featured))
+  const places = config.places.map((item) => getLocalizedPlace(config, locale, item))
 
   const mark = (id: string) =>
     highlight === id ||
@@ -135,11 +118,11 @@ export function EventSite({
   const nav = [
     { href: '#welcome', label: ui.welcome, show: Boolean(story.parentsMessage) },
     { href: '#about', label: ui.about, show: Boolean(story.about || story.honoreeBio) },
-    { href: '#schedule', label: ui.schedule, show: config.schedule.items.length > 0 },
+    { href: '#schedule', label: ui.schedule, show: scheduleItems.length > 0 },
     { href: '#faq', label: ui.faq, show: publishedFaq.length > 0 },
     { href: '#hotels', label: ui.hotels, show: hotels.length > 0 },
     { href: '#travel', label: 'Travel', show: Boolean(config.travel?.enabled) },
-    { href: '#places', label: ui.thingsToDo, show: config.places.length > 0 },
+    { href: '#places', label: ui.thingsToDo, show: places.length > 0 },
     { href: '#gallery', label: ui.gallery, show: galleryItems.length > 0 },
     { href: '#rsvp', label: 'RSVP', show: true },
     { href: '#contact', label: ui.contact, show: hasContact },
@@ -308,7 +291,7 @@ export function EventSite({
         <div className="mx-auto max-w-3xl">
           <h2 className="font-display text-center text-3xl">{ui.schedule}</h2>
           <div className="mt-10 space-y-4">
-            {config.schedule.items
+            {scheduleItems
               .filter((item) => mode === 'preview' || item.visibility !== 'invite' || Boolean(guest))
               .map((item) => (
               <div
@@ -489,11 +472,11 @@ export function EventSite({
         </section>
       ) : null}
 
-      {config.places.length > 0 && (
+      {places.length > 0 && (
         <section id="places" className={`px-6 py-16 ${mark('places')}`}>
           <h2 className="font-display mb-8 text-center text-3xl">{ui.thingsToDo}</h2>
           <EventPlaces
-            places={config.places}
+            places={places}
             labels={ui.categories}
             accent={accent}
             card={theme.card}

@@ -36,9 +36,13 @@ export function EnvelopeCard({
   const liner = config?.envelopeLiner || config?.linerColor || linerColor || '#f7f1e4'
   const openLabel = config?.openLabel || config?.label || label || 'Open'
   const seal = config?.sealUrl
+  const pageTexture = config?.pageTexture
+  const pageStyle = pageTexture
+    ? { backgroundColor: bg, backgroundImage: `url(${pageTexture})`, backgroundSize: 'cover' as const }
+    : { background: bg }
 
   return (
-    <div className="flex min-h-screen items-center justify-center p-6" style={{ background: bg }}>
+    <div className="flex min-h-screen items-center justify-center p-6" style={pageStyle}>
       {!open ? (
         <button
           type="button"

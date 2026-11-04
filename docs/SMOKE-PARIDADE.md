@@ -31,10 +31,13 @@ E2E mínimo: `npm run test:e2e` (ver [e2e/README.md](../e2e/README.md)).
 - [ ] Site com `?lang=` / path locale mostra overlay quando definido
 - [x] STD / Invitation: secção colapsável **Design do envelope** edita `design.*` *(código)*
 
-## Coming-soon / Excel
+## Coming-soon / Excel / Photos / design
 
-- [x] Rota dedicada `/e/[slug]/coming-soon` + `legal.comingSoonMessage` *(código; gate EventSite = parent)*
+- [x] Gate `legal.comingSoon` no site + rota `/e/[slug]/coming-soon` + mensagem
 - [x] Export/import Excel convidados *(código)*
+- [x] Design do envelope expandido (`pageTexture`, tipografia, CTAs, paleta…)
+- [x] Google Fotos import opcional no step Mídia (`GOOGLE_PHOTOS_API_KEY`)
+- [x] Dual-write `guests` (pessoas) além de `families` / `platform_store`
 
 ## Não fazer neste smoke
 

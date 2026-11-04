@@ -119,32 +119,71 @@ export type GalleryItem = {
 
 export type CustomHostStatus = 'none' | 'pending' | 'verified' | 'failed'
 
+/**
+ * Shared STD + invitation card design (~50 keys × 2 surfaces ≈ inventário ~100).
+ * Text overlays per locale live in `contentI18n.*.card` / `contentI18n.*.stdCard`.
+ */
 export type CardDesign = {
+  // Page / envelope chrome
   pageColor: string
   pageTexture: string
   envelopeColor: string
+  envelopeTexture: string
   envelopeLiner: string
+  envelopeExterior: string
+  envelopeNameColor: string
   sealUrl: string
   sealBg: string
+  sealLabel: string
+  openLabel: string
+  forLabel: string
   fontKey: string
+  // Card surface
   cardColor: string
   cardTextColor: string
+  cardImageUrl: string
+  // Typography
   greetingColor: string
   nameColor: string
   bodyColor: string
+  introColor: string
+  headingColor: string
   bodySizePx: number
   bodyBold: boolean
+  introSizePx: number
+  introBold: boolean
+  headingSizePx: number
+  headingBold: boolean
+  // Panel photo
   panelPhotoUrl: string
   panelPhotoShape: 'circle' | 'rectangle'
+  // Location / labels
   mapUrl: string
   address1: string
   address2: string
   timeLabel: string
   placeLabel: string
+  cityLabel: string
+  dateLabel: string
+  // Card copy
+  title: string
+  eventName: string
+  heading: string
+  hosts: string
+  message: string
+  tip: string
+  greeting: string
+  intro: string
+  // Email / CTA
   subject: string
   ctaView: string
   ctaCalendar: string
   ctaMap: string
+  ctaRsvp: string
+  rsvpLabel: string
+  rsvpHint: string
+  /** Comma-separated hex suggestions shown in the wizard. */
+  suggestedPalette: string
 }
 
 export type EventConfig = {
@@ -173,7 +212,10 @@ export type EventConfig = {
     about: string
     honoreeBio: string
   }
-  /** Per-locale overlays for story fields; falls back to `story.*`. */
+  /**
+   * Per-locale overlays. Story fields fall back to `story.*`.
+   * Entity maps are keyed by schedule/faq/hotel/place id.
+   */
   contentI18n?: Partial<
     Record<
       EventLocale,
@@ -183,6 +225,66 @@ export type EventConfig = {
         parentsMessage?: string
         about?: string
         honoreeBio?: string
+        schedule?: Record<string, { title?: string; notes?: string; dressCode?: string; place?: string }>
+        faq?: Record<string, { question?: string; answer?: string }>
+        hotels?: Record<string, { name?: string; notes?: string }>
+        places?: Record<string, { name?: string; notes?: string }>
+        legal?: { privacyHtml?: string; termsHtml?: string; comingSoonMessage?: string }
+        /** Invitation card text overlays */
+        card?: Partial<
+          Pick<
+            CardDesign,
+            | 'title'
+            | 'eventName'
+            | 'heading'
+            | 'hosts'
+            | 'message'
+            | 'tip'
+            | 'greeting'
+            | 'intro'
+            | 'subject'
+            | 'ctaView'
+            | 'ctaCalendar'
+            | 'ctaMap'
+            | 'ctaRsvp'
+            | 'rsvpLabel'
+            | 'rsvpHint'
+            | 'openLabel'
+            | 'forLabel'
+            | 'sealLabel'
+            | 'timeLabel'
+            | 'placeLabel'
+            | 'cityLabel'
+            | 'dateLabel'
+            | 'address1'
+            | 'address2'
+          >
+        >
+        /** Save-the-date card text overlays */
+        stdCard?: Partial<
+          Pick<
+            CardDesign,
+            | 'title'
+            | 'eventName'
+            | 'heading'
+            | 'hosts'
+            | 'message'
+            | 'tip'
+            | 'greeting'
+            | 'intro'
+            | 'subject'
+            | 'ctaView'
+            | 'ctaCalendar'
+            | 'ctaMap'
+            | 'openLabel'
+            | 'forLabel'
+            | 'sealLabel'
+            | 'timeLabel'
+            | 'placeLabel'
+            | 'cityLabel'
+            | 'dateLabel'
+          >
+        >
       }
     >
   >
@@ -254,6 +356,7 @@ export type EventConfig = {
     privacyHtml: string
     termsHtml: string
     comingSoon: boolean
+    comingSoonMessage: string
   }
   domain: {
     slug: string

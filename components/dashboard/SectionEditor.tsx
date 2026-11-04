@@ -100,6 +100,7 @@ export function SectionEditor({
           step={section}
           config={config}
           guests={guests}
+          eventId={event.id}
           onChange={(next) => {
             setSaveState('dirty')
             setConfig(next)

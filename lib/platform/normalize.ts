@@ -185,7 +185,11 @@ export function normalizeConfig(raw: EventConfig | null | undefined): EventConfi
     },
     reminders: { ...base.reminders, ...raw.reminders },
     faq: { items: (raw.faq?.items || []).map((item) => faqItem(item)) },
-    legal: { ...base.legal, ...raw.legal },
+    legal: {
+      ...base.legal,
+      ...raw.legal,
+      comingSoonMessage: raw.legal?.comingSoonMessage || base.legal.comingSoonMessage || '',
+    },
     domain: {
       ...base.domain,
       ...raw.domain,

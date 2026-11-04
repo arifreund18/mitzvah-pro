@@ -63,6 +63,20 @@ export async function ensureRelationalSchema(db: Sql): Promise<void> {
     );
     CREATE INDEX IF NOT EXISTS families_event_id_idx ON families(event_id);
     CREATE INDEX IF NOT EXISTS families_token_idx ON families(token);
+    CREATE TABLE IF NOT EXISTS guests (
+      id TEXT PRIMARY KEY,
+      family_id TEXT NOT NULL REFERENCES families(id) ON DELETE CASCADE,
+      event_id TEXT NOT NULL REFERENCES events(id) ON DELETE CASCADE,
+      name TEXT NOT NULL,
+      type TEXT NOT NULL DEFAULT 'adult',
+      meal_choice TEXT NOT NULL DEFAULT '',
+      dietary_restrictions TEXT NOT NULL DEFAULT '',
+      rsvp_status TEXT NOT NULL DEFAULT 'pending',
+      rsvp_submitted_at TIMESTAMPTZ,
+      sort_order INT NOT NULL DEFAULT 0
+    );
+    CREATE INDEX IF NOT EXISTS guests_family_id_idx ON guests(family_id);
+    CREATE INDEX IF NOT EXISTS guests_event_id_idx ON guests(event_id);
     CREATE TABLE IF NOT EXISTS email_logs (
       id TEXT PRIMARY KEY,
       event_id TEXT NOT NULL,
@@ -155,6 +169,7 @@ export async function syncStoreToRelational(db: Sql, store: PlatformStore): Prom
         updated_at = EXCLUDED.updated_at
     `
 
+    await db`DELETE FROM guests WHERE event_id = ${event.id}`
     await db`DELETE FROM families WHERE event_id = ${event.id}`
     for (const guest of event.guests) {
       await db`
@@ -172,6 +187,26 @@ export async function syncStoreToRelational(db: Sql, store: PlatformStore): Prom
           ${guest.stdOpenedAt}, ${guest.invitationOpenedAt}, ${guest.createdAt}
         )
       `
+      for (let i = 0; i < guest.people.length; i += 1) {
+        const person = guest.people[i]
+        const personId = person.id || `${guest.id}-p${i}`
+        await db`
+          INSERT INTO guests (
+            id, family_id, event_id, name, type, meal_choice, dietary_restrictions,
+            rsvp_status, sort_order
+          ) VALUES (
+            ${personId}, ${guest.id}, ${event.id}, ${person.name}, ${person.type},
+            ${person.meal || ''}, ${person.dietary || ''}, ${person.status || 'pending'}, ${i}
+          )
+          ON CONFLICT (id) DO UPDATE SET
+            name = EXCLUDED.name,
+            type = EXCLUDED.type,
+            meal_choice = EXCLUDED.meal_choice,
+            dietary_restrictions = EXCLUDED.dietary_restrictions,
+            rsvp_status = EXCLUDED.rsvp_status,
+            sort_order = EXCLUDED.sort_order
+        `
+      }
     }
   }
 
