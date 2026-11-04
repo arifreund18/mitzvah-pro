@@ -1,9 +1,10 @@
 import { NextResponse } from 'next/server'
-import { addGuest, getEvent, replaceGuests } from '@/lib/platform/store'
+import { addGuest, getEvent, replaceGuests, updateGuest } from '@/lib/platform/store'
 import { requireEventAccess } from '@/lib/platform/session'
 import { consumeRateLimit } from '@/lib/platform/rate-limit'
 import { uid } from '@/lib/platform/ids'
-import type { Guest, GuestPerson, GuestRsvp } from '@/lib/platform/types'
+import type { Guest, GuestPerson, GuestRsvp, ScheduleInviteMode } from '@/lib/platform/types'
+import { SCHEDULE_INVITE_MODES } from '@/lib/platform/types'
 
 type Ctx = { params: Promise<{ id: string }> }
 
@@ -102,4 +103,42 @@ export async function PUT(request: Request, ctx: Ctx) {
   const event = await replaceGuests(id, body.guests)
   if (!event) return NextResponse.json({ error: 'Evento não encontrado' }, { status: 404 })
   return NextResponse.json({ event })
+}
+
+export async function PATCH(request: Request, ctx: Ctx) {
+  const { id } = await ctx.params
+  const denied = await requireEventAccess(id)
+  if (denied) return denied
+
+  const body = (await request.json().catch(() => null)) as {
+    guestId?: string
+    scheduleInviteMode?: ScheduleInviteMode
+    scheduleItemIds?: string[]
+  } | null
+
+  const guestId = body?.guestId?.trim()
+  if (!guestId) {
+    return NextResponse.json({ error: 'Informe guestId' }, { status: 400 })
+  }
+
+  const patch: Partial<Guest> = {}
+  if (body?.scheduleInviteMode !== undefined) {
+    if (!(SCHEDULE_INVITE_MODES as readonly string[]).includes(body.scheduleInviteMode)) {
+      return NextResponse.json({ error: 'scheduleInviteMode inválido' }, { status: 400 })
+    }
+    patch.scheduleInviteMode = body.scheduleInviteMode
+  }
+  if (body?.scheduleItemIds !== undefined) {
+    if (!Array.isArray(body.scheduleItemIds)) {
+      return NextResponse.json({ error: 'scheduleItemIds inválido' }, { status: 400 })
+    }
+    patch.scheduleItemIds = body.scheduleItemIds.map(String)
+  }
+  if (!Object.keys(patch).length) {
+    return NextResponse.json({ error: 'Nada para atualizar' }, { status: 400 })
+  }
+
+  const updated = await updateGuest(id, guestId, patch)
+  if (!updated) return NextResponse.json({ error: 'Convidado não encontrado' }, { status: 404 })
+  return NextResponse.json({ guest: updated.guest, event: updated.event })
 }

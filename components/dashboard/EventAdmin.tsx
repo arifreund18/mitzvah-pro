@@ -4,28 +4,36 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useMemo, useState } from 'react'
 import { EventActions } from '@/components/dashboard/EventActions'
+import { GuestAdminPanel } from '@/components/dashboard/GuestAdminPanel'
 import { GuestCsvImport } from '@/components/dashboard/GuestCsvImport'
 import { SECTION_EDITOR_IDS, SECTION_LABELS } from '@/lib/platform/section-editor'
 import type { PlatformEvent } from '@/lib/platform/types'
 import { eventApexPathUrl, eventPublicHostLabel, eventPublicUrl } from '@/lib/platform/site-url'
 import { eventMailDomainName } from '@/lib/platform/mail-domain'
 
-function fmt(iso: string | null) {
-  if (!iso) return '—'
-  return new Date(iso).toLocaleDateString()
-}
-
 export function EventAdmin({ event }: { event: PlatformEvent }) {
   const router = useRouter()
   const [busy, setBusy] = useState('')
   const [message, setMessage] = useState('')
   const [messageTone, setMessageTone] = useState<'ok' | 'err'>('ok')
+  const [testTo, setTestTo] = useState('')
   const siteLabel = eventPublicHostLabel(event.slug)
   const siteUrl = eventApexPathUrl(event.slug)
   const subdomainUrl = eventPublicUrl(event.slug)
   const stdUrl = eventPublicUrl(event.slug, '/std')
   const inviteUrl = eventPublicUrl(event.slug, '/invite')
   const guests = event.guests
+  const peopleCounts = useMemo(() => {
+    let adults = 0
+    let children = 0
+    for (const guest of guests) {
+      for (const person of guest.people || []) {
+        if (person.type === 'child') children += 1
+        else adults += 1
+      }
+    }
+    return { adults, children }
+  }, [guests])
   const stats = useMemo(() => {
     const yes = guests.filter((g) => g.status === 'yes').length
     const no = guests.filter((g) => g.status === 'no').length
@@ -129,6 +137,40 @@ export function EventAdmin({ event }: { event: PlatformEvent }) {
       setMessage(`${data?.delivered || data?.sent || 0} enviado(s)${failed}${data?.from ? ` · de ${data.from}` : ''}`)
     }
     router.refresh()
+  }
+
+  async function sendTest(kind: 'std' | 'invite') {
+    const to = testTo.trim()
+    if (!to) {
+      setMessageTone('err')
+      setMessage('Informe um email para o envio de teste')
+      return
+    }
+    setBusy(`test-${kind}`)
+    setMessage('')
+    const res = await fetch(`/api/platform/events/${event.id}/send/test`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ kind, to }),
+    })
+    const data = (await res.json().catch(() => null)) as {
+      error?: string
+      warning?: string
+      local?: boolean
+      to?: string
+    } | null
+    setBusy('')
+    if (!res.ok) {
+      setMessageTone('err')
+      setMessage(data?.error || 'Falha no envio de teste')
+      return
+    }
+    setMessageTone(data?.local ? 'err' : 'ok')
+    setMessage(
+      data?.local
+        ? data.warning || `Teste ${kind} marcado localmente (sem Resend)`
+        : `Teste ${kind} enviado para ${data?.to || to}`,
+    )
   }
 
   async function retryMailDomain() {
@@ -241,16 +283,45 @@ export function EventAdmin({ event }: { event: PlatformEvent }) {
           {busy === 'invite' ? 'Enviando…' : 'Enviar convites'}
         </button>
       </div>
+      <div className="mt-4 flex flex-wrap items-end gap-3 text-sm">
+        <label className="block min-w-56 flex-1">
+          <span className="text-xs uppercase text-white/40">Email de teste</span>
+          <input
+            value={testTo}
+            onChange={(e) => setTestTo(e.target.value)}
+            placeholder="voce@email.com"
+            className="mt-1 w-full rounded-xl border border-white/15 bg-white/5 px-3 py-2 outline-none"
+          />
+        </label>
+        <button
+          type="button"
+          disabled={!!busy || !event.config.saveTheDate.enabled}
+          onClick={() => void sendTest('std')}
+          className="rounded-full border border-cyan-400/40 px-4 py-2 text-cyan-100 hover:bg-cyan-400/10 disabled:opacity-40"
+        >
+          {busy === 'test-std' ? 'Enviando…' : 'Enviar teste STD'}
+        </button>
+        <button
+          type="button"
+          disabled={!!busy}
+          onClick={() => void sendTest('invite')}
+          className="rounded-full border border-white/25 px-4 py-2 hover:bg-white/10 disabled:opacity-40"
+        >
+          {busy === 'test-invite' ? 'Enviando…' : 'Enviar teste convite'}
+        </button>
+      </div>
       {message ? (
         <p className={`mt-3 text-sm ${messageTone === 'err' ? 'text-rose-300' : 'text-cyan-200'}`}>{message}</p>
       ) : null}
 
-      <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
         {[
           ['Convidados', String(stats.total)],
           ['Pessoas (sim/pendente)', String(stats.people)],
+          ['Adultos / crianças', `${peopleCounts.adults} / ${peopleCounts.children}`],
           ['RSVP sim / não / pendente', `${stats.yes} / ${stats.no} / ${stats.pending}`],
-          ['STD / convites enviados', `${stats.std} / ${stats.invite}`],
+          ['STD enviados', String(stats.std)],
+          ['Convites enviados', String(stats.invite)],
         ].map(([label, value]) => (
           <div key={label} className="rounded-2xl border border-white/10 bg-white/5 p-5">
             <p className="text-xs uppercase text-white/40">{label}</p>
@@ -297,40 +368,7 @@ export function EventAdmin({ event }: { event: PlatformEvent }) {
           Exportar XLSX
         </a>
       </div>
-      <div className="mt-6 overflow-x-auto rounded-2xl border border-white/10">
-        <table className="w-full min-w-[800px] text-left text-sm">
-          <thead className="bg-white/5 text-white/50">
-            <tr>
-              <th className="px-4 py-3 font-medium">Família</th>
-              <th className="px-4 py-3 font-medium">Email</th>
-              <th className="px-4 py-3 font-medium">Pessoas</th>
-              <th className="px-4 py-3 font-medium">RSVP</th>
-              <th className="px-4 py-3 font-medium">Save the Date</th>
-              <th className="px-4 py-3 font-medium">Convite</th>
-            </tr>
-          </thead>
-          <tbody>
-            {guests.length === 0 ? (
-              <tr>
-                <td colSpan={6} className="px-4 py-8 text-center text-white/40">
-                  Nenhum convidado ainda. Adicione no wizard ou aqui depois.
-                </td>
-              </tr>
-            ) : (
-              guests.map((guest) => (
-                <tr key={guest.id} className="border-t border-white/10">
-                  <td className="px-4 py-3">{guest.familyName}</td>
-                  <td className="px-4 py-3 text-white/60">{guest.email || '—'}</td>
-                  <td className="px-4 py-3">{guest.partySize}</td>
-                  <td className="px-4 py-3">{guest.status}</td>
-                  <td className="px-4 py-3 text-white/60">{fmt(guest.stdSentAt)}</td>
-                  <td className="px-4 py-3 text-white/60">{fmt(guest.inviteSentAt)}</td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
+      <GuestAdminPanel event={event} />
     </div>
   )
 }

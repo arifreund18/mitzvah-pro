@@ -84,7 +84,19 @@ function mapUrlOf(kind: 'std' | 'invite', config: EventConfig): string {
 export function mailSubject(kind: 'std' | 'invite', config: EventConfig, guest?: Guest): string {
   const name = config.basics.honoreeName || 'Mitzvah.pro'
   const locale = guest ? localeOf(guest, config) : config.locales.default
-  if (kind === 'std') return `Save the Date — ${name}`
+  if (kind === 'std') {
+    const custom = designOf('std', config).subject?.trim()
+    if (custom) return custom.includes('{name}') ? custom.replaceAll('{name}', name) : custom
+    return locale === 'he'
+      ? `Save the Date — ${name}`
+      : locale === 'pt'
+        ? `Save the Date — ${name}`
+        : locale === 'es'
+          ? `Save the Date — ${name}`
+          : `Save the Date — ${name}`
+  }
+  const custom = designOf('invite', config).subject?.trim()
+  if (custom) return custom.includes('{name}') ? custom.replaceAll('{name}', name) : custom
   return `${typeLabel(config.basics.type, locale)} — ${name}`
 }
 

@@ -1,18 +1,31 @@
 'use client'
 
 import { useState } from 'react'
-import type { EventConfig, PlatformEvent } from '@/lib/platform/types'
+import { publicRsvpCopy } from '@/lib/platform/guest-ui'
+import type { EventConfig, EventLocale, PlatformEvent } from '@/lib/platform/types'
 
-export function EventRsvpForm({ event }: { event: PlatformEvent }) {
+export function EventRsvpForm({
+  event,
+  locale,
+}: {
+  event: PlatformEvent
+  locale?: EventLocale
+}) {
   const config: EventConfig = event.config
+  const lang = locale || config.locales.default || 'pt'
+  const ui = publicRsvpCopy(lang)
+  const dir = lang === 'he' ? 'rtl' : 'ltr'
   const [sent, setSent] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
   if (!config.rsvp.publicFormEnabled && !config.rsvp.openRsvpDefault) {
     return (
-      <p className="rounded-2xl border border-white/15 bg-white/5 px-6 py-8 text-center text-white/70">
-        Use the personal link from your invitation email to RSVP.
+      <p
+        className="rounded-2xl border border-white/15 bg-white/5 px-6 py-8 text-center text-white/70"
+        dir={dir}
+      >
+        {ui.personalLinkOnly}
       </p>
     )
   }
@@ -39,7 +52,7 @@ export function EventRsvpForm({ event }: { event: PlatformEvent }) {
     setLoading(false)
     if (!res.ok) {
       const data = (await res.json().catch(() => null)) as { error?: string } | null
-      setError(data?.error || 'Não foi possível enviar o RSVP.')
+      setError(data?.error || ui.error)
       return
     }
     setSent(true)
@@ -47,16 +60,19 @@ export function EventRsvpForm({ event }: { event: PlatformEvent }) {
 
   if (sent) {
     return (
-      <p className="rounded-2xl border border-emerald-400/30 bg-emerald-400/10 px-6 py-8 text-center text-emerald-100">
-        Obrigado! Recebemos a confirmação da sua família.
+      <p
+        className="rounded-2xl border border-emerald-400/30 bg-emerald-400/10 px-6 py-8 text-center text-emerald-100"
+        dir={dir}
+      >
+        {config.rsvp.confirmationMessage?.trim() || ui.thanks}
       </p>
     )
   }
 
   return (
-    <form id="rsvp-form" onSubmit={onSubmit} className="space-y-4 text-left">
+    <form id="rsvp-form" onSubmit={onSubmit} className="space-y-4 text-left" dir={dir}>
       <label className="block text-sm">
-        Nome da família
+        {ui.familyName}
         <input
           name="familyName"
           required
@@ -64,7 +80,7 @@ export function EventRsvpForm({ event }: { event: PlatformEvent }) {
         />
       </label>
       <label className="block text-sm">
-        Email
+        {ui.email}
         <input
           name="email"
           type="email"
@@ -73,7 +89,7 @@ export function EventRsvpForm({ event }: { event: PlatformEvent }) {
       </label>
       <div className="grid gap-4 sm:grid-cols-2">
         <label className="block text-sm">
-          Pessoas
+          {ui.people}
           <input
             name="partySize"
             type="number"
@@ -83,43 +99,45 @@ export function EventRsvpForm({ event }: { event: PlatformEvent }) {
           />
         </label>
         <label className="block text-sm">
-          Presença
+          {ui.status}
           <select
             name="status"
             defaultValue="yes"
-            className="mt-1 w-full rounded-xl border border-white/15 bg-white/5 px-4 py-3 outline-none"
+            className="mt-1 w-full rounded-xl border border-white/15 bg-[#12182a] px-4 py-3 outline-none"
           >
-            <option value="yes">Sim, vamos</option>
-            <option value="no">Não poderemos</option>
+            <option value="yes">{ui.yes}</option>
+            <option value="no">{ui.no}</option>
+            <option value="pending">{ui.pending}</option>
           </select>
         </label>
       </div>
-      {config.rsvp.meals.length > 0 && (
+      {config.rsvp.collectMeal ? (
         <label className="block text-sm">
-          Refeição
+          {ui.meal}
           <select
             name="meal"
-            className="mt-1 w-full rounded-xl border border-white/15 bg-white/5 px-4 py-3 outline-none"
+            className="mt-1 w-full rounded-xl border border-white/15 bg-[#12182a] px-4 py-3 outline-none"
+            defaultValue={config.rsvp.meals[0] || ''}
           >
-            {config.rsvp.meals.filter(Boolean).map((meal) => (
+            {config.rsvp.meals.map((meal) => (
               <option key={meal} value={meal}>
                 {meal}
               </option>
             ))}
           </select>
         </label>
-      )}
-      {config.rsvp.collectDietary && (
+      ) : null}
+      {config.rsvp.collectDietary ? (
         <label className="block text-sm">
-          Restrições alimentares
+          {ui.dietary}
           <input
             name="dietary"
             className="mt-1 w-full rounded-xl border border-white/15 bg-white/5 px-4 py-3 outline-none"
           />
         </label>
-      )}
+      ) : null}
       <label className="block text-sm">
-        Recado
+        {ui.message}
         <textarea
           name="message"
           rows={3}
@@ -130,9 +148,9 @@ export function EventRsvpForm({ event }: { event: PlatformEvent }) {
       <button
         type="submit"
         disabled={loading}
-        className="w-full rounded-full bg-cyan-400 py-3 font-semibold text-[#0b1020]"
+        className="rounded-full bg-cyan-400 px-6 py-3 font-semibold text-[#0b1020] disabled:opacity-50"
       >
-        {loading ? 'Enviando…' : 'Enviar RSVP'}
+        {loading ? ui.submitting : ui.submit}
       </button>
     </form>
   )

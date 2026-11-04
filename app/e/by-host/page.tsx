@@ -23,7 +23,7 @@ export default async function CustomHostEventPage({
     <div className="bg-[#0b1020] text-white">
       <EventSite config={event.config} mode="live" displayLocale={displayLocale} slug={event.slug} />
       <section className="mx-auto max-w-xl px-6 pb-24">
-        <EventRsvpForm event={event} />
+        <EventRsvpForm event={event} locale={displayLocale} />
       </section>
     </div>
   )

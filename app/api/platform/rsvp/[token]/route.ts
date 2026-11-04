@@ -106,9 +106,14 @@ export async function POST(request: Request, ctx: Ctx) {
 
   const resend = getResend()
   const from = eventSendFrom(event.config)
-  const confirmBody =
-    event.config.rsvp.confirmationMessage ||
-    `Recebemos o RSVP da família ${updated.guest.familyName}.`
+  const locale = updated.guest.inviteLocale || event.config.locales.default
+  const { rsvpConfirmationText } = await import('@/lib/platform/guest-ui')
+  const confirmBody = rsvpConfirmationText(
+    locale,
+    updated.guest.familyName,
+    event.config.rsvp.confirmationMessage,
+  )
+  const dir = locale === 'he' ? 'rtl' : 'ltr'
 
   for (const to of emails) {
     let status = 'skipped'
@@ -119,7 +124,7 @@ export async function POST(request: Request, ctx: Ctx) {
         from,
         to,
         subject: `RSVP — ${event.config.basics.honoreeName || event.slug}`,
-        html: `<p>${confirmBody}</p>`,
+        html: `<p dir="${dir}">${confirmBody.replace(/</g, '&lt;')}</p>`,
       })
       if (result.error) {
         status = 'failed'
@@ -157,13 +162,9 @@ export async function POST(request: Request, ctx: Ctx) {
     }
   }
 
-  const confirmation =
-    event.config.rsvp.confirmationMessage?.trim() ||
-    `Recebemos o RSVP da família ${updated.guest.familyName}.`
-
   return NextResponse.json({
     ok: true,
     guest: updated.guest,
-    confirmation,
+    confirmation: confirmBody,
   })
 }

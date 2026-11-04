@@ -60,7 +60,7 @@ export default async function PublicEventPage({
       />
       {showPublicForm ? (
         <section className="mx-auto max-w-xl px-6 pb-24">
-          <EventRsvpForm event={event} />
+          <EventRsvpForm event={event} locale={displayLocale} />
         </section>
       ) : null}
     </div>

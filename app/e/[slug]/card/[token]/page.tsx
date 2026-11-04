@@ -1,10 +1,11 @@
 import { notFound } from 'next/navigation'
 import { InvitationCard } from '@/components/template/EventEmails'
 import { EnvelopeClient } from '@/lib/event-cards'
+import { openEnvelopeLabel } from '@/lib/platform/guest-ui'
+import { getLocalizedCardDesign } from '@/lib/platform/i18n-content'
 import { getEventBySlug, markGuestOpened } from '@/lib/platform/store'
-import { eventPublicUrl } from '@/lib/platform/site-url'
+import { eventPublicUrl, hostFromHeaders } from '@/lib/platform/site-url'
 import { headers } from 'next/headers'
-import { hostFromHeaders } from '@/lib/platform/site-url'
 
 export const dynamic = 'force-dynamic'
 
@@ -22,24 +23,24 @@ export default async function InvitationCardTokenPage({
   await markGuestOpened(event.id, guest.id, 'invite')
 
   const host = hostFromHeaders(await headers())
-  const design = event.config.invitation.design
+  const locale = guest.inviteLocale || event.config.locales.default
+  const design = getLocalizedCardDesign(event.config, locale, 'invite')
   const sealUrl = design.sealUrl || event.config.invitation.sealImageUrl
 
   return (
     <EnvelopeClient
       config={{
-        pageColor: design.pageColor,
-        pageTexture: design.pageTexture,
-        envelopeColor: design.envelopeColor,
-        envelopeLiner: design.envelopeLiner,
+        ...design,
         sealUrl,
-        sealBg: design.sealBg,
-        sealLabel: event.config.invitation.sealLabel,
-        openLabel: 'Open invitation',
+        sealLabel: design.sealLabel || event.config.invitation.sealLabel,
+        openLabel: openEnvelopeLabel('invite', locale, design.openLabel),
       }}
     >
       <InvitationCard
         config={event.config}
+        design={design}
+        locale={locale}
+        guestName={guest.familyName}
         ctaHref={eventPublicUrl(event.slug, `?guest=${guest.token}#rsvp`, { host })}
       />
     </EnvelopeClient>
