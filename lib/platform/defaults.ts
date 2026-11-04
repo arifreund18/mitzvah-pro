@@ -262,6 +262,7 @@ export function createSeedEvent(): PlatformEvent {
   config.venues.parking = 'Valet no local da recepção'
   config.story.honoreeBio =
     'Beni ama música, futebol e viajar. Completa 13 anos e sobe à Torah cercado de família e amigos.'
+  config.rsvp.publicFormEnabled = true
   config.contact = {
     phone: '',
     email: 'mitzvah@mitzvah.pro',

@@ -9,6 +9,8 @@ import type {
   EventConfig,
   EventLocale,
   Guest,
+  GuestPerson,
+  GuestRsvp,
   Organization,
   PlatformEvent,
   PlatformStore,
@@ -156,6 +158,25 @@ export async function getEventByApprovalToken(token: string): Promise<PlatformEv
   if (!token) return null
   const store = await loadStore()
   return store.events.find((event) => event.approvalToken === token) ?? null
+}
+
+export async function updateGuest(
+  eventId: string,
+  guestId: string,
+  patch: Partial<Guest>,
+): Promise<{ event: PlatformEvent; guest: Guest } | null> {
+  return withLock(async () => {
+    const store = await loadStore()
+    const event = store.events.find((item) => item.id === eventId)
+    if (!event) return null
+    const index = event.guests.findIndex((item) => item.id === guestId)
+    if (index < 0) return null
+    const guest = normalizeGuest({ ...event.guests[index], ...patch, id: guestId })
+    event.guests[index] = guest
+    event.updatedAt = new Date().toISOString()
+    await saveStore(store)
+    return { event, guest }
+  })
 }
 
 export async function requestApproval(id: string): Promise<PlatformEvent | null> {
@@ -380,5 +401,125 @@ export async function markMailSent(
     event.updatedAt = now
     await saveStore(store)
     return { event, sent }
+  })
+}
+
+export async function markGuestOpened(
+  eventId: string,
+  guestId: string,
+  kind: 'std' | 'invite',
+): Promise<void> {
+  await withLock(async () => {
+    const store = await loadStore()
+    const event = store.events.find((item) => item.id === eventId)
+    if (!event) return
+    const now = new Date().toISOString()
+    event.guests = event.guests.map((guest) => {
+      if (guest.id !== guestId) return guest
+      return kind === 'std'
+        ? { ...guest, stdOpenedAt: guest.stdOpenedAt || now }
+        : { ...guest, invitationOpenedAt: guest.invitationOpenedAt || now }
+    })
+    event.updatedAt = now
+    await saveStore(store)
+  })
+}
+
+export async function listEmailLogs(eventId?: string) {
+  const store = await loadStore()
+  const logs = store.emailLogs || []
+  return eventId ? logs.filter((log) => log.eventId === eventId) : logs
+}
+
+export async function appendEmailLog(input: {
+  eventId: string
+  familyId?: string | null
+  type: string
+  status: string
+  toEmail: string
+  resendId?: string | null
+  error?: string
+  id?: string
+  sentAt?: string
+}): Promise<void> {
+  await withLock(async () => {
+    const store = await loadStore()
+    if (!store.emailLogs) store.emailLogs = []
+    store.emailLogs.push({
+      id: input.id || uid(),
+      eventId: input.eventId,
+      familyId: input.familyId ?? null,
+      type: input.type,
+      status: input.status,
+      resendId: input.resendId ?? null,
+      toEmail: input.toEmail,
+      error: input.error || '',
+      sentAt: input.sentAt || new Date().toISOString(),
+    })
+    await saveStore(store)
+  })
+}
+
+/** Read-only store access for cron jobs (no durable-write assert). */
+export async function loadPlatformStoreForCron(): Promise<PlatformStore> {
+  return loadStore()
+}
+
+/** Scan all events for a family invite token. */
+export async function getFamilyByToken(
+  token: string,
+): Promise<{ event: PlatformEvent; guest: Guest } | null> {
+  const needle = token?.trim()
+  if (!needle) return null
+  const store = await loadStore()
+  for (const event of store.events) {
+    const guest = event.guests.find((item) => item.token === needle)
+    if (guest) return { event, guest }
+  }
+  return null
+}
+
+export type GuestRsvpPatch = {
+  people?: GuestPerson[]
+  status?: GuestRsvp
+  message?: string
+  meal?: string
+  dietary?: string
+  partySize?: number
+  invitationOpenedAt?: string | null
+  stdOpenedAt?: string | null
+}
+
+export async function updateGuestRsvp(
+  eventId: string,
+  guestId: string,
+  patch: GuestRsvpPatch,
+): Promise<Guest | null> {
+  return withLock(async () => {
+    const store = await loadStore()
+    const event = store.events.find((item) => item.id === eventId)
+    if (!event) return null
+    const index = event.guests.findIndex((guest) => guest.id === guestId)
+    if (index < 0) return null
+    const current = event.guests[index]!
+    const next = normalizeGuest({
+      ...current,
+      ...patch,
+      people: patch.people ?? current.people,
+      status: patch.status ?? current.status,
+      message: patch.message !== undefined ? patch.message : current.message,
+      meal: patch.meal !== undefined ? patch.meal : current.meal,
+      dietary: patch.dietary !== undefined ? patch.dietary : current.dietary,
+      partySize: patch.partySize ?? current.partySize,
+      invitationOpenedAt:
+        patch.invitationOpenedAt !== undefined
+          ? patch.invitationOpenedAt
+          : current.invitationOpenedAt,
+      stdOpenedAt: patch.stdOpenedAt !== undefined ? patch.stdOpenedAt : current.stdOpenedAt,
+    })
+    event.guests[index] = next
+    event.updatedAt = new Date().toISOString()
+    await saveStore(store)
+    return next
   })
 }

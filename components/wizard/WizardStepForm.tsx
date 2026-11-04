@@ -7,13 +7,16 @@ import { applyGeneratedPatch, typeLabel, wizardUi } from '@/lib/platform/copy'
 import { uid } from '@/lib/platform/ids'
 import {
   EVENT_TYPES,
+  NOTIFY_MODES,
   PLACE_CATEGORIES,
   THEMES,
   type EventConfig,
   type EventLocale,
   type Guest,
+  type NotifyMode,
 } from '@/lib/platform/types'
 import { LOCALE_OPTIONS } from '@/lib/platform/locales'
+import { normalizeGuest } from '@/lib/platform/normalize'
 import { eventPublicHostLabel } from '@/lib/platform/site-url'
 import { reviewIssues } from '@/lib/platform/wizard'
 import { GuestCsvImport } from '@/components/dashboard/GuestCsvImport'
@@ -56,20 +59,12 @@ export const WizardStepForm = forwardRef<
     if (!familyName) return
     onGuests([
       ...guests,
-      {
-        id: uid(),
+      normalizeGuest({
         familyName,
         email: String(data.get('email') || '').trim(),
         partySize: Number(data.get('partySize') || 1) || 1,
         status: 'pending',
-        meal: '',
-        dietary: '',
-        message: '',
-        createdAt: new Date().toISOString(),
-        token: uid(),
-        stdSentAt: null,
-        inviteSentAt: null,
-      },
+      }),
     ])
     form.reset()
   }
@@ -355,7 +350,20 @@ export const WizardStepForm = forwardRef<
               schedule: {
                 items: [
                   ...config.schedule.items,
-                  { id: uid(), title: '', time: '', place: '', address: '' },
+                  {
+                    id: uid(),
+                    title: '',
+                    time: '',
+                    timeEnd: '',
+                    date: '',
+                    place: '',
+                    address: '',
+                    mapUrl: '',
+                    dressCode: '',
+                    notes: '',
+                    dayLabel: '',
+                    visibility: 'public' as const,
+                  },
                 ],
               },
             })
@@ -473,7 +481,18 @@ export const WizardStepForm = forwardRef<
                 ...config.venues,
                 hotels: [
                   ...config.venues.hotels,
-                  { id: uid(), name: '', url: '', notes: '', walking: '', mapUrl: '' },
+                  {
+                    id: uid(),
+                    name: '',
+                    url: '',
+                    notes: '',
+                    walking: '',
+                    mapUrl: '',
+                    photoUrl: '',
+                    stars: 0,
+                    featured: false,
+                    bookUrl: '',
+                  },
                 ],
               },
             })
@@ -537,7 +556,15 @@ export const WizardStepForm = forwardRef<
               ...config,
               places: [
                 ...config.places,
-                { id: uid(), name: '', category: 'restaurant', url: '', mapUrl: '', notes: '' },
+                {
+                  id: uid(),
+                  name: '',
+                  category: 'restaurant' as const,
+                  url: '',
+                  mapUrl: '',
+                  notes: '',
+                  photoUrl: '',
+                },
               ],
             })
           }
@@ -820,7 +847,12 @@ export const WizardStepForm = forwardRef<
           onClick={() =>
             set({
               ...config,
-              faq: { items: [...config.faq.items, { id: uid(), question: '', answer: '' }] },
+              faq: {
+                items: [
+                  ...config.faq.items,
+                  { id: uid(), question: '', answer: '', published: true },
+                ],
+              },
             })
           }
         >

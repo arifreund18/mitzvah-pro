@@ -1,9 +1,12 @@
-import type { EventConfig, EventLocale, ThemeId, WizardStepId } from '@/lib/platform/types'
+import type { EventConfig, EventLocale, Guest, ThemeId, WizardStepId } from '@/lib/platform/types'
 import { formatEventDate, typeLabel, wizardUi } from '@/lib/platform/copy'
 import { templateUi } from '@/lib/platform/template-copy'
 import { googleCalendarUrl } from '@/lib/platform/calendar'
+import { EventAmbientAudio } from '@/components/template/EventAmbientAudio'
+import { EventContactForm } from '@/components/template/EventContactForm'
 import { EventCountdown } from '@/components/template/EventCountdown'
 import { EventFaq } from '@/components/template/EventFaq'
+import { EventGalleryLightbox } from '@/components/template/EventGalleryLightbox'
 import { EventPlaces } from '@/components/template/EventPlaces'
 import { EventSiteLocales } from '@/components/template/EventSiteLocales'
 
@@ -45,18 +48,30 @@ export const THEME_PRESETS: Record<
   },
 }
 
+function starsLabel(stars: number): string {
+  const n = Math.max(0, Math.min(5, Math.round(stars || 0)))
+  if (!n) return ''
+  return '★'.repeat(n) + '☆'.repeat(5 - n)
+}
+
 export function EventSite({
   config,
   highlight,
   mode = 'live',
   displayLocale,
   slug,
+  eventId,
+  guestToken,
+  guest,
 }: {
   config: EventConfig
   highlight?: WizardStepId | string
   mode?: 'live' | 'preview'
   displayLocale?: EventLocale
   slug?: string
+  eventId?: string
+  guestToken?: string
+  guest?: Guest | null
 }) {
   const theme = THEME_PRESETS[config.branding.theme]
   const accent = config.branding.accentColor || '#22d3ee'
@@ -70,7 +85,37 @@ export function EventSite({
   const place = [config.basics.city, config.basics.country].filter(Boolean).join(', ')
   const calendar = googleCalendarUrl(config)
   const interactive = mode === 'live'
-  const hasContact = Boolean(config.contact.phone || config.contact.email || config.contact.whatsapp)
+  const people = config.contact.people?.length
+    ? config.contact.people
+    : config.contact.phone || config.contact.email || config.contact.whatsapp
+      ? [
+          {
+            id: 'legacy',
+            name: '',
+            phone: config.contact.phone,
+            email: config.contact.email,
+            whatsapp: config.contact.whatsapp,
+            whatsappLabel: '',
+          },
+        ]
+      : []
+  const hasContact = people.length > 0 || Boolean(config.contact.formEnabled && eventId)
+  const publishedFaq = config.faq.items.filter((item) => item.published !== false)
+  const galleryItems = (config.media.galleryItems?.length
+    ? config.media.galleryItems
+    : (config.media.gallery || []).map((url, i) => ({
+        id: `legacy-${i}`,
+        url,
+        type: 'image' as const,
+        caption: '',
+        approved: true,
+        showOnSite: true,
+        sortOrder: i,
+      }))
+  )
+    .filter((item) => item.showOnSite !== false && item.approved !== false && item.url)
+    .sort((a, b) => a.sortOrder - b.sortOrder)
+  const hotels = [...config.venues.hotels].sort((a, b) => Number(b.featured) - Number(a.featured))
 
   const mark = (id: string) =>
     highlight === id ||
@@ -78,7 +123,10 @@ export function EventSite({
     (highlight === 'branding' && id === 'hero') ||
     (highlight === 'domain' && id === 'hero') ||
     (highlight === 'review' && id === 'hero') ||
-    (highlight === 'guestsBootstrap' && id === 'rsvp')
+    (highlight === 'guestsBootstrap' && id === 'rsvp') ||
+    (highlight === 'contact' && id === 'contact') ||
+    (highlight === 'places' && id === 'places') ||
+    (highlight === 'legal' && id === 'hero')
       ? 'ring-2 ring-offset-2 ring-offset-transparent'
       : ''
 
@@ -86,13 +134,17 @@ export function EventSite({
     { href: '#welcome', label: ui.welcome, show: Boolean(config.story.parentsMessage) },
     { href: '#about', label: ui.about, show: Boolean(config.story.about || config.story.honoreeBio) },
     { href: '#schedule', label: ui.schedule, show: config.schedule.items.length > 0 },
-    { href: '#faq', label: ui.faq, show: config.faq.items.length > 0 },
-    { href: '#hotels', label: ui.hotels, show: config.venues.hotels.length > 0 },
+    { href: '#faq', label: ui.faq, show: publishedFaq.length > 0 },
+    { href: '#hotels', label: ui.hotels, show: hotels.length > 0 },
+    { href: '#travel', label: 'Travel', show: Boolean(config.travel?.enabled) },
     { href: '#places', label: ui.thingsToDo, show: config.places.length > 0 },
-    { href: '#gallery', label: ui.gallery, show: config.media.gallery.length > 0 },
+    { href: '#gallery', label: ui.gallery, show: galleryItems.length > 0 },
     { href: '#rsvp', label: 'RSVP', show: true },
     { href: '#contact', label: ui.contact, show: hasContact },
   ].filter((item) => item.show)
+
+  const statusLabel =
+    guest?.status === 'yes' ? 'Confirmed' : guest?.status === 'no' ? 'Declined' : 'Pending RSVP'
 
   return (
     <div
@@ -101,6 +153,17 @@ export function EventSite({
       className="min-h-full"
       style={{ background: theme.bg, color: theme.text, ['--accent' as string]: accent }}
     >
+      {guest || guestToken ? (
+        <div
+          className="border-b border-white/10 px-4 py-2 text-center text-xs tracking-wide"
+          style={{ background: `${accent}22`, color: accent }}
+        >
+          {guest?.familyName ? `${guest.familyName} · ` : ''}
+          {statusLabel}
+          {guestToken ? ` · ${guestToken.slice(0, 6)}…` : ''}
+        </div>
+      ) : null}
+
       <nav className="sticky top-0 z-20 hidden border-b border-white/10 bg-[inherit]/90 px-4 py-3 text-xs uppercase tracking-widest backdrop-blur md:block">
         <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-center gap-4 opacity-80">
           {nav.map((item) => (
@@ -166,6 +229,7 @@ export function EventSite({
         </h1>
         <p className="relative mt-4 text-lg" style={{ color: theme.muted }}>
           {dateLabel}
+          {config.basics.startTime ? ` · ${config.basics.startTime}` : ''}
           {place ? ` · ${place}` : ''}
         </p>
         {config.story.subtitle ? (
@@ -242,19 +306,43 @@ export function EventSite({
         <div className="mx-auto max-w-3xl">
           <h2 className="font-display text-center text-3xl">{ui.schedule}</h2>
           <div className="mt-10 space-y-4">
-            {config.schedule.items.map((item) => (
+            {config.schedule.items
+              .filter((item) => mode === 'preview' || item.visibility !== 'invite' || Boolean(guest))
+              .map((item) => (
               <div
                 key={item.id}
                 className="rounded-2xl border border-white/10 p-5"
                 style={{ background: theme.card }}
               >
                 <p className="text-sm font-semibold" style={{ color: accent }}>
-                  {item.time || site.timeTbd}
+                  {[item.dayLabel, item.date, item.time].filter(Boolean).join(' · ') || site.timeTbd}
+                  {item.timeEnd ? ` – ${item.timeEnd}` : ''}
                 </p>
                 <h3 className="mt-1 text-lg font-semibold">{item.title || site.moment}</h3>
                 <p className="mt-1 text-sm" style={{ color: theme.muted }}>
                   {[item.place, item.address].filter(Boolean).join(' · ') || site.placeTbd}
                 </p>
+                {item.dressCode ? (
+                  <p className="mt-2 text-xs" style={{ color: theme.muted }}>
+                    {ui.dressCode}: {item.dressCode}
+                  </p>
+                ) : null}
+                {item.notes ? (
+                  <p className="mt-1 text-xs" style={{ color: theme.muted }}>
+                    {item.notes}
+                  </p>
+                ) : null}
+                {item.mapUrl ? (
+                  <a
+                    href={item.mapUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="mt-2 inline-block text-sm"
+                    style={{ color: accent }}
+                  >
+                    {ui.map}
+                  </a>
+                ) : null}
               </div>
             ))}
           </div>
@@ -284,43 +372,72 @@ export function EventSite({
         </section>
       )}
 
-      {config.faq.items.length > 0 && (
+      {publishedFaq.length > 0 && (
         <section id="faq" data-preview="faq" className={`px-6 py-16 ${mark('faq')}`}>
           <div className="mx-auto max-w-3xl">
             <h2 className="font-display text-center text-3xl">{ui.faq}</h2>
-            <EventFaq items={config.faq.items} accent={accent} card={theme.card} muted={theme.muted} />
+            <EventFaq items={publishedFaq} accent={accent} card={theme.card} muted={theme.muted} />
           </div>
         </section>
       )}
 
-      {config.venues.hotels.length > 0 && (
+      {hotels.length > 0 && (
         <section id="hotels" className={`px-6 py-16 ${mark('venues')}`}>
           <h2 className="font-display mb-10 text-center text-3xl">{ui.hotels}</h2>
           <div className="mx-auto grid max-w-4xl gap-4 md:grid-cols-2">
-            {config.venues.hotels.map((hotel) => (
-              <div key={hotel.id} className="rounded-2xl p-6" style={{ background: theme.card }}>
-                <h3 className="text-lg font-semibold">{hotel.name}</h3>
-                {hotel.walking ? (
-                  <p className="mt-1 text-sm" style={{ color: accent }}>
-                    {hotel.walking} {ui.walking}
-                  </p>
+            {hotels.map((hotel) => (
+              <div key={hotel.id} className="overflow-hidden rounded-2xl" style={{ background: theme.card }}>
+                {hotel.photoUrl ? (
+                  <div
+                    className="aspect-[16/9] bg-black/20"
+                    style={{
+                      backgroundImage: `url(${hotel.photoUrl})`,
+                      backgroundSize: 'cover',
+                      backgroundPosition: 'center',
+                    }}
+                  />
                 ) : null}
-                {hotel.notes ? (
-                  <p className="mt-2 text-sm" style={{ color: theme.muted }}>
-                    {hotel.notes}
-                  </p>
-                ) : null}
-                <div className="mt-3 flex gap-3 text-sm" style={{ color: accent }}>
-                  {hotel.url ? (
-                    <a href={hotel.url} target="_blank" rel="noreferrer">
-                      {ui.website}
-                    </a>
+                <div className="p-6">
+                  <div className="flex items-start justify-between gap-2">
+                    <h3 className="text-lg font-semibold">{hotel.name}</h3>
+                    {hotel.featured ? (
+                      <span className="rounded-full px-2 py-0.5 text-[10px] uppercase tracking-wide" style={{ background: `${accent}33`, color: accent }}>
+                        Featured
+                      </span>
+                    ) : null}
+                  </div>
+                  {hotel.stars ? (
+                    <p className="mt-1 text-sm" style={{ color: accent }}>
+                      {starsLabel(hotel.stars)}
+                    </p>
                   ) : null}
-                  {hotel.mapUrl ? (
-                    <a href={hotel.mapUrl} target="_blank" rel="noreferrer">
-                      {ui.map}
-                    </a>
+                  {hotel.walking ? (
+                    <p className="mt-1 text-sm" style={{ color: accent }}>
+                      {hotel.walking} {ui.walking}
+                    </p>
                   ) : null}
+                  {hotel.notes ? (
+                    <p className="mt-2 text-sm" style={{ color: theme.muted }}>
+                      {hotel.notes}
+                    </p>
+                  ) : null}
+                  <div className="mt-3 flex flex-wrap gap-3 text-sm" style={{ color: accent }}>
+                    {hotel.bookUrl ? (
+                      <a href={hotel.bookUrl} target="_blank" rel="noreferrer" className="font-semibold">
+                        Book
+                      </a>
+                    ) : null}
+                    {hotel.url ? (
+                      <a href={hotel.url} target="_blank" rel="noreferrer">
+                        {ui.website}
+                      </a>
+                    ) : null}
+                    {hotel.mapUrl ? (
+                      <a href={hotel.mapUrl} target="_blank" rel="noreferrer">
+                        {ui.map}
+                      </a>
+                    ) : null}
+                  </div>
                 </div>
               </div>
             ))}
@@ -328,8 +445,50 @@ export function EventSite({
         </section>
       )}
 
+      {config.travel?.enabled ? (
+        <section id="travel" className="px-6 py-16">
+          <div className="mx-auto max-w-3xl">
+            <h2 className="font-display text-center text-3xl">Travel</h2>
+            <div className="mt-8 space-y-4 text-sm" style={{ color: theme.muted }}>
+              {config.travel.airports ? (
+                <p>
+                  <span className="font-semibold" style={{ color: accent }}>
+                    Airports ·{' '}
+                  </span>
+                  {config.travel.airports}
+                </p>
+              ) : null}
+              {config.travel.transport ? (
+                <p>
+                  <span className="font-semibold" style={{ color: accent }}>
+                    Transport ·{' '}
+                  </span>
+                  {config.travel.transport}
+                </p>
+              ) : null}
+              {config.travel.currency ? (
+                <p>
+                  <span className="font-semibold" style={{ color: accent }}>
+                    Currency ·{' '}
+                  </span>
+                  {config.travel.currency}
+                </p>
+              ) : null}
+              {config.travel.emergency ? (
+                <p>
+                  <span className="font-semibold" style={{ color: accent }}>
+                    Emergency ·{' '}
+                  </span>
+                  {config.travel.emergency}
+                </p>
+              ) : null}
+            </div>
+          </div>
+        </section>
+      ) : null}
+
       {config.places.length > 0 && (
-        <section id="places" className="px-6 py-16">
+        <section id="places" className={`px-6 py-16 ${mark('places')}`}>
           <h2 className="font-display mb-8 text-center text-3xl">{ui.thingsToDo}</h2>
           <EventPlaces
             places={config.places}
@@ -341,18 +500,10 @@ export function EventSite({
         </section>
       )}
 
-      {config.media.gallery.length > 0 && (
+      {galleryItems.length > 0 && (
         <section id="gallery" data-preview="gallery" className={`px-6 py-16 ${mark('media')}`}>
           <h2 className="font-display mb-8 text-center text-3xl">{ui.gallery}</h2>
-          <div className="mx-auto grid max-w-5xl gap-4 sm:grid-cols-2 md:grid-cols-3">
-            {config.media.gallery.map((src, i) => (
-              <div
-                key={`${src}-${i}`}
-                className="aspect-[4/3] overflow-hidden rounded-2xl bg-black/20"
-                style={{ backgroundImage: `url(${src})`, backgroundSize: 'cover', backgroundPosition: 'center' }}
-              />
-            ))}
-          </div>
+          <EventGalleryLightbox items={galleryItems} accent={accent} />
         </section>
       )}
 
@@ -402,31 +553,75 @@ export function EventSite({
       </section>
 
       {hasContact ? (
-        <section id="contact" className="px-6 py-16 text-center">
+        <section id="contact" className={`px-6 py-16 text-center ${mark('contact')}`}>
           <h2 className="font-display text-3xl">{ui.contact}</h2>
-          <div className="mx-auto mt-6 flex max-w-lg flex-col gap-2 text-sm" style={{ color: theme.muted }}>
-            {config.contact.phone ? (
-              <p>
-                {ui.phone}: {config.contact.phone}
-              </p>
-            ) : null}
-            {config.contact.email ? (
-              <p>
-                {ui.email}: {config.contact.email}
-              </p>
-            ) : null}
-            {config.contact.whatsapp ? (
-              <p>
-                {ui.whatsapp}: {config.contact.whatsapp}
-              </p>
-            ) : null}
+          <div className="mx-auto mt-8 grid max-w-2xl gap-4">
+            {people.map((person) => (
+              <div
+                key={person.id}
+                className="rounded-2xl p-5 text-sm"
+                style={{ background: theme.card, color: theme.muted }}
+              >
+                {person.name ? (
+                  <p className="font-semibold" style={{ color: theme.text }}>
+                    {person.name}
+                  </p>
+                ) : null}
+                {person.phone ? (
+                  <p className="mt-1">
+                    {ui.phone}:{' '}
+                    <a href={`tel:${person.phone}`} style={{ color: accent }}>
+                      {person.phone}
+                    </a>
+                  </p>
+                ) : null}
+                {person.email ? (
+                  <p className="mt-1">
+                    {ui.email}:{' '}
+                    <a href={`mailto:${person.email}`} style={{ color: accent }}>
+                      {person.email}
+                    </a>
+                  </p>
+                ) : null}
+                {person.whatsapp ? (
+                  <p className="mt-1">
+                    {ui.whatsapp}:{' '}
+                    <a
+                      href={`https://wa.me/${person.whatsapp.replace(/\D/g, '')}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      style={{ color: accent }}
+                    >
+                      {person.whatsappLabel || person.whatsapp}
+                    </a>
+                  </p>
+                ) : null}
+              </div>
+            ))}
           </div>
+          {interactive && config.contact.formEnabled && eventId ? (
+            <EventContactForm eventId={eventId} accent={accent} muted={theme.muted} />
+          ) : null}
         </section>
       ) : null}
 
       <footer className="border-t border-white/10 px-6 py-8 text-center text-sm opacity-60">
-        {name} · {type}
+        <p>
+          {name} · {type}
+        </p>
+        <p className="mt-3 flex justify-center gap-4 text-xs uppercase tracking-widest">
+          <a href="/privacy" className="hover:opacity-100">
+            Privacy
+          </a>
+          <a href="/terms" className="hover:opacity-100">
+            Terms
+          </a>
+        </p>
       </footer>
+
+      {interactive && config.media.ambientAudioUrl ? (
+        <EventAmbientAudio url={config.media.ambientAudioUrl} accent={accent} />
+      ) : null}
     </div>
   )
 }

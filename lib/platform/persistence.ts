@@ -39,7 +39,7 @@ function seedOwner(): PlatformUser {
 }
 
 function emptyStore(): PlatformStore {
-  return { orgs: [defaultOrg()], users: [seedOwner()], events: [createSeedEvent()] }
+  return { orgs: [defaultOrg()], users: [seedOwner()], events: [createSeedEvent()], emailLogs: [] }
 }
 
 function parseStore(raw: unknown): PlatformStore {
@@ -51,6 +51,7 @@ function parseStore(raw: unknown): PlatformStore {
     orgs,
     users,
     events: parsed.events.map((event) => normalizeEvent(event)),
+    emailLogs: Array.isArray(parsed.emailLogs) ? parsed.emailLogs : [],
   }
 }
 
@@ -90,6 +91,26 @@ async function ensurePostgresTable() {
       id TEXT PRIMARY KEY,
       data JSONB NOT NULL,
       updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    )
+  `
+  await sql()`
+    CREATE TABLE IF NOT EXISTS rate_limits (
+      key TEXT PRIMARY KEY,
+      count INT NOT NULL DEFAULT 0,
+      window_start BIGINT NOT NULL
+    )
+  `
+  await sql()`
+    CREATE TABLE IF NOT EXISTS email_logs (
+      id TEXT PRIMARY KEY,
+      event_id TEXT NOT NULL,
+      family_id TEXT,
+      type TEXT NOT NULL,
+      status TEXT NOT NULL,
+      resend_id TEXT,
+      to_email TEXT,
+      error TEXT,
+      sent_at TIMESTAMPTZ NOT NULL DEFAULT now()
     )
   `
 }

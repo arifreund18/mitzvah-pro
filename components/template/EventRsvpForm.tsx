@@ -9,6 +9,14 @@ export function EventRsvpForm({ event }: { event: PlatformEvent }) {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
+  if (!config.rsvp.publicFormEnabled && !config.rsvp.openRsvpDefault) {
+    return (
+      <p className="rounded-2xl border border-white/15 bg-white/5 px-6 py-8 text-center text-white/70">
+        Use the personal link from your invitation email to RSVP.
+      </p>
+    )
+  }
+
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
     setLoading(true)

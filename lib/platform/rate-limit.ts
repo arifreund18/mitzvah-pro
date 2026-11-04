@@ -1,4 +1,4 @@
-import { loadPlatformStore, savePlatformStore, storageDriver } from './persistence'
+import { storageDriver } from './persistence'
 import postgres from 'postgres'
 
 export type RateBucket = {
@@ -78,15 +78,4 @@ export async function consumeRateLimit(
   if (bucket.count >= limit) return { ok: false, remaining: 0 }
   bucket.count += 1
   return { ok: true, remaining: Math.max(0, limit - bucket.count) }
-}
-
-/** File-driver fallback also tracks in the JSON store under a reserved key — unused; memory is enough locally. */
-export async function pingStoreWritable(): Promise<boolean> {
-  try {
-    const store = await loadPlatformStore()
-    await savePlatformStore(store)
-    return true
-  } catch {
-    return false
-  }
 }

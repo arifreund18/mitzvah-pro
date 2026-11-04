@@ -7,8 +7,21 @@ import {
 } from '@/lib/platform/auth'
 import { findUserByEmail } from '@/lib/platform/store'
 import { verifyPassword } from '@/lib/platform/password'
+import { consumeRateLimit } from '@/lib/platform/rate-limit'
+
+function clientIp(request: Request): string {
+  const forwarded = request.headers.get('x-forwarded-for')
+  if (forwarded) return forwarded.split(',')[0]?.trim() || 'unknown'
+  return request.headers.get('x-real-ip') || 'unknown'
+}
 
 export async function POST(request: Request) {
+  const ip = clientIp(request)
+  const limited = await consumeRateLimit(`login:${ip}`, 10, 15 * 60 * 1000)
+  if (!limited.ok) {
+    return NextResponse.json({ error: 'Demasiadas tentativas. Tente mais tarde.' }, { status: 429 })
+  }
+
   const body = (await request.json().catch(() => null)) as {
     email?: string
     password?: string

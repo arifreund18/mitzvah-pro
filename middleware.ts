@@ -11,6 +11,8 @@ import {
 
 const intlMiddleware = createMiddleware(routing)
 
+const GUEST_TOKEN_COOKIE = 'mitzvah_guest_token'
+
 function barBeniOrigin(): string | null {
   return process.env.BAR_BENI_ORIGIN?.replace(/\/$/, '') ?? null
 }
@@ -34,6 +36,25 @@ function rewriteToEvent(request: NextRequest, pathname: string) {
   return NextResponse.rewrite(url)
 }
 
+function extractGuestToken(pathname: string, searchParams: URLSearchParams): string | null {
+  const fromQuery = searchParams.get('token')?.trim()
+  if (fromQuery) return fromQuery
+  const match = pathname.match(/^\/(?:rsvp|card|std|invite)\/([^/]+)\/?$/)
+  return match?.[1] ? decodeURIComponent(match[1]) : null
+}
+
+function withGuestCookie(response: NextResponse, token: string | null): NextResponse {
+  if (token) {
+    response.cookies.set(GUEST_TOKEN_COOKIE, token, {
+      path: '/',
+      sameSite: 'lax',
+      maxAge: 60 * 60 * 24 * 180,
+      httpOnly: false,
+    })
+  }
+  return response
+}
+
 export default function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
   const host = requestHost(request)
@@ -54,19 +75,68 @@ export default function middleware(request: NextRequest) {
     if (pathname.startsWith('/api') || pathname.startsWith('/_next')) {
       return NextResponse.next()
     }
+
+    const guestToken = extractGuestToken(pathname, request.nextUrl.searchParams)
+
+    const rsvpToken = pathname.match(/^\/rsvp\/([^/]+)\/?$/)
+    if (rsvpToken) {
+      return withGuestCookie(
+        rewriteToEvent(request, `/e/${eventSlug}/rsvp/${rsvpToken[1]}`),
+        guestToken,
+      )
+    }
+
+    const cardToken = pathname.match(/^\/card\/([^/]+)\/?$/)
+    if (cardToken) {
+      return withGuestCookie(
+        rewriteToEvent(request, `/e/${eventSlug}/card/${cardToken[1]}`),
+        guestToken,
+      )
+    }
+
+    // Token path takes precedence over bare /std
+    const stdToken = pathname.match(/^\/std\/([^/]+)\/?$/)
+    if (stdToken) {
+      return withGuestCookie(
+        rewriteToEvent(request, `/e/${eventSlug}/std/${stdToken[1]}`),
+        guestToken,
+      )
+    }
+
+    const inviteToken = pathname.match(/^\/invite\/([^/]+)\/?$/)
+    if (inviteToken) {
+      return withGuestCookie(
+        rewriteToEvent(request, `/e/${eventSlug}/invite/${inviteToken[1]}`),
+        guestToken,
+      )
+    }
+
     if (pathname === '/std' || pathname.startsWith('/std/')) {
-      return rewriteToEvent(request, `/e/${eventSlug}/std`)
+      return withGuestCookie(rewriteToEvent(request, `/e/${eventSlug}/std`), guestToken)
     }
     if (pathname === '/invite' || pathname.startsWith('/invite/')) {
-      return rewriteToEvent(request, `/e/${eventSlug}/invite`)
+      return withGuestCookie(rewriteToEvent(request, `/e/${eventSlug}/invite`), guestToken)
     }
+    if (pathname === '/rsvp' || pathname.startsWith('/rsvp/')) {
+      return withGuestCookie(rewriteToEvent(request, `/e/${eventSlug}`), guestToken)
+    }
+    if (pathname === '/card' || pathname.startsWith('/card/')) {
+      return withGuestCookie(rewriteToEvent(request, `/e/${eventSlug}/invite`), guestToken)
+    }
+    if (pathname === '/privacy' || pathname.startsWith('/privacy/')) {
+      return rewriteToEvent(request, `/e/${eventSlug}/privacy`)
+    }
+    if (pathname === '/terms' || pathname.startsWith('/terms/')) {
+      return rewriteToEvent(request, `/e/${eventSlug}/terms`)
+    }
+
     if (pathname === '/' || pathname === '' || pathname.startsWith(`/e/${eventSlug}`)) {
       if (pathname === '/' || pathname === '') {
-        return rewriteToEvent(request, `/e/${eventSlug}`)
+        return withGuestCookie(rewriteToEvent(request, `/e/${eventSlug}`), guestToken)
       }
-      return NextResponse.next()
+      return withGuestCookie(NextResponse.next(), guestToken)
     }
-    return rewriteToEvent(request, `/e/${eventSlug}`)
+    return withGuestCookie(rewriteToEvent(request, `/e/${eventSlug}`), guestToken)
   }
 
   if (!isPlatformManagedHost(host)) {
@@ -78,7 +148,10 @@ export default function middleware(request: NextRequest) {
   }
 
   if (pathname.startsWith('/e/')) {
-    return NextResponse.next()
+    const tokenOnApex = pathname.match(/^\/e\/[^/]+\/(?:rsvp|card|std|invite)\/([^/]+)\/?$/)
+    const guestToken =
+      tokenOnApex?.[1] || request.nextUrl.searchParams.get('token')?.trim() || null
+    return withGuestCookie(NextResponse.next(), guestToken)
   }
 
   if (
@@ -132,6 +205,14 @@ export const config = {
     '/std/:path*',
     '/invite',
     '/invite/:path*',
+    '/rsvp',
+    '/rsvp/:path*',
+    '/card',
+    '/card/:path*',
+    '/privacy',
+    '/privacy/:path*',
+    '/terms',
+    '/terms/:path*',
     '/BarBeni',
     '/BarBeni/:path*',
     '/e',
