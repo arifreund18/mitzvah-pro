@@ -19,7 +19,7 @@ Auth do studio + CRUD de eventos; wizard com preview ao vivo; template BarBeni c
 
 | Prioridade | Melhoria | Estado atual |
 |------------|----------|--------------|
-| **P1** | Inventário fiel do repo `bar-beni` (paridade 1:1) | Template inspirado, não 1:1 |
+| **P1** | Paridade funcional Bar-Beni → studio (sem alterar `bar-beni`) | Inventário + plano em [`PARIDADE-BARBENI.md`](./PARIDADE-BARBENI.md) e [`PLANO-IMPLEMENTACAO-PARIDADE.md`](./PLANO-IMPLEMENTACAO-PARIDADE.md) |
 | **P2** | Mais templates além do BarBeni | Contrato único, só `barbeni` |
 | **P2** | Analytics de RSVP | Contagem no detalhe do evento |
 | **P2** | i18n completo do conteúdo do evento | Chrome do site em 4 idiomas; textos do evento únicos |
@@ -482,7 +482,7 @@ Requisitos:
 P0 e o subdomínio `{slug}.mitzvah.pro` **já saíram** da lista (ver §0).
 
 ### P1
-1. Inventário real do repo bar-beni → schema 1:1  
+1. Paridade Bar-Beni no studio — ver [`PARIDADE-BARBENI.md`](./PARIDADE-BARBENI.md) + [`PLANO-IMPLEMENTACAO-PARIDADE.md`](./PLANO-IMPLEMENTACAO-PARIDADE.md) (Bar-Beni em produção permanece intocado) 
 
 ### P2
 8. Mais templates  
