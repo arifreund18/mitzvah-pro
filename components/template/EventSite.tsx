@@ -7,6 +7,7 @@ import {
   getLocalizedScheduleItem,
   getLocalizedStory,
 } from '@/lib/platform/i18n-content'
+import { scheduleItemsForGuest } from '@/lib/platform/schedule-visibility'
 import { templateUi } from '@/lib/platform/template-copy'
 import { googleCalendarUrl } from '@/lib/platform/calendar'
 import { ComingSoon } from '@/components/template/ComingSoon'
@@ -80,8 +81,10 @@ export function EventSite({
   const publishedFaq = config.faq.items
     .filter((item) => item.published !== false)
     .map((item) => getLocalizedFaqItem(config, locale, item))
-  const scheduleItems = config.schedule.items.map((item) =>
-    getLocalizedScheduleItem(config, locale, item),
+  const scheduleItems = scheduleItemsForGuest(
+    config.schedule.items.map((item) => getLocalizedScheduleItem(config, locale, item)),
+    guest,
+    mode,
   )
   const galleryItems = (config.media.galleryItems?.length
     ? config.media.galleryItems
@@ -291,9 +294,7 @@ export function EventSite({
         <div className="mx-auto max-w-3xl">
           <h2 className="font-display text-center text-3xl">{ui.schedule}</h2>
           <div className="mt-10 space-y-4">
-            {scheduleItems
-              .filter((item) => mode === 'preview' || item.visibility !== 'invite' || Boolean(guest))
-              .map((item) => (
+            {scheduleItems.map((item) => (
               <div
                 key={item.id}
                 className="rounded-2xl border border-white/10 p-5"

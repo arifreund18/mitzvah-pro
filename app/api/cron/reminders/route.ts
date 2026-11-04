@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getResend } from '@/lib/email/send'
+import { authorizeCron } from '@/lib/platform/cron-auth'
+import { daysUntilEventDate, eventTimeZone } from '@/lib/platform/event-tz'
+import { reminderCopy } from '@/lib/platform/guest-ui'
 import { eventSendFrom } from '@/lib/platform/mail-domain'
 import {
   appendEmailLog,
@@ -12,30 +15,13 @@ import type { Guest, PlatformEvent } from '@/lib/platform/types'
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
 
-function daysUntil(isoDate: string, now = new Date()): number | null {
-  if (!isoDate) return null
-  const target = new Date(`${isoDate}T12:00:00`)
-  if (Number.isNaN(target.getTime())) return null
-  const start = new Date(now)
-  start.setHours(12, 0, 0, 0)
-  const diff = Math.round((target.getTime() - start.getTime()) / (24 * 60 * 60 * 1000))
-  return diff
-}
-
 function guestEmails(guest: Guest): string[] {
   const list = guest.emails?.length ? guest.emails : guest.email ? [guest.email] : []
   return Array.from(new Set(list.map((e) => e.trim().toLowerCase()).filter(Boolean)))
 }
 
-function authorize(request: NextRequest): boolean {
-  const secret = process.env.CRON_SECRET
-  if (!secret) return process.env.NODE_ENV !== 'production'
-  const header = request.headers.get('authorization') || ''
-  return header === `Bearer ${secret}`
-}
-
 export async function GET(request: NextRequest) {
-  if (!authorize(request)) {
+  if (!authorizeCron(request)) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
   }
 
@@ -54,7 +40,7 @@ export async function GET(request: NextRequest) {
     if (event.status !== 'published') continue
     const reminders = event.config.reminders
     if (!reminders?.enabled) continue
-    const days = daysUntil(event.config.basics.date)
+    const days = daysUntilEventDate(event.config.basics.date)
     if (days === null) continue
 
     const windows: Array<{ days: number; enabled: boolean }> = [
@@ -103,7 +89,7 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  return NextResponse.json({ ok: true, processed: jobs.length, jobs })
+  return NextResponse.json({ ok: true, processed: jobs.length, jobs, tz: eventTimeZone() })
 }
 
 async function sendReminder({
@@ -121,17 +107,26 @@ async function sendReminder({
 }): Promise<{ status: string; resendId: string | null; error: string }> {
   const from = eventSendFrom(event.config) || process.env.RESEND_FROM_EMAIL
   const name = event.config.basics.honoreeName || 'Mitzvah'
-  const body =
-    event.config.reminders.message ||
-    `Reminder: ${name} is in ${days} day${days === 1 ? '' : 's'}. We can't wait to celebrate with ${guest.familyName || 'you'}.`
+  const locale = guest.inviteLocale || event.config.locales.default
+  const copy = reminderCopy(
+    locale,
+    name,
+    days,
+    guest.familyName,
+    event.config.reminders.message,
+  )
+  const dir = locale === 'he' ? 'rtl' : 'ltr'
   if (!resend || !from) {
     return { status: 'queued', resendId: null, error: 'email_unavailable' }
   }
   const result = await resend.emails.send({
     from,
     to,
-    subject: `Reminder — ${name} (${days}d)`,
-    html: `<p>${body.replace(/</g, '&lt;')}</p><p style="color:#666;font-size:12px">Job ${uid()}</p>`,
+    subject: copy.subject,
+    html: `<div dir="${dir}" style="font-family:Georgia,serif;line-height:1.5">
+      <p>${copy.body.replace(/</g, '&lt;')}</p>
+      <p style="color:#666;font-size:12px">Job ${uid()}</p>
+    </div>`,
   })
   if (result.error) {
     return { status: 'failed', resendId: null, error: result.error.message }

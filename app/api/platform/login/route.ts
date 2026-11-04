@@ -36,10 +36,27 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Credenciais inválidas' }, { status: 401 })
     }
     token = encodeUserSession(user.id, user.orgId, user.role)
-  } else if (password === dashboardPassword()) {
-    token = sessionToken()
   } else {
-    return NextResponse.json({ error: 'Credenciais inválidas' }, { status: 401 })
+    let expected: string
+    try {
+      expected = dashboardPassword()
+    } catch {
+      return NextResponse.json(
+        { error: 'Login admin indisponível: DASHBOARD_PASSWORD não configurada' },
+        { status: 503 },
+      )
+    }
+    if (password !== expected) {
+      return NextResponse.json({ error: 'Credenciais inválidas' }, { status: 401 })
+    }
+    try {
+      token = sessionToken()
+    } catch {
+      return NextResponse.json(
+        { error: 'Login admin indisponível: segredo de sessão não configurado' },
+        { status: 503 },
+      )
+    }
   }
 
   const res = NextResponse.json({ ok: true })

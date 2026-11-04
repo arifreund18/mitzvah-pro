@@ -10,12 +10,30 @@ function fnv1a(value: string): string {
   return (hash >>> 0).toString(16).padStart(8, '0')
 }
 
+export function isProductionEnv(): boolean {
+  return (
+    process.env.VERCEL_ENV === 'production' ||
+    process.env.NODE_ENV === 'production' ||
+    process.env.MITZVAH_REQUIRE_SECRETS === '1'
+  )
+}
+
 export function dashboardPassword(): string {
-  return process.env.DASHBOARD_PASSWORD || 'mitzvah'
+  const value = process.env.DASHBOARD_PASSWORD
+  if (value) return value
+  if (isProductionEnv()) {
+    throw new Error('DASHBOARD_PASSWORD is required in production')
+  }
+  return 'mitzvah'
 }
 
 export function sessionSecret(): string {
-  return process.env.DASHBOARD_SECRET || 'mitzvah-local-secret'
+  const value = process.env.DASHBOARD_SECRET
+  if (value) return value
+  if (isProductionEnv()) {
+    throw new Error('DASHBOARD_SECRET is required in production')
+  }
+  return 'mitzvah-local-secret'
 }
 
 export function sessionToken(): string {
@@ -33,7 +51,8 @@ export function encodeUserSession(userId: string, orgId: string, role: SessionAc
 
 export function readSession(value: string | undefined | null): SessionActor | null {
   if (!value) return null
-  if (value === sessionToken()) {
+  const adminToken = sessionToken()
+  if (adminToken && value === adminToken) {
     return { kind: 'admin', orgId: DEFAULT_ORG_ID, role: 'platform_admin' }
   }
   const dot = value.lastIndexOf('.')

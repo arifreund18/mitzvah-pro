@@ -248,16 +248,38 @@ export async function loadStoreFromRelational(db: Sql): Promise<PlatformStore | 
     unknown
   >[]
   const familyRows = (await db`SELECT * FROM families`) as unknown as Record<string, unknown>[]
+  const guestRows = (await db`
+    SELECT id, family_id, event_id, name, type, meal_choice, dietary_restrictions,
+           rsvp_status, sort_order
+    FROM guests ORDER BY sort_order ASC
+  `) as unknown as Record<string, unknown>[]
   const logRows = (await db`
     SELECT id, event_id, family_id, type, status, resend_id, to_email, error, sent_at
     FROM email_logs ORDER BY sent_at DESC LIMIT 5000
   `) as unknown as Record<string, unknown>[]
 
+  const peopleByFamily = new Map<string, Guest['people']>()
+  for (const row of guestRows) {
+    const familyId = String(row.family_id)
+    const list = peopleByFamily.get(familyId) || []
+    list.push({
+      id: String(row.id),
+      name: String(row.name || ''),
+      type: row.type === 'child' ? 'child' : 'adult',
+      status: (row.rsvp_status as Guest['status']) || 'pending',
+      meal: String(row.meal_choice || ''),
+      dietary: String(row.dietary_restrictions || ''),
+    })
+    peopleByFamily.set(familyId, list)
+  }
+
   const familiesByEvent = new Map<string, Guest[]>()
   for (const row of familyRows) {
     const eventId = String(row.event_id)
+    const familyId = String(row.id)
+    const peopleFromTable = peopleByFamily.get(familyId)
     const guest = normalizeGuest({
-      id: String(row.id),
+      id: familyId,
       familyName: String(row.family_name || ''),
       emails: (row.emails as string[]) || [],
       email: ((row.emails as string[]) || [])[0] || '',
@@ -268,7 +290,8 @@ export async function loadStoreFromRelational(db: Sql): Promise<PlatformStore | 
       notes: String(row.notes || ''),
       message: String(row.message || ''),
       token: String(row.token),
-      people: (row.people as Guest['people']) || [],
+      // Prefer normalized guests rows when present (relational SoT for people).
+      people: peopleFromTable?.length ? peopleFromTable : (row.people as Guest['people']) || [],
       partySize: Number(row.party_size) || 1,
       status: row.status as Guest['status'],
       meal: String(row.meal || ''),
