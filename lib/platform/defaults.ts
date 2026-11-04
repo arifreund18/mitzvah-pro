@@ -1,10 +1,40 @@
-import type { EventConfig, EventLocale, EventType, PlatformEvent } from './types'
+import type { CardDesign, EventConfig, EventLocale, EventType, PlatformEvent } from './types'
 import { generatedCopy } from './copy'
 import { DEFAULT_ORG_ID } from './auth'
 import { uid } from './ids'
 import { emptyMailDomain } from './mail-domain'
 
 export { typeLabel } from './copy'
+
+export function defaultCardDesign(): CardDesign {
+  return {
+    pageColor: '#1a2033',
+    pageTexture: '',
+    envelopeColor: '#c4a574',
+    envelopeLiner: '#f7f1e4',
+    sealUrl: '',
+    sealBg: '#22d3ee',
+    fontKey: 'georgia',
+    cardColor: '#f7f1e4',
+    cardTextColor: '#1c1630',
+    greetingColor: '#6a5b4c',
+    nameColor: '#1c1630',
+    bodyColor: '#3b2418',
+    bodySizePx: 16,
+    bodyBold: false,
+    panelPhotoUrl: '',
+    panelPhotoShape: 'circle',
+    mapUrl: '',
+    address1: '',
+    address2: '',
+    timeLabel: '',
+    placeLabel: '',
+    subject: '',
+    ctaView: '',
+    ctaCalendar: '',
+    ctaMap: '',
+  }
+}
 
 export function createDefaultConfig(partial?: {
   honoreeName?: string
@@ -24,6 +54,7 @@ export function createDefaultConfig(partial?: {
     partial?.locale && enabled.includes(partial.locale) ? partial.locale : enabled[0] ?? 'pt'
   const slug = partial?.slug || ''
   const copy = generatedCopy(locale, type, honoreeName, familyName)
+  const design = defaultCardDesign()
 
   return {
     basics: {
@@ -31,6 +62,7 @@ export function createDefaultConfig(partial?: {
       honoreeName,
       familyName,
       date: '',
+      startTime: '10:00',
       city: '',
       country: '',
     },
@@ -56,15 +88,29 @@ export function createDefaultConfig(partial?: {
           id: uid(),
           title: copy.ceremonyTitle,
           time: '10:00',
+          timeEnd: '',
+          date: '',
           place: '',
           address: '',
+          mapUrl: '',
+          dressCode: '',
+          notes: '',
+          dayLabel: '',
+          visibility: 'public',
         },
         {
           id: uid(),
           title: copy.receptionTitle,
           time: '19:00',
+          timeEnd: '',
+          date: '',
           place: '',
           address: '',
+          mapUrl: '',
+          dressCode: '',
+          notes: '',
+          dayLabel: '',
+          visibility: 'public',
         },
       ],
     },
@@ -78,15 +124,27 @@ export function createDefaultConfig(partial?: {
       phone: '',
       email: '',
       whatsapp: '',
+      people: [],
+      formEnabled: true,
+    },
+    travel: {
+      enabled: false,
+      airports: '',
+      currency: '',
+      transport: '',
+      emergency: '',
     },
     media: {
       heroUrl: '',
       gallery: [],
+      galleryItems: [],
+      ambientAudioUrl: '',
     },
     saveTheDate: {
       enabled: true,
       message: copy.stdMessage,
       envelopeLabel: copy.envelopeLabel,
+      design: { ...design, subject: copy.stdMessage },
     },
     invitation: {
       greeting: copy.greeting,
@@ -94,15 +152,36 @@ export function createDefaultConfig(partial?: {
       hostLine: copy.hostLine,
       sealLabel: 'Mitzvah',
       sealImageUrl: '',
+      intro: '',
+      design: { ...design },
     },
     rsvp: {
       deadline: '',
       meals: copy.meals,
       allowPlusOne: true,
       collectDietary: true,
+      collectMeal: true,
       notes: '',
+      publicFormEnabled: false,
+      openRsvpDefault: false,
+      notifyMode: 'instant',
+      notifyEmails: [],
+      confirmationMessage: '',
+    },
+    reminders: {
+      enabled: true,
+      d30: true,
+      d7: true,
+      d2: true,
+      onlyConfirmedForD7D2: true,
+      message: '',
     },
     faq: { items: [] },
+    legal: {
+      privacyHtml: '',
+      termsHtml: '',
+      comingSoon: false,
+    },
     domain: {
       slug,
       seoTitle: copy.seoTitle,
@@ -122,10 +201,11 @@ export function createSeedEvent(): PlatformEvent {
     familyName: 'Freund',
     type: 'bar',
     locale: 'pt',
-    enabled: ['pt', 'en'],
+    enabled: ['pt', 'en', 'es', 'he'],
     slug: 'beni',
   })
   config.basics.date = '2026-11-14'
+  config.basics.startTime = '10:00'
   config.basics.city = 'São Paulo'
   config.basics.country = 'Brasil'
   config.story.headline = 'Bar Mitzvah do Beni'
@@ -139,22 +219,43 @@ export function createSeedEvent(): PlatformEvent {
       id: uid(),
       title: 'Kabbalat Shabbat',
       time: '18:30',
+      timeEnd: '19:30',
+      date: '2026-11-13',
       place: 'Sinagoga',
       address: 'São Paulo',
+      mapUrl: '',
+      dressCode: '',
+      notes: '',
+      dayLabel: 'Sexta',
+      visibility: 'public',
     },
     {
       id: uid(),
       title: 'Shacharit & Torah',
       time: '09:00',
+      timeEnd: '12:00',
+      date: '2026-11-14',
       place: 'Sinagoga',
       address: 'São Paulo',
+      mapUrl: '',
+      dressCode: '',
+      notes: '',
+      dayLabel: 'Sábado',
+      visibility: 'public',
     },
     {
       id: uid(),
       title: 'Recepção',
       time: '20:00',
+      timeEnd: '23:00',
+      date: '2026-11-14',
       place: 'Salão',
       address: 'São Paulo',
+      mapUrl: '',
+      dressCode: 'Esporte fino',
+      notes: '',
+      dayLabel: 'Sábado',
+      visibility: 'invite',
     },
   ]
   config.venues.dressCode = 'Esporte fino / elegante'
@@ -165,6 +266,17 @@ export function createSeedEvent(): PlatformEvent {
     phone: '',
     email: 'mitzvah@mitzvah.pro',
     whatsapp: '',
+    people: [
+      {
+        id: uid(),
+        name: 'Mitzvah Pro',
+        phone: '',
+        email: 'mitzvah@mitzvah.pro',
+        whatsapp: '',
+        whatsappLabel: '',
+      },
+    ],
+    formEnabled: true,
   }
   config.venues.hotels = [
     {
@@ -174,6 +286,10 @@ export function createSeedEvent(): PlatformEvent {
       notes: 'Bloco de quartos sob consulta',
       walking: '8 min',
       mapUrl: '',
+      photoUrl: '',
+      stars: 4,
+      featured: true,
+      bookUrl: '',
     },
   ]
   config.places = [
@@ -184,6 +300,7 @@ export function createSeedEvent(): PlatformEvent {
       url: '',
       mapUrl: '',
       notes: 'Italiano casual, bom para o almoço de sexta.',
+      photoUrl: '',
     },
   ]
   config.saveTheDate.message = 'Reserve o shabat de 14 de novembro — Bar Mitzvah do Beni'
@@ -191,18 +308,26 @@ export function createSeedEvent(): PlatformEvent {
     'para celebrar a Bar Mitzvah do Beni. Sua presença torna este dia ainda mais especial.'
   config.rsvp.deadline = '2026-10-20'
   config.rsvp.notes = 'Por favor confirme também restrições alimentares.'
+  config.rsvp.publicFormEnabled = false
   config.faq.items = [
     {
       id: uid(),
       question: 'Tem dress code?',
       answer: 'Sim — esporte fino. Evite jeans rasgado e chinelo.',
+      published: true,
     },
     {
       id: uid(),
       question: 'Crianças são bem-vindas?',
       answer: 'Sim, com confirmação no RSVP.',
+      published: true,
     },
   ]
+  config.legal = {
+    privacyHtml: '<p>Respeitamos a privacidade dos convidados. Dados de RSVP são usados apenas para a organização do evento.</p>',
+    termsHtml: '<p>Este site é destinado aos convidados do evento. Conteúdo sujeito a alteração pelos anfitriões.</p>',
+    comingSoon: false,
+  }
   config.domain.seoTitle = 'Bar Mitzvah do Beni'
   config.domain.seoDescription = 'Save the date, convite e RSVP da celebração.'
 
@@ -227,11 +352,15 @@ export function createSeedEvent(): PlatformEvent {
         'story',
         'schedule',
         'venues',
+        'places',
         'media',
+        'faq',
+        'contact',
         'saveTheDate',
         'invitation',
         'rsvp',
-        'faq',
+        'reminders',
+        'legal',
         'domain',
       ],
     },

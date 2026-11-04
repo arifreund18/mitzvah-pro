@@ -10,21 +10,22 @@ export type WizardStepDef = {
   previewTarget: string
 }
 
-const STEP_META: Record<
-  WizardStepId,
-  { required: boolean; previewTarget: string }
-> = {
+const STEP_META: Record<WizardStepId, { required: boolean; previewTarget: string }> = {
   basics: { required: true, previewTarget: 'hero' },
   branding: { required: true, previewTarget: 'hero' },
   story: { required: true, previewTarget: 'story' },
   schedule: { required: true, previewTarget: 'schedule' },
   venues: { required: false, previewTarget: 'venues' },
+  places: { required: false, previewTarget: 'places' },
   media: { required: false, previewTarget: 'gallery' },
   faq: { required: false, previewTarget: 'faq' },
+  contact: { required: false, previewTarget: 'contact' },
   rsvp: { required: true, previewTarget: 'rsvp' },
   saveTheDate: { required: false, previewTarget: 'std' },
   invitation: { required: true, previewTarget: 'invite' },
+  reminders: { required: false, previewTarget: 'rsvp' },
   guestsBootstrap: { required: false, previewTarget: 'rsvp' },
+  legal: { required: false, previewTarget: 'hero' },
   domain: { required: true, previewTarget: 'hero' },
   review: { required: true, previewTarget: 'hero' },
 }
@@ -33,8 +34,8 @@ export function wizardSteps(locale: EventLocale): WizardStepDef[] {
   const ui = wizardUi(locale)
   return WIZARD_STEP_IDS.map((id) => ({
     id,
-    title: ui.steps[id].title,
-    subtitle: ui.steps[id].subtitle,
+    title: ui.steps[id]?.title || id,
+    subtitle: ui.steps[id]?.subtitle || '',
     ...STEP_META[id],
   }))
 }
