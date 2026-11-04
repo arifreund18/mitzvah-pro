@@ -60,6 +60,12 @@ CREATE TABLE IF NOT EXISTS families (
   notes TEXT NOT NULL DEFAULT '',
   message TEXT NOT NULL DEFAULT '',
   token TEXT NOT NULL UNIQUE,
+  -- Dual-write mirror of Guest.people (+ RSVP aggregates). Separate `guests` rows optional.
+  people JSONB NOT NULL DEFAULT '[]'::jsonb,
+  party_size INT NOT NULL DEFAULT 1,
+  status TEXT NOT NULL DEFAULT 'pending',
+  meal TEXT NOT NULL DEFAULT '',
+  dietary TEXT NOT NULL DEFAULT '',
   std_sent_at TIMESTAMPTZ,
   invite_sent_at TIMESTAMPTZ,
   std_opened_at TIMESTAMPTZ,

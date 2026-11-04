@@ -354,11 +354,33 @@ export type PlatformEvent = {
   wizard: WizardProgress
 }
 
+export type MailJobStatus = 'pending' | 'processing' | 'completed' | 'failed'
+
+export type MailJob = {
+  id: string
+  eventId: string
+  kind: 'std' | 'invite'
+  status: MailJobStatus
+  guestIds: string[]
+  pendingGuestIds: string[]
+  processed: number
+  succeeded: number
+  failed: number
+  errors: string[]
+  host: string
+  from: string
+  createdAt: string
+  updatedAt: string
+  attempts: number
+  lastError: string
+}
+
 export type PlatformStore = {
   orgs: Organization[]
   users: PlatformUser[]
   events: PlatformEvent[]
   emailLogs?: EmailLog[]
+  mailJobs?: MailJob[]
 }
 
 export type EmailLog = {

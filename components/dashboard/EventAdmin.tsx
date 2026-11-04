@@ -36,6 +36,57 @@ export function EventAdmin({ event }: { event: PlatformEvent }) {
     return { yes, no, pending, people, std, invite, total: guests.length }
   }, [guests])
 
+  async function pollSendJob(jobId: string, kind: 'std' | 'invite') {
+    const maxAttempts = 120
+    for (let i = 0; i < maxAttempts; i += 1) {
+      const statusRes = await fetch(
+        `/api/platform/events/${event.id}/send/status?jobId=${encodeURIComponent(jobId)}`,
+      )
+      const status = (await statusRes.json().catch(() => null)) as {
+        error?: string
+        status?: string
+        total?: number
+        processed?: number
+        succeeded?: number
+        failed?: number
+        remaining?: number
+        percent?: number
+        done?: boolean
+      } | null
+      if (!statusRes.ok) {
+        setMessageTone('err')
+        setMessage(status?.error || 'Falha ao consultar progresso do envio')
+        setBusy('')
+        return
+      }
+      setMessage(
+        `Fila ${kind === 'std' ? 'STD' : 'convites'}: ${status?.processed || 0}/${status?.total || 0} (${status?.percent || 0}%)` +
+          (status?.failed ? ` · ${status.failed} falha(s)` : ''),
+      )
+      if (status?.done || status?.status === 'completed' || status?.status === 'failed') {
+        setMessageTone(status.failed || status.status === 'failed' ? 'err' : 'ok')
+        setMessage(
+          `Envio concluído: ${status.succeeded || 0} enviado(s)` +
+            (status.failed ? ` · ${status.failed} falha(s)` : ''),
+        )
+        setBusy('')
+        router.refresh()
+        return
+      }
+      if ((status?.remaining || 0) > 0) {
+        void fetch(`/api/platform/events/${event.id}/send/process`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ jobId }),
+        }).catch(() => undefined)
+      }
+      await new Promise((resolve) => setTimeout(resolve, 1500))
+    }
+    setMessageTone('err')
+    setMessage('Tempo esgotado à espera da fila de envio')
+    setBusy('')
+  }
+
   async function send(kind: 'std' | 'invite') {
     setBusy(kind)
     setMessage('')
@@ -52,14 +103,24 @@ export function EventAdmin({ event }: { event: PlatformEvent }) {
       failed?: number
       local?: boolean
       from?: string
+      queued?: boolean
+      jobId?: string
+      total?: number
     } | null
-    setBusy('')
     if (!res.ok) {
+      setBusy('')
       setMessageTone('err')
       setMessage(data?.error || 'Não foi possível enviar')
       router.refresh()
       return
     }
+    if (data?.queued && data.jobId) {
+      setMessageTone('ok')
+      setMessage(`Fila criada: 0/${data.total || 0} — a processar…`)
+      await pollSendJob(data.jobId, kind)
+      return
+    }
+    setBusy('')
     setMessageTone(data?.local || data?.failed ? 'err' : 'ok')
     if (data?.local) {
       setMessage(data.warning || `${data.sent || 0} marcado(s) localmente, sem envio real`)
@@ -228,6 +289,12 @@ export function EventAdmin({ event }: { event: PlatformEvent }) {
           className="rounded-full border border-white/20 px-4 py-2 text-sm hover:bg-white/10"
         >
           Exportar CSV
+        </a>
+        <a
+          href={`/api/platform/events/${event.id}/guests/export?format=xlsx`}
+          className="rounded-full border border-white/20 px-4 py-2 text-sm hover:bg-white/10"
+        >
+          Exportar XLSX
         </a>
       </div>
       <div className="mt-6 overflow-x-auto rounded-2xl border border-white/10">

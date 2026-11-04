@@ -1,14 +1,37 @@
 import { NextResponse } from 'next/server'
-import { getEvent, markMailSent, updateEvent } from '@/lib/platform/store'
+import { getEvent, markMailSent, updateEvent, appendEmailLog } from '@/lib/platform/store'
 import { requireEventAccess } from '@/lib/platform/session'
 import { getResend } from '@/lib/email/send'
 import { provisionEventMailDomain, refreshEventMailDomain } from '@/lib/email/provision-domain'
 import { eventSendFrom } from '@/lib/platform/mail-domain'
 import { mailHtml, mailSubject } from '@/lib/platform/mail'
+import { createMailJob, MAIL_BATCH_SIZE } from '@/lib/platform/mail-queue'
+import type { EventConfig, Guest } from '@/lib/platform/types'
 
 type Ctx = { params: Promise<{ id: string }> }
 
 export const maxDuration = 30
+
+async function sendOne(opts: {
+  resend: NonNullable<ReturnType<typeof getResend>>
+  from: string
+  kind: 'std' | 'invite'
+  config: EventConfig
+  host: string
+  guest: Guest
+}): Promise<{ ok: boolean; resendId: string | null; error: string }> {
+  const result = await opts.resend.emails.send({
+    from: opts.from,
+    to: opts.guest.email,
+    subject: mailSubject(opts.kind, opts.config, opts.guest),
+    html: mailHtml(opts.kind, opts.config, opts.host, opts.guest),
+  })
+  if (result.error) {
+    return { ok: false, resendId: null, error: result.error.message }
+  }
+  const data = result.data as { id?: string } | null
+  return { ok: true, resendId: data?.id || null, error: '' }
+}
 
 export async function POST(request: Request, ctx: Ctx) {
   const { id } = await ctx.params
@@ -68,6 +91,16 @@ export async function POST(request: Request, ctx: Ctx) {
       kind,
       targets.map((guest) => guest.id),
     )
+    for (const guest of targets) {
+      await appendEmailLog({
+        eventId: id,
+        familyId: guest.id,
+        type: kind,
+        status: 'local',
+        toEmail: guest.email,
+        error: 'RESEND_API_KEY ausente',
+      })
+    }
     return NextResponse.json({
       event: marked?.event,
       sent: marked?.sent || 0,
@@ -89,19 +122,59 @@ export async function POST(request: Request, ctx: Ctx) {
     )
   }
 
+  // Large sends: enqueue and kick background processor
+  if (targets.length > MAIL_BATCH_SIZE) {
+    const job = await createMailJob({
+      eventId: id,
+      kind,
+      guestIds: targets.map((guest) => guest.id),
+      host,
+      from,
+    })
+    const processUrl = new URL(`/api/platform/events/${id}/send/process`, request.url)
+    const cookie = request.headers.get('cookie') || ''
+    void fetch(processUrl.toString(), {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(cookie ? { cookie } : {}),
+      },
+      body: JSON.stringify({ jobId: job.id }),
+    }).catch(() => undefined)
+
+    return NextResponse.json({
+      queued: true,
+      jobId: job.id,
+      total: targets.length,
+      from,
+      mail: config.domain.mail,
+    })
+  }
+
   const deliveredIds: string[] = []
   const errors: string[] = []
   for (const guest of targets) {
-    const result = await resend.emails.send({
-      from,
-      to: guest.email,
-      subject: mailSubject(kind, config),
-      html: mailHtml(kind, config, host, guest),
-    })
-    if (!result.error) {
+    const result = await sendOne({ resend, from, kind, config, host, guest })
+    if (result.ok) {
       deliveredIds.push(guest.id)
+      await appendEmailLog({
+        eventId: id,
+        familyId: guest.id,
+        type: kind,
+        status: 'sent',
+        toEmail: guest.email,
+        resendId: result.resendId,
+      })
     } else {
-      errors.push(`${guest.email}: ${result.error.message}`)
+      errors.push(`${guest.email}: ${result.error}`)
+      await appendEmailLog({
+        eventId: id,
+        familyId: guest.id,
+        type: kind,
+        status: 'failed',
+        toEmail: guest.email,
+        error: result.error,
+      })
     }
   }
 

@@ -6,6 +6,7 @@ import { createSeedEvent } from './defaults'
 import { DEFAULT_ORG_ID } from './auth'
 import { hashPassword } from './password'
 import { normalizeEvent } from './normalize'
+import { loadStoreFromRelational, syncStoreToRelational } from './relational'
 import type { Organization, PlatformStore, PlatformUser } from './types'
 
 export type StorageDriver = 'postgres' | 'blob' | 'file'
@@ -39,7 +40,13 @@ function seedOwner(): PlatformUser {
 }
 
 function emptyStore(): PlatformStore {
-  return { orgs: [defaultOrg()], users: [seedOwner()], events: [createSeedEvent()], emailLogs: [] }
+  return {
+    orgs: [defaultOrg()],
+    users: [seedOwner()],
+    events: [createSeedEvent()],
+    emailLogs: [],
+    mailJobs: [],
+  }
 }
 
 function parseStore(raw: unknown): PlatformStore {
@@ -52,6 +59,7 @@ function parseStore(raw: unknown): PlatformStore {
     users,
     events: parsed.events.map((event) => normalizeEvent(event)),
     emailLogs: Array.isArray(parsed.emailLogs) ? parsed.emailLogs : [],
+    mailJobs: Array.isArray(parsed.mailJobs) ? parsed.mailJobs : [],
   }
 }
 
@@ -113,11 +121,20 @@ async function ensurePostgresTable() {
       sent_at TIMESTAMPTZ NOT NULL DEFAULT now()
     )
   `
+  const { ensureRelationalSchema } = await import('./relational')
+  await ensureRelationalSchema(sql())
 }
 
 async function loadPostgres(): Promise<PlatformStore> {
   await ensurePostgresTable()
   const db = sql()
+  // Prefer relational tables when populated (P0 dual-read).
+  try {
+    const fromTables = await loadStoreFromRelational(db)
+    if (fromTables && fromTables.events.length) return fromTables
+  } catch {
+    // fall through to JSON blob row
+  }
   const rows = (await db`
     SELECT data FROM platform_store WHERE id = ${PG_ROW_ID} LIMIT 1
   `) as unknown as { data: PlatformStore }[]
@@ -126,7 +143,14 @@ async function loadPostgres(): Promise<PlatformStore> {
     await savePostgres(initial)
     return initial
   }
-  return parseStore(rows[0].data)
+  const store = parseStore(rows[0].data)
+  // One-shot migrate JSON → relational when tables empty.
+  try {
+    await syncStoreToRelational(db, store)
+  } catch {
+    // non-fatal: JSON remains source of truth until schema settles
+  }
+  return store
 }
 
 async function savePostgres(store: PlatformStore): Promise<void> {
@@ -137,6 +161,12 @@ async function savePostgres(store: PlatformStore): Promise<void> {
     VALUES (${PG_ROW_ID}, ${db.json(store as never)}, now())
     ON CONFLICT (id) DO UPDATE SET data = EXCLUDED.data, updated_at = now()
   `
+  // Dual-write operational rows (orgs/users/events/families/logs).
+  try {
+    await syncStoreToRelational(db, store)
+  } catch {
+    // JSON write already succeeded; relational sync retried on next save
+  }
 }
 
 async function loadBlob(): Promise<PlatformStore> {
