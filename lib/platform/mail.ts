@@ -1,4 +1,5 @@
 import { google } from './calendar'
+import { pageBackgroundCss } from './card-background'
 import { typeLabel } from './copy'
 import { eventPublicUrl, protocolFor } from './site-url'
 import type { CardDesign, EventConfig, EventLocale, Guest } from './types'
@@ -160,9 +161,11 @@ export function mailHtml(
       </td></tr>`
     : ''
 
+  const pageBgCss = pageBackgroundCss(design, escapeHtml)
+
   return `<!doctype html>
 <html lang="${escapeHtml(locale)}" dir="${dir}">
-<body style="margin:0;background:${escapeHtml(design.pageColor || '#1a2033')};font-family:${escapeHtml(font)};color:${escapeHtml(textColor)};" dir="${dir}">
+<body style="margin:0;${pageBgCss}font-family:${escapeHtml(font)};color:${escapeHtml(textColor)};" dir="${dir}">
   <table width="100%" cellpadding="0" cellspacing="0" style="padding:32px 12px;" dir="${dir}">
     <tr><td align="center">
       <table width="480" cellpadding="0" cellspacing="0" style="background:${escapeHtml(cardBg)};border-radius:24px;padding:40px 32px;text-align:center;font-family:${escapeHtml(font)};">

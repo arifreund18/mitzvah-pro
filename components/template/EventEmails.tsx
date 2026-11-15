@@ -1,8 +1,11 @@
 import type { CSSProperties, ReactNode } from 'react'
 import { formatEventDate, typeLabel, wizardUi } from '@/lib/platform/copy'
+import { pageBackgroundStyle } from '@/lib/platform/card-background'
 import { templateUi } from '@/lib/platform/template-copy'
 import { THEME_PRESETS } from '@/components/template/theme-presets'
 import type { CardDesign, EventConfig, EventLocale } from '@/lib/platform/types'
+
+export { pageBackgroundStyle }
 
 function fontStack(fontKey?: string, locale?: EventLocale): string {
   if (locale === 'he') return '"Noto Sans Hebrew", Arial, sans-serif'
@@ -240,6 +243,7 @@ export function EmailChrome({
 }) {
   const ui = templateUi(config.locales.default)
   const name = config.basics.honoreeName || 'Mitzvah.pro'
+  const design = kind === 'std' ? config.saveTheDate.design : config.invitation.design
   const subject =
     kind === 'std'
       ? `Save the Date — ${name}`
@@ -255,7 +259,9 @@ export function EmailChrome({
           <p className="mt-1 text-white/70">{ui.toGuests}</p>
           <p className="mt-2 font-medium text-white">{subject}</p>
         </div>
-        <div className="bg-[#cfc6b4] px-4 py-10">{children}</div>
+        <div className="px-4 py-10" style={pageBackgroundStyle(design)}>
+          {children}
+        </div>
       </div>
     </div>
   )
