@@ -1,7 +1,13 @@
+import { redirect } from 'next/navigation'
 import { DashboardShell } from '@/components/dashboard/DashboardShell'
 import { NewEventForm } from '@/components/dashboard/NewEventForm'
+import { actorSeesAllOrgEvents } from '@/lib/platform/access'
+import { currentActor } from '@/lib/platform/session'
 
-export default function NewEventPage() {
+export default async function NewEventPage() {
+  const actor = await currentActor()
+  if (!actorSeesAllOrgEvents(actor)) redirect('/dashboard')
+
   return (
     <DashboardShell>
       <h1 className="font-display text-3xl">Novo evento</h1>

@@ -45,6 +45,7 @@ function seedOwner(): PlatformUser {
     passwordHash: hashPassword(ownerPassword()),
     role: 'org_owner',
     orgId: DEFAULT_ORG_ID,
+    eventIds: [],
     createdAt: now,
   }
 }
@@ -59,11 +60,22 @@ function emptyStore(): PlatformStore {
   }
 }
 
+function normalizeUser(user: PlatformUser): PlatformUser {
+  return {
+    ...user,
+    eventIds: Array.isArray(user.eventIds)
+      ? [...new Set(user.eventIds.map((id) => String(id || '').trim()).filter(Boolean))]
+      : [],
+  }
+}
+
 function parseStore(raw: unknown): PlatformStore {
   const parsed = raw as PlatformStore
   if (!parsed || !Array.isArray(parsed.events)) return emptyStore()
   const orgs = Array.isArray(parsed.orgs) && parsed.orgs.length ? parsed.orgs : [defaultOrg()]
-  const users = Array.isArray(parsed.users) && parsed.users.length ? parsed.users : [seedOwner()]
+  const users = (Array.isArray(parsed.users) && parsed.users.length ? parsed.users : [seedOwner()]).map(
+    normalizeUser,
+  )
   return {
     orgs,
     users,

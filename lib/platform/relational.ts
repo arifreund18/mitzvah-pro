@@ -21,8 +21,10 @@ export async function ensureRelationalSchema(db: Sql): Promise<void> {
       name TEXT NOT NULL,
       password_hash TEXT NOT NULL,
       role TEXT NOT NULL,
+      event_ids TEXT[] NOT NULL DEFAULT '{}',
       created_at TIMESTAMPTZ NOT NULL DEFAULT now()
     );
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS event_ids TEXT[] NOT NULL DEFAULT '{}';
     CREATE TABLE IF NOT EXISTS events (
       id TEXT PRIMARY KEY,
       org_id TEXT NOT NULL REFERENCES orgs(id) ON DELETE CASCADE,
@@ -128,14 +130,18 @@ export async function syncStoreToRelational(db: Sql, store: PlatformStore): Prom
 
   for (const user of store.users) {
     await db`
-      INSERT INTO users (id, org_id, email, name, password_hash, role, created_at)
-      VALUES (${user.id}, ${user.orgId}, ${user.email}, ${user.name}, ${user.passwordHash}, ${user.role}, ${user.createdAt})
+      INSERT INTO users (id, org_id, email, name, password_hash, role, event_ids, created_at)
+      VALUES (
+        ${user.id}, ${user.orgId}, ${user.email}, ${user.name}, ${user.passwordHash}, ${user.role},
+        ${user.eventIds || []}, ${user.createdAt}
+      )
       ON CONFLICT (id) DO UPDATE SET
         org_id = EXCLUDED.org_id,
         email = EXCLUDED.email,
         name = EXCLUDED.name,
         password_hash = EXCLUDED.password_hash,
-        role = EXCLUDED.role
+        role = EXCLUDED.role,
+        event_ids = EXCLUDED.event_ids
     `
   }
 
@@ -233,7 +239,7 @@ export async function loadStoreFromRelational(db: Sql): Promise<PlatformStore | 
     created_at: string
   }[]
   const users = (await db`
-    SELECT id, org_id, email, name, password_hash, role, created_at FROM users
+    SELECT id, org_id, email, name, password_hash, role, event_ids, created_at FROM users
   `) as unknown as {
     id: string
     org_id: string
@@ -241,6 +247,7 @@ export async function loadStoreFromRelational(db: Sql): Promise<PlatformStore | 
     name: string
     password_hash: string
     role: string
+    event_ids: string[] | null
     created_at: string
   }[]
   const eventRows = (await db`SELECT * FROM events ORDER BY updated_at DESC`) as unknown as Record<
@@ -346,6 +353,7 @@ export async function loadStoreFromRelational(db: Sql): Promise<PlatformStore | 
       name: u.name,
       passwordHash: u.password_hash,
       role: u.role as PlatformStore['users'][number]['role'],
+      eventIds: Array.isArray(u.event_ids) ? u.event_ids.map(String) : [],
       createdAt: String(u.created_at),
     })),
     events,

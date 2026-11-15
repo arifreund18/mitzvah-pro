@@ -1,14 +1,17 @@
 import { NextResponse } from 'next/server'
+import { actorAllowedEventIds, actorSeesAllOrgEvents } from '@/lib/platform/access'
 import { actorOrgId, currentActor, requireSession } from '@/lib/platform/session'
 import { resolveLocales } from '@/lib/platform/locales'
 import { platformApiError } from '@/lib/platform/api-error'
-import { createEvent, listEvents } from '@/lib/platform/store'
+import { createEvent, getUser, listEvents } from '@/lib/platform/store'
 
 export async function GET() {
   const denied = await requireSession()
   if (denied) return denied
   const actor = await currentActor()
-  const events = await listEvents(actorOrgId(actor))
+  const user = actor?.kind === 'user' ? await getUser(actor.userId) : null
+  const eventIds = actorSeesAllOrgEvents(actor) ? null : actorAllowedEventIds(actor, user)
+  const events = await listEvents(actorOrgId(actor), eventIds)
   return NextResponse.json({ events })
 }
 
@@ -16,6 +19,9 @@ export async function POST(request: Request) {
   const denied = await requireSession()
   if (denied) return denied
   const actor = await currentActor()
+  if (!actorSeesAllOrgEvents(actor)) {
+    return NextResponse.json({ error: 'Sem permissão para criar eventos' }, { status: 403 })
+  }
   const body = (await request.json().catch(() => null)) as {
     honoreeName?: string
     familyName?: string
