@@ -24,14 +24,20 @@ export function pageBackgroundStyle(design: CardDesign | undefined): PageBackgro
   return { backgroundColor: pageColor }
 }
 
-/** Inline CSS for HTML email body background (pageColor + optional pageTexture). */
+/** Only remote http(s) textures belong in outbound email HTML — data: URLs blow past client size limits and break rendering (Gmail shows raw source). */
+export function isEmailSafeImageUrl(value: string | undefined | null): boolean {
+  const url = value?.trim() || ''
+  return /^https?:\/\//i.test(url)
+}
+
+/** Inline CSS for HTML email body background (pageColor + optional remote pageTexture). */
 export function pageBackgroundCss(
   design: Pick<CardDesign, 'pageColor' | 'pageTexture'> | undefined,
   escapeHtml: (value: string) => string,
 ): string {
   const pageColor = design?.pageColor || '#1a2033'
   const pageTexture = design?.pageTexture?.trim() || ''
-  if (!pageTexture) return `background:${escapeHtml(pageColor)};`
+  if (!isEmailSafeImageUrl(pageTexture)) return `background:${escapeHtml(pageColor)};`
   const pageTextureCss = escapeHtml(pageTexture).replace(/'/g, '%27').replace(/[\r\n]/g, '')
   return `background-color:${escapeHtml(pageColor)};background-image:url('${pageTextureCss}');background-size:cover;background-position:center;background-repeat:no-repeat;`
 }

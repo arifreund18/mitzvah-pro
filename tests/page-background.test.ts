@@ -102,4 +102,18 @@ describe('pageBackgroundCss', () => {
   it('falls back to solid pageColor', () => {
     assert.equal(pageBackgroundCss(design({ pageColor: '#abcdef' }), escapeHtml), 'background:#abcdef;')
   })
+
+  it('ignores data: texture URLs in email CSS (Gmail size/parse break)', () => {
+    const css = pageBackgroundCss(
+      design({
+        pageColor: '#FFFFF0',
+        pageTexture: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
+      }),
+      escapeHtml,
+    )
+    assert.equal(css, 'background:#FFFFF0;')
+    assert.doesNotMatch(css, /background-image/)
+    assert.doesNotMatch(css, /data:image/)
+  })
 })
+
