@@ -16,11 +16,12 @@ import {
   type EventLocale,
   type Guest,
   type NotifyMode,
+  type ProductMode,
 } from '@/lib/platform/types'
 import { LOCALE_OPTIONS } from '@/lib/platform/locales'
 import { normalizeGuest } from '@/lib/platform/normalize'
 import { eventPublicHostLabel } from '@/lib/platform/site-url'
-import { reviewIssues } from '@/lib/platform/wizard'
+import { applyProductMode, reviewIssues } from '@/lib/platform/wizard'
 import { GuestCsvImport } from '@/components/dashboard/GuestCsvImport'
 import { GooglePhotosImport } from '@/components/wizard/GooglePhotosImport'
 
@@ -85,8 +86,41 @@ export const WizardStepForm = forwardRef<
     const wizardLocales = config.locales.enabled.length
       ? config.locales.enabled
       : LOCALE_OPTIONS.map((item) => item.value)
+    const mode = (config.productMode || 'site') as ProductMode
     return (
       <div className="space-y-5">
+        <Field label={ui.productMode}>
+          <div className="grid gap-2 sm:grid-cols-2">
+            {(
+              [
+                {
+                  value: 'site' as const,
+                  title: ui.productModeSite,
+                  hint: ui.productModeSiteHint,
+                },
+                {
+                  value: 'invite_only' as const,
+                  title: ui.productModeInvite,
+                  hint: ui.productModeInviteHint,
+                },
+              ] as const
+            ).map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                onClick={() => patch((draft) => applyProductMode(draft, option.value))}
+                className={`rounded-xl border px-3 py-3 text-start text-sm ${
+                  mode === option.value
+                    ? 'border-cyan-400 bg-cyan-400/10 text-cyan-100'
+                    : 'border-white/15 bg-white/5 text-white/80'
+                }`}
+              >
+                <span className="block font-medium">{option.title}</span>
+                <span className="text-xs text-white/40">{option.hint}</span>
+              </button>
+            ))}
+          </div>
+        </Field>
         <Field label={ui.language} hint={ui.languageHint}>
           <div className="grid grid-cols-2 gap-2">
             {LOCALE_OPTIONS.filter((option) => wizardLocales.includes(option.value)).map((option) => (
@@ -398,8 +432,28 @@ export const WizardStepForm = forwardRef<
             }
           />
         </Field>
-        {config.venues.hotels.map((hotel) => (
+        {config.venues.hotels.map((hotel, index) => (
           <div key={hotel.id} className="space-y-2 rounded-2xl border border-white/10 p-4">
+            <div className="mb-1 flex items-center justify-between text-xs text-white/40">
+              <span>
+                {ui.hotels} {index + 1}
+              </span>
+              <button
+                type="button"
+                className="text-rose-300"
+                onClick={() =>
+                  set({
+                    ...config,
+                    venues: {
+                      ...config.venues,
+                      hotels: config.venues.hotels.filter((row) => row.id !== hotel.id),
+                    },
+                  })
+                }
+              >
+                {ui.remove}
+              </button>
+            </div>
             <TextInput
               placeholder={ui.hotels}
               value={hotel.name}
@@ -407,10 +461,23 @@ export const WizardStepForm = forwardRef<
             />
             <div className="grid gap-2 sm:grid-cols-2">
               <TextInput
-                placeholder={ui.walking}
+                placeholder={ui.travelTime}
                 value={hotel.walking}
                 onChange={(e) => patchHotel(hotel.id, { walking: e.target.value })}
               />
+              <select
+                aria-label={ui.travelMode}
+                value={hotel.travelMode === 'drive' ? 'drive' : 'walk'}
+                onChange={(e) =>
+                  patchHotel(hotel.id, {
+                    travelMode: e.target.value === 'drive' ? 'drive' : 'walk',
+                  })
+                }
+                className="w-full rounded-xl border border-white/15 bg-[#12182a] px-3 py-2.5 text-sm"
+              >
+                <option value="walk">walk — {ui.walking}</option>
+                <option value="drive">drive — {ui.driving}</option>
+              </select>
               <TextInput
                 placeholder="URL"
                 value={hotel.url}
@@ -421,6 +488,25 @@ export const WizardStepForm = forwardRef<
                 value={hotel.photoUrl}
                 onChange={(e) => patchHotel(hotel.id, { photoUrl: e.target.value })}
               />
+              <label className="flex cursor-pointer items-center justify-center rounded-xl border border-dashed border-white/20 bg-white/5 px-3 py-2 text-sm text-white/70 hover:border-cyan-400/50">
+                {ui.heroUpload}
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="sr-only"
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0]
+                    e.target.value = ''
+                    if (!file) return
+                    try {
+                      const url = await readFileAsDataUrl(file, ui.imageTooBig)
+                      patchHotel(hotel.id, { photoUrl: url })
+                    } catch (err) {
+                      alert(err instanceof Error ? err.message : ui.uploadFail)
+                    }
+                  }}
+                />
+              </label>
               <TextInput
                 placeholder="Book URL"
                 value={hotel.bookUrl}
@@ -473,6 +559,7 @@ export const WizardStepForm = forwardRef<
                     url: '',
                     notes: '',
                     walking: '',
+                    travelMode: 'walk',
                     mapUrl: '',
                     photoUrl: '',
                     stars: 0,
@@ -1051,8 +1138,27 @@ export const WizardStepForm = forwardRef<
   if (step === 'faq') {
     return (
       <div className="space-y-4">
-        {config.faq.items.map((item) => (
+        {config.faq.items.map((item, index) => (
           <div key={item.id} className="space-y-2 rounded-2xl border border-white/10 p-4">
+            <div className="mb-1 flex items-center justify-between text-xs text-white/40">
+              <span>
+                {ui.question} {index + 1}
+              </span>
+              <button
+                type="button"
+                className="text-rose-300"
+                onClick={() =>
+                  set({
+                    ...config,
+                    faq: {
+                      items: config.faq.items.filter((row) => row.id !== item.id),
+                    },
+                  })
+                }
+              >
+                {ui.remove}
+              </button>
+            </div>
             <TextInput
               placeholder={ui.question}
               value={item.question}

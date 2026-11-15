@@ -19,7 +19,9 @@ export function LivePreview({
   const scroller = useRef<HTMLDivElement>(null)
   const ui = wizardUi(config.locales.default)
   const mail = templateUi(config.locales.default)
-  const target = wizardSteps(config.locales.default).find((item) => item.id === step)?.previewTarget ?? 'hero'
+  const target =
+    wizardSteps(config.locales.default, config.productMode).find((item) => item.id === step)
+      ?.previewTarget ?? 'hero'
   const emailKind = step === 'saveTheDate' ? 'std' : step === 'invitation' ? 'invite' : null
 
   useEffect(() => {

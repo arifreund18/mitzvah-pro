@@ -21,10 +21,12 @@ export async function POST(request: Request) {
     familyName?: string
     locale?: string
     enabled?: string[]
+    productMode?: string
   } | null
   const honoreeName = body?.honoreeName?.trim()
   const familyName = body?.familyName?.trim()
   const locales = resolveLocales(body?.enabled, body?.locale)
+  const productMode = body?.productMode === 'invite_only' ? 'invite_only' : 'site'
   if (!honoreeName) {
     return NextResponse.json({ error: 'Informe o nome do celebrante' }, { status: 400 })
   }
@@ -35,6 +37,7 @@ export async function POST(request: Request) {
       locale: locales.default,
       enabled: locales.enabled,
       orgId: actor?.orgId,
+      productMode,
     })
     return NextResponse.json({ event })
   } catch (error) {

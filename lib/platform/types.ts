@@ -68,12 +68,17 @@ export type ScheduleItem = {
   visibility: 'public' | 'invite'
 }
 
+export type HotelTravelMode = 'walk' | 'drive'
+
 export type Hotel = {
   id: string
   name: string
   url: string
   notes: string
+  /** Duration / notes, e.g. "8 min". Mode is `travelMode`. */
   walking: string
+  /** How guests reach the venue from this hotel. Defaults to walk for legacy events. */
+  travelMode: HotelTravelMode
   mapUrl: string
   photoUrl: string
   stars: number
@@ -142,6 +147,8 @@ export type CardDesign = {
   cardColor: string
   cardTextColor: string
   cardImageUrl: string
+  /** CSS background-position for cardImageUrl, e.g. "50% 30%" or "center". */
+  cardImagePosition: string
   // Typography
   greetingColor: string
   nameColor: string
@@ -157,6 +164,8 @@ export type CardDesign = {
   // Panel photo
   panelPhotoUrl: string
   panelPhotoShape: 'circle' | 'rectangle'
+  /** CSS object-position for panel photo, e.g. "50% 30%" or "center". */
+  panelPhotoPosition: string
   // Location / labels
   mapUrl: string
   address1: string
@@ -186,7 +195,15 @@ export type CardDesign = {
   suggestedPalette: string
 }
 
+/** Full site + invites, or invitation/email flow without site-building steps. */
+export type ProductMode = 'site' | 'invite_only'
+
 export type EventConfig = {
+  /**
+   * `site` = wizard completo (site + convites).
+   * `invite_only` = só convite/STD/RSVP/convidados (sem etapas do site).
+   */
+  productMode: ProductMode
   basics: {
     type: EventType
     honoreeName: string

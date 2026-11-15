@@ -7,29 +7,48 @@ import { WizardStepForm, type WizardStepFormHandle } from '@/components/wizard/W
 import { applyGeneratedPatch, wizardUi } from '@/lib/platform/copy'
 import { LOCALE_OPTIONS } from '@/lib/platform/locales'
 import { eventApexPathUrl } from '@/lib/platform/site-url'
-import { adjacentStep, normalizeWizardStep, reviewIssues, wizardSteps } from '@/lib/platform/wizard'
+import {
+  adjacentStep,
+  normalizeWizardStep,
+  reviewIssues,
+  wizardSteps,
+} from '@/lib/platform/wizard'
 import type { EventConfig, EventLocale, Guest, PlatformEvent, WizardStepId } from '@/lib/platform/types'
 import { cn } from '@/lib/utils'
 
 export function WizardStudio({ event }: { event: PlatformEvent }) {
   const [config, setConfig] = useState<EventConfig>(event.config)
   const [guests, setGuests] = useState<Guest[]>(event.guests)
-  const [step, setStep] = useState<WizardStepId>(normalizeWizardStep(event.wizard.currentStep))
+  const [step, setStep] = useState<WizardStepId>(() =>
+    normalizeWizardStep(event.wizard.currentStep, event.config.productMode),
+  )
   const [saveState, setSaveState] = useState<'saved' | 'saving' | 'error'>('saved')
   const [mobileTab, setMobileTab] = useState<'form' | 'preview'>('form')
   const [publishError, setPublishError] = useState('')
   const [publishing, setPublishing] = useState(false)
-  const completed = useRef(new Set<WizardStepId>(event.wizard.completedSteps.map(normalizeWizardStep)))
+  const completed = useRef(
+    new Set<WizardStepId>(
+      event.wizard.completedSteps.map((id) => normalizeWizardStep(id, event.config.productMode)),
+    ),
+  )
   const skipFirst = useRef(true)
   const stepForm = useRef<WizardStepFormHandle>(null)
 
   const ui = wizardUi(config.locales.default)
-  const steps = wizardSteps(config.locales.default)
+  const mode = config.productMode || 'site'
+  const steps = wizardSteps(config.locales.default, mode)
   const def = steps.find((item) => item.id === step) ?? steps[0]
   const issues = useMemo(() => reviewIssues(config), [config])
-  const prev = adjacentStep(step, -1)
-  const next = adjacentStep(step, 1)
+  const prev = adjacentStep(step, -1, mode)
+  const next = adjacentStep(step, 1, mode)
   const dir = config.locales.default === 'he' ? 'rtl' : 'ltr'
+  const inviteOnly = mode === 'invite_only'
+
+  useEffect(() => {
+    if (!steps.some((item) => item.id === step)) {
+      setStep(steps[0]?.id || 'basics')
+    }
+  }, [steps, step])
 
   useEffect(() => {
     if (skipFirst.current) {
@@ -225,7 +244,11 @@ export function WizardStudio({ event }: { event: PlatformEvent }) {
                   onClick={publish}
                   className="w-full rounded-full bg-cyan-400 py-3 font-semibold text-[#0b1020] disabled:opacity-40"
                 >
-                  {publishing ? ui.publishing : ui.publish}
+                  {publishing
+                    ? ui.publishing
+                    : inviteOnly
+                      ? ui.publishInvite
+                      : ui.publish}
                 </button>
               </div>
             )}

@@ -20,12 +20,7 @@ const COLOR_FIELDS: { key: keyof CardDesign; label: string }[] = [
 ]
 
 const TEXT_FIELDS: { key: keyof CardDesign; label: string; placeholder?: string }[] = [
-  { key: 'pageTexture', label: 'Textura da página (URL)', placeholder: 'https://…/texture.png' },
-  { key: 'envelopeTexture', label: 'Textura do envelope (URL)', placeholder: 'https://…' },
-  { key: 'sealUrl', label: 'URL do selo', placeholder: 'https://…' },
   { key: 'sealLabel', label: 'Rótulo do selo' },
-  { key: 'cardImageUrl', label: 'Imagem de fundo do cartão', placeholder: 'https://…' },
-  { key: 'panelPhotoUrl', label: 'Foto do painel', placeholder: 'https://…' },
   { key: 'mapUrl', label: 'Map URL', placeholder: 'https://maps…' },
   { key: 'openLabel', label: 'Rótulo abrir envelope' },
   { key: 'forLabel', label: 'Rótulo "para:"' },
@@ -49,6 +44,168 @@ const TEXT_FIELDS: { key: keyof CardDesign; label: string; placeholder?: string 
   { key: 'rsvpHint', label: 'Dica RSVP' },
   { key: 'suggestedPalette', label: 'Paleta sugerida (hex, vírgula)' },
 ]
+
+const IMAGE_FIELDS: { key: keyof CardDesign; label: string; placeholder?: string }[] = [
+  { key: 'pageTexture', label: 'Textura da página', placeholder: 'https://…/texture.png' },
+  { key: 'envelopeTexture', label: 'Textura do envelope', placeholder: 'https://…' },
+  { key: 'sealUrl', label: 'Selo / logo', placeholder: 'https://…' },
+  { key: 'cardImageUrl', label: 'Imagem de fundo do cartão', placeholder: 'https://…' },
+  { key: 'panelPhotoUrl', label: 'Foto do painel', placeholder: 'https://…' },
+]
+
+const MAX_IMAGE_BYTES = 1_500_000
+
+function readFileAsDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    if (file.size > MAX_IMAGE_BYTES) {
+      reject(new Error('Imagem maior que 1.5 MB'))
+      return
+    }
+    const reader = new FileReader()
+    reader.onload = () => resolve(String(reader.result))
+    reader.onerror = () => reject(new Error('Falha no upload'))
+    reader.readAsDataURL(file)
+  })
+}
+
+function parseFocal(value: string | undefined): { x: number; y: number } {
+  const raw = (value || 'center').trim().toLowerCase()
+  if (!raw || raw === 'center') return { x: 50, y: 50 }
+  if (raw === 'top') return { x: 50, y: 0 }
+  if (raw === 'bottom') return { x: 50, y: 100 }
+  if (raw === 'left') return { x: 0, y: 50 }
+  if (raw === 'right') return { x: 100, y: 50 }
+  const parts = raw.split(/\s+/)
+  const x = Number.parseFloat(parts[0] || '')
+  const y = Number.parseFloat(parts[1] || parts[0] || '')
+  return {
+    x: Number.isFinite(x) ? Math.max(0, Math.min(100, x)) : 50,
+    y: Number.isFinite(y) ? Math.max(0, Math.min(100, y)) : 50,
+  }
+}
+
+function formatFocal(x: number, y: number): string {
+  if (x === 50 && y === 50) return 'center'
+  return `${Math.round(x)}% ${Math.round(y)}%`
+}
+
+function ImageUrlField({
+  label,
+  placeholder,
+  value,
+  onChange,
+}: {
+  label: string
+  placeholder?: string
+  value: string
+  onChange: (next: string) => void
+}) {
+  return (
+    <Field label={label}>
+      {value ? (
+        <div className="mb-2 flex items-center gap-3">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={value}
+            alt=""
+            className="h-14 w-14 rounded-lg border border-white/20 bg-white/10 object-cover"
+          />
+          <button
+            type="button"
+            className="text-sm text-rose-200 hover:text-rose-100"
+            onClick={() => onChange('')}
+          >
+            Remover
+          </button>
+        </div>
+      ) : null}
+      <TextInput
+        value={value.startsWith('data:') ? '' : value}
+        placeholder={placeholder || 'https://…'}
+        onChange={(e) => onChange(e.target.value)}
+      />
+      <label className="mt-2 flex cursor-pointer items-center justify-center rounded-xl border border-dashed border-white/20 bg-white/5 px-3 py-2 text-sm text-white/70 hover:border-cyan-400/50">
+        Importar imagem
+        <input
+          type="file"
+          accept="image/*"
+          className="sr-only"
+          onChange={async (e) => {
+            const file = e.target.files?.[0]
+            e.target.value = ''
+            if (!file) return
+            try {
+              onChange(await readFileAsDataUrl(file))
+            } catch (err) {
+              alert(err instanceof Error ? err.message : 'Falha no upload')
+            }
+          }}
+        />
+      </label>
+      <p className="mt-1 text-xs text-white/40">Cole um link ou importe um arquivo (máx. 1.5 MB).</p>
+    </Field>
+  )
+}
+
+function PositionSliders({
+  label,
+  value,
+  onChange,
+}: {
+  label: string
+  value: string
+  onChange: (next: string) => void
+}) {
+  const focal = parseFocal(value)
+  return (
+    <Field label={label}>
+      <div className="space-y-3 rounded-xl border border-white/10 bg-white/5 p-3">
+        <label className="block text-xs text-white/60">
+          Horizontal {Math.round(focal.x)}%
+          <input
+            type="range"
+            min={0}
+            max={100}
+            value={focal.x}
+            onChange={(e) => onChange(formatFocal(Number(e.target.value), focal.y))}
+            className="mt-1 w-full accent-cyan-400"
+          />
+        </label>
+        <label className="block text-xs text-white/60">
+          Vertical {Math.round(focal.y)}%
+          <input
+            type="range"
+            min={0}
+            max={100}
+            value={focal.y}
+            onChange={(e) => onChange(formatFocal(focal.x, Number(e.target.value)))}
+            className="mt-1 w-full accent-cyan-400"
+          />
+        </label>
+        <div className="flex flex-wrap gap-2">
+          {(
+            [
+              ['center', 50, 50],
+              ['top', 50, 0],
+              ['bottom', 50, 100],
+              ['left', 0, 50],
+              ['right', 100, 50],
+            ] as const
+          ).map(([key, x, y]) => (
+            <button
+              key={key}
+              type="button"
+              className="rounded-full border border-white/15 px-2.5 py-1 text-[11px] text-white/70 hover:border-cyan-400/50"
+              onClick={() => onChange(formatFocal(x, y))}
+            >
+              {key}
+            </button>
+          ))}
+        </div>
+      </div>
+    </Field>
+  )
+}
 
 export function CardDesignFields({
   design,
@@ -85,13 +242,18 @@ export function CardDesignFields({
         </div>
 
         <div className="grid gap-3 sm:grid-cols-2">
-          <Field label="Fonte (fontKey)">
-            <TextInput
-              value={design.fontKey}
-              placeholder="georgia | playfair | cormorant | lato | montserrat"
-              onChange={(e) => patch({ fontKey: e.target.value })}
+          {IMAGE_FIELDS.map(({ key, label, placeholder }) => (
+            <ImageUrlField
+              key={key}
+              label={label}
+              placeholder={placeholder}
+              value={String(design[key] || '')}
+              onChange={(next) => patch({ [key]: next })}
             />
-          </Field>
+          ))}
+        </div>
+
+        <div className="grid gap-3 sm:grid-cols-2">
           <Field label="Formato da foto">
             <select
               value={design.panelPhotoShape || 'circle'}
@@ -106,6 +268,23 @@ export function CardDesignFields({
               <option value="rectangle">Retângulo</option>
             </select>
           </Field>
+          <Field label="Fonte (fontKey)">
+            <TextInput
+              value={design.fontKey}
+              placeholder="georgia | playfair | cormorant | lato | montserrat"
+              onChange={(e) => patch({ fontKey: e.target.value })}
+            />
+          </Field>
+          <PositionSliders
+            label="Posição da foto do painel"
+            value={design.panelPhotoPosition || 'center'}
+            onChange={(panelPhotoPosition) => patch({ panelPhotoPosition })}
+          />
+          <PositionSliders
+            label="Posição da imagem de fundo"
+            value={design.cardImagePosition || 'center'}
+            onChange={(cardImagePosition) => patch({ cardImagePosition })}
+          />
           <Field label="Tamanho do corpo (px)">
             <TextInput
               type="number"
