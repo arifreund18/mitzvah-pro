@@ -1,5 +1,14 @@
 import { SITE_HOST } from './site-url'
-import type { EventConfig, EventMailDomain, MailDomainStatus } from './types'
+import { formatFromAddress, sanitizeFromDisplayName } from './mail-from'
+import type { EventMailDomain, MailDomainStatus } from './types'
+
+export {
+  emailAddressOnly,
+  eventFromDisplayName,
+  eventSendFrom,
+  formatFromAddress,
+  sanitizeFromDisplayName,
+} from './mail-from'
 
 export const MAIL_FROM_LOCAL = process.env.MAIL_FROM_LOCAL || 'convites'
 export const MAIL_DOMAIN_PREFIX = process.env.MAIL_DOMAIN_PREFIX || 'mail'
@@ -39,12 +48,6 @@ export function eventMailDomainName(slug: string): string {
 
 export function eventFromAddress(slug: string, honoreeName?: string): string {
   const domain = eventMailDomainName(slug)
-  const name = (honoreeName || 'Mitzvah.pro').replace(/[<>]/g, '').trim() || 'Mitzvah.pro'
-  return `${name} <${MAIL_FROM_LOCAL}@${domain}>`
-}
-
-export function eventSendFrom(config: EventConfig): string | null {
-  const mail = config.domain.mail
-  if (mail?.status === 'verified' && mail.fromEmail) return mail.fromEmail
-  return process.env.RESEND_FROM_EMAIL || null
+  const name = sanitizeFromDisplayName(honoreeName)
+  return formatFromAddress(name, `${MAIL_FROM_LOCAL}@${domain}`)
 }

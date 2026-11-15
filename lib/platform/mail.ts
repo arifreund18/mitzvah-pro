@@ -1,5 +1,5 @@
 import { google } from './calendar'
-import { pageBackgroundCss } from './card-background'
+import { isEmailSafeImageUrl, pageBackgroundCss } from './card-background'
 import { typeLabel } from './copy'
 import { eventPublicUrl, protocolFor } from './site-url'
 import type { CardDesign, EventConfig, EventLocale, Guest } from './types'
@@ -126,7 +126,9 @@ export function mailHtml(
   const icsHref = `${protocolFor(host)}://${host}/api/platform/calendar/${encodeURIComponent(token)}`
   const googleHref = google(config) || `${icsHref}?to=google`
   const mapHref = mapUrlOf(kind, config)
-  const seal = sealUrl(kind, config)
+  const sealRaw = sealUrl(kind, config)
+  // data: URLs (studio uploads) break Gmail size/parsing — only remote images in mail.
+  const seal = isEmailSafeImageUrl(sealRaw) ? sealRaw.trim() : ''
   const sealLabel = config.invitation.sealLabel || 'Mitzvah'
 
   const body = kind === 'std' ? config.saveTheDate.message : config.invitation.body
