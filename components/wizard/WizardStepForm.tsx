@@ -398,8 +398,28 @@ export const WizardStepForm = forwardRef<
             }
           />
         </Field>
-        {config.venues.hotels.map((hotel) => (
+        {config.venues.hotels.map((hotel, index) => (
           <div key={hotel.id} className="space-y-2 rounded-2xl border border-white/10 p-4">
+            <div className="mb-1 flex items-center justify-between text-xs text-white/40">
+              <span>
+                {ui.hotels} {index + 1}
+              </span>
+              <button
+                type="button"
+                className="text-rose-300"
+                onClick={() =>
+                  set({
+                    ...config,
+                    venues: {
+                      ...config.venues,
+                      hotels: config.venues.hotels.filter((row) => row.id !== hotel.id),
+                    },
+                  })
+                }
+              >
+                {ui.remove}
+              </button>
+            </div>
             <TextInput
               placeholder={ui.hotels}
               value={hotel.name}
@@ -407,10 +427,23 @@ export const WizardStepForm = forwardRef<
             />
             <div className="grid gap-2 sm:grid-cols-2">
               <TextInput
-                placeholder={ui.walking}
+                placeholder={ui.travelTime}
                 value={hotel.walking}
                 onChange={(e) => patchHotel(hotel.id, { walking: e.target.value })}
               />
+              <select
+                aria-label={ui.travelMode}
+                value={hotel.travelMode === 'drive' ? 'drive' : 'walk'}
+                onChange={(e) =>
+                  patchHotel(hotel.id, {
+                    travelMode: e.target.value === 'drive' ? 'drive' : 'walk',
+                  })
+                }
+                className="w-full rounded-xl border border-white/15 bg-[#12182a] px-3 py-2.5 text-sm"
+              >
+                <option value="walk">walk — {ui.walking}</option>
+                <option value="drive">drive — {ui.driving}</option>
+              </select>
               <TextInput
                 placeholder="URL"
                 value={hotel.url}
@@ -421,6 +454,25 @@ export const WizardStepForm = forwardRef<
                 value={hotel.photoUrl}
                 onChange={(e) => patchHotel(hotel.id, { photoUrl: e.target.value })}
               />
+              <label className="flex cursor-pointer items-center justify-center rounded-xl border border-dashed border-white/20 bg-white/5 px-3 py-2 text-sm text-white/70 hover:border-cyan-400/50">
+                {ui.heroUpload}
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="sr-only"
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0]
+                    e.target.value = ''
+                    if (!file) return
+                    try {
+                      const url = await readFileAsDataUrl(file, ui.imageTooBig)
+                      patchHotel(hotel.id, { photoUrl: url })
+                    } catch (err) {
+                      alert(err instanceof Error ? err.message : ui.uploadFail)
+                    }
+                  }}
+                />
+              </label>
               <TextInput
                 placeholder="Book URL"
                 value={hotel.bookUrl}
@@ -473,6 +525,7 @@ export const WizardStepForm = forwardRef<
                     url: '',
                     notes: '',
                     walking: '',
+                    travelMode: 'walk',
                     mapUrl: '',
                     photoUrl: '',
                     stars: 0,

@@ -11,6 +11,7 @@ export type TemplateUi = {
   faq: string
   hotels: string
   walking: string
+  driving: string
   website: string
   map: string
   thingsToDo: string
@@ -48,6 +49,7 @@ const PACKS: Record<EventLocale, TemplateUi> = {
     faq: 'Perguntas frequentes',
     hotels: 'Hotéis',
     walking: 'a pé',
+    driving: 'de carro',
     website: 'Site',
     map: 'Mapa',
     thingsToDo: 'O que fazer',
@@ -90,7 +92,8 @@ const PACKS: Record<EventLocale, TemplateUi> = {
     schedule: 'Schedule',
     faq: 'FAQ',
     hotels: 'Hotels',
-    walking: 'walking',
+    walking: 'walk',
+    driving: 'drive',
     website: 'Website',
     map: 'Map',
     thingsToDo: 'Things to do',
@@ -134,6 +137,7 @@ const PACKS: Record<EventLocale, TemplateUi> = {
     faq: 'Preguntas frecuentes',
     hotels: 'Hoteles',
     walking: 'a pie',
+    driving: 'en coche',
     website: 'Sitio',
     map: 'Mapa',
     thingsToDo: 'Qué hacer',
@@ -177,6 +181,7 @@ const PACKS: Record<EventLocale, TemplateUi> = {
     faq: 'שאלות נפוצות',
     hotels: 'מלונות',
     walking: 'הליכה',
+    driving: 'נסיעה',
     website: 'אתר',
     map: 'מפה',
     thingsToDo: 'מה לעשות',

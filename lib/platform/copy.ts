@@ -250,6 +250,9 @@ export type WizardUi = {
   parking: string
   hotels: string
   walking: string
+  driving: string
+  travelTime: string
+  travelMode: string
   mapUrl: string
   addPlace: string
   notes: string
@@ -349,7 +352,10 @@ const WIZARD_UI: Record<EventLocale, WizardUi> = {
     addMoment: '+ Adicionar momento',
     parking: 'Estacionamento',
     hotels: 'Hotéis',
-    walking: 'Tempo a pé',
+    walking: 'a pé',
+    driving: 'de carro',
+    travelTime: 'Tempo (ex.: 8 min)',
+    travelMode: 'Modo (walk / drive)',
     mapUrl: 'Link do mapa',
     addPlace: '+ Lugar (o que fazer)',
     notes: 'Notas',
@@ -474,7 +480,10 @@ const WIZARD_UI: Record<EventLocale, WizardUi> = {
     addMoment: '+ Add moment',
     parking: 'Parking',
     hotels: 'Hotels',
-    walking: 'Walking time',
+    walking: 'walk',
+    driving: 'drive',
+    travelTime: 'Time (e.g. 8 min)',
+    travelMode: 'Mode (walk / drive)',
     mapUrl: 'Map link',
     addPlace: '+ Place (things to do)',
     notes: 'Notes',
@@ -599,7 +608,10 @@ const WIZARD_UI: Record<EventLocale, WizardUi> = {
     addMoment: '+ Agregar momento',
     parking: 'Estacionamiento',
     hotels: 'Hoteles',
-    walking: 'Tiempo a pie',
+    walking: 'a pie',
+    driving: 'en coche',
+    travelTime: 'Tiempo (ej.: 8 min)',
+    travelMode: 'Modo (walk / drive)',
     mapUrl: 'Enlace del mapa',
     addPlace: '+ Lugar (qué hacer)',
     notes: 'Notas',
@@ -724,7 +736,10 @@ const WIZARD_UI: Record<EventLocale, WizardUi> = {
     addMoment: '+ הוספת רגע',
     parking: 'חניה',
     hotels: 'מלונות',
-    walking: 'זמן הליכה',
+    walking: 'הליכה',
+    driving: 'נסיעה',
+    travelTime: 'זמן (לדוגמה 8 דק׳)',
+    travelMode: 'מצב (walk / drive)',
     mapUrl: 'קישור למפה',
     addPlace: '+ מקום (מה לעשות)',
     notes: 'הערות',

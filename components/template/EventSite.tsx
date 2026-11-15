@@ -399,7 +399,8 @@ export function EventSite({
                   ) : null}
                   {hotel.walking ? (
                     <p className="mt-1 text-sm" style={{ color: accent }}>
-                      {hotel.walking} {ui.walking}
+                      {hotel.walking}{' '}
+                      {hotel.travelMode === 'drive' ? ui.driving : ui.walking}
                     </p>
                   ) : null}
                   {hotel.notes ? (

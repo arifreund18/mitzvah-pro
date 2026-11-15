@@ -32,6 +32,7 @@ function hotel(row: Partial<Hotel> & { name?: string }): Hotel {
     url: row.url || '',
     notes: row.notes || '',
     walking: row.walking || '',
+    travelMode: row.travelMode === 'drive' ? 'drive' : 'walk',
     mapUrl: row.mapUrl || '',
     photoUrl: row.photoUrl || '',
     stars: Math.max(0, Math.min(5, Number(row.stars) || 0)),

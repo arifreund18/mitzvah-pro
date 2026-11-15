@@ -23,6 +23,15 @@ function cardShellStyle(design: CardDesign | undefined, fallbackBg: string, fall
     fontFamily: fontStack(design?.fontKey),
     backgroundImage: design?.cardImageUrl ? `url(${design.cardImageUrl})` : undefined,
     backgroundSize: design?.cardImageUrl ? 'cover' : undefined,
+    backgroundPosition: design?.cardImageUrl
+      ? design.cardImagePosition || 'center'
+      : undefined,
+  }
+}
+
+function panelPhotoStyle(design: CardDesign): CSSProperties {
+  return {
+    objectPosition: design.panelPhotoPosition || 'center',
   }
 }
 
@@ -60,6 +69,7 @@ export function SaveTheDateCard({
         <img
           src={d.panelPhotoUrl}
           alt=""
+          style={panelPhotoStyle(d)}
           className={`mx-auto mb-4 object-cover ${
             d.panelPhotoShape === 'rectangle' ? 'h-28 w-40 rounded-xl' : 'h-24 w-24 rounded-full'
           }`}
@@ -162,6 +172,7 @@ export function InvitationCard({
         <img
           src={d.panelPhotoUrl}
           alt=""
+          style={panelPhotoStyle(d)}
           className={`mx-auto mt-6 object-cover ${
             d.panelPhotoShape === 'rectangle' ? 'h-28 w-40 rounded-xl' : 'h-24 w-24 rounded-full'
           }`}
