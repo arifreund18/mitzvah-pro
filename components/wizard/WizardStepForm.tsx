@@ -16,11 +16,12 @@ import {
   type EventLocale,
   type Guest,
   type NotifyMode,
+  type ProductMode,
 } from '@/lib/platform/types'
 import { LOCALE_OPTIONS } from '@/lib/platform/locales'
 import { normalizeGuest } from '@/lib/platform/normalize'
 import { eventPublicHostLabel } from '@/lib/platform/site-url'
-import { reviewIssues } from '@/lib/platform/wizard'
+import { applyProductMode, reviewIssues } from '@/lib/platform/wizard'
 import { GuestCsvImport } from '@/components/dashboard/GuestCsvImport'
 import { GooglePhotosImport } from '@/components/wizard/GooglePhotosImport'
 
@@ -85,8 +86,41 @@ export const WizardStepForm = forwardRef<
     const wizardLocales = config.locales.enabled.length
       ? config.locales.enabled
       : LOCALE_OPTIONS.map((item) => item.value)
+    const mode = (config.productMode || 'site') as ProductMode
     return (
       <div className="space-y-5">
+        <Field label={ui.productMode}>
+          <div className="grid gap-2 sm:grid-cols-2">
+            {(
+              [
+                {
+                  value: 'site' as const,
+                  title: ui.productModeSite,
+                  hint: ui.productModeSiteHint,
+                },
+                {
+                  value: 'invite_only' as const,
+                  title: ui.productModeInvite,
+                  hint: ui.productModeInviteHint,
+                },
+              ] as const
+            ).map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                onClick={() => patch((draft) => applyProductMode(draft, option.value))}
+                className={`rounded-xl border px-3 py-3 text-start text-sm ${
+                  mode === option.value
+                    ? 'border-cyan-400 bg-cyan-400/10 text-cyan-100'
+                    : 'border-white/15 bg-white/5 text-white/80'
+                }`}
+              >
+                <span className="block font-medium">{option.title}</span>
+                <span className="text-xs text-white/40">{option.hint}</span>
+              </button>
+            ))}
+          </div>
+        </Field>
         <Field label={ui.language} hint={ui.languageHint}>
           <div className="grid grid-cols-2 gap-2">
             {LOCALE_OPTIONS.filter((option) => wizardLocales.includes(option.value)).map((option) => (
@@ -1104,8 +1138,27 @@ export const WizardStepForm = forwardRef<
   if (step === 'faq') {
     return (
       <div className="space-y-4">
-        {config.faq.items.map((item) => (
+        {config.faq.items.map((item, index) => (
           <div key={item.id} className="space-y-2 rounded-2xl border border-white/10 p-4">
+            <div className="mb-1 flex items-center justify-between text-xs text-white/40">
+              <span>
+                {ui.question} {index + 1}
+              </span>
+              <button
+                type="button"
+                className="text-rose-300"
+                onClick={() =>
+                  set({
+                    ...config,
+                    faq: {
+                      items: config.faq.items.filter((row) => row.id !== item.id),
+                    },
+                  })
+                }
+              >
+                {ui.remove}
+              </button>
+            </div>
             <TextInput
               placeholder={ui.question}
               value={item.question}

@@ -195,7 +195,15 @@ export type CardDesign = {
   suggestedPalette: string
 }
 
+/** Full site + invites, or invitation/email flow without site-building steps. */
+export type ProductMode = 'site' | 'invite_only'
+
 export type EventConfig = {
+  /**
+   * `site` = wizard completo (site + convites).
+   * `invite_only` = só convite/STD/RSVP/convidados (sem etapas do site).
+   */
+  productMode: ProductMode
   basics: {
     type: EventType
     honoreeName: string

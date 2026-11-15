@@ -127,6 +127,7 @@ export function normalizeConfig(raw: EventConfig | null | undefined): EventConfi
   return {
     ...base,
     ...raw,
+    productMode: raw.productMode === 'invite_only' ? 'invite_only' : 'site',
     basics: {
       ...base.basics,
       ...raw.basics,

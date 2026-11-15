@@ -225,6 +225,12 @@ export type WizardUi = {
   draft: string
   language: string
   languageHint: string
+  productMode: string
+  productModeSite: string
+  productModeSiteHint: string
+  productModeInvite: string
+  productModeInviteHint: string
+  publishInvite: string
   type: string
   honoree: string
   honoreePlaceholder: string
@@ -328,6 +334,12 @@ const WIZARD_UI: Record<EventLocale, WizardUi> = {
     draft: 'rascunho',
     language: 'Idioma do wizard',
     languageHint: 'Você preenche e vê o preview neste idioma. Os idiomas do site já foram escolhidos na criação.',
+    productMode: 'O que quer criar agora?',
+    productModeSite: 'Site + convites',
+    productModeSiteHint: 'Wizard completo: site do evento, hotéis, FAQ, RSVP e emails.',
+    productModeInvite: 'Só o convite',
+    productModeInviteHint: 'Pula as etapas do site. Foque em Save the Date, convite, RSVP e convidados.',
+    publishInvite: 'Ativar convites',
     type: 'Tipo de evento',
     honoree: 'Nome do celebrante',
     honoreePlaceholder: 'Noah, Beni, Sofia…',
@@ -456,6 +468,12 @@ const WIZARD_UI: Record<EventLocale, WizardUi> = {
     draft: 'draft',
     language: 'Wizard language',
     languageHint: 'You fill in and preview in this language. Site languages were chosen when the event was created.',
+    productMode: 'What do you want to create now?',
+    productModeSite: 'Site + invitations',
+    productModeSiteHint: 'Full wizard: event website, hotels, FAQ, RSVP and emails.',
+    productModeInvite: 'Invitation only',
+    productModeInviteHint: 'Skip website steps. Focus on Save the Date, invitation, RSVP and guests.',
+    publishInvite: 'Enable invitations',
     type: 'Event type',
     honoree: 'Honoree name',
     honoreePlaceholder: 'Noah, Beni, Sofia…',
@@ -584,6 +602,12 @@ const WIZARD_UI: Record<EventLocale, WizardUi> = {
     draft: 'borrador',
     language: 'Idioma del wizard',
     languageHint: 'Completas y ves la vista previa en este idioma. Los idiomas del sitio se eligieron al crear el evento.',
+    productMode: '¿Qué quieres crear ahora?',
+    productModeSite: 'Sitio + invitaciones',
+    productModeSiteHint: 'Wizard completo: sitio del evento, hoteles, FAQ, RSVP y emails.',
+    productModeInvite: 'Solo la invitación',
+    productModeInviteHint: 'Omite las etapas del sitio. Enfócate en Save the Date, invitación, RSVP e invitados.',
+    publishInvite: 'Activar invitaciones',
     type: 'Tipo de evento',
     honoree: 'Nombre del celebrante',
     honoreePlaceholder: 'Noah, Beni, Sofia…',
@@ -712,6 +736,12 @@ const WIZARD_UI: Record<EventLocale, WizardUi> = {
     draft: 'טיוטה',
     language: 'שפת האשף',
     languageHint: 'ממלאים ורואים את התצוגה בשפה הזו. שפות האתר נבחרו ביצירת האירוע.',
+    productMode: 'מה ליצור עכשיו?',
+    productModeSite: 'אתר + הזמנות',
+    productModeSiteHint: 'אשף מלא: אתר האירוע, מלונות, FAQ, RSVP ואימיילים.',
+    productModeInvite: 'הזמנה בלבד',
+    productModeInviteHint: 'מדלג על שלבי האתר. מתמקדים ב־Save the Date, הזמנה, RSVP ואורחים.',
+    publishInvite: 'הפעלת הזמנות',
     type: 'סוג האירוע',
     honoree: 'שם החוגג/ת',
     honoreePlaceholder: 'נועה, בני, סופיה…',

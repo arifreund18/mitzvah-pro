@@ -86,6 +86,7 @@ export function createDefaultConfig(partial?: {
   const design = defaultCardDesign()
 
   return {
+    productMode: 'site',
     basics: {
       type,
       honoreeName,

@@ -6,7 +6,8 @@ export default function NewEventPage() {
     <DashboardShell>
       <h1 className="font-display text-3xl">Novo evento</h1>
       <p className="mt-2 mb-8 max-w-xl text-sm text-white/50">
-        Escolha os idiomas do site, o nome e a família. No wizard você define em qual idioma vai preencher.
+        Escolha se quer site completo ou só o convite, os idiomas, o nome e a família. No wizard você
+        define em qual idioma vai preencher.
       </p>
       <NewEventForm />
     </DashboardShell>
