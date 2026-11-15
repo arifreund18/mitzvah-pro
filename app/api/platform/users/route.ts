@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { normalizeEventIds } from '@/lib/platform/access'
 import { isPlatformAdmin } from '@/lib/platform/auth'
 import { actorOrgId, currentActor, requireUserManagement } from '@/lib/platform/session'
 import { createUser, listUsers } from '@/lib/platform/store'
@@ -25,6 +26,7 @@ export async function POST(request: Request) {
     password?: string
     role?: UserRole
     orgId?: string
+    eventIds?: string[]
   } | null
   const email = body?.email?.trim()
   const name = body?.name?.trim()
@@ -34,8 +36,12 @@ export async function POST(request: Request) {
   }
   const role = body?.role === 'org_member' ? 'org_member' : 'org_owner'
   const orgId = isPlatformAdmin(actor) && body?.orgId ? body.orgId : actor!.orgId
+  const eventIds = role === 'org_member' ? normalizeEventIds(body?.eventIds) : []
+  if (role === 'org_member' && eventIds.length === 0) {
+    return NextResponse.json({ error: 'Escolha pelo menos um evento para o membro' }, { status: 400 })
+  }
   try {
-    const user = await createUser({ email, name, password, role, orgId })
+    const user = await createUser({ email, name, password, role, orgId, eventIds })
     const { passwordHash: _, ...safe } = user
     return NextResponse.json({ user: safe })
   } catch (error) {

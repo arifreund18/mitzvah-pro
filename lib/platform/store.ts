@@ -46,9 +46,16 @@ function withLock<T>(fn: () => Promise<T>): Promise<T> {
   return run
 }
 
-export async function listEvents(orgId?: string | null): Promise<PlatformEvent[]> {
+export async function listEvents(
+  orgId?: string | null,
+  eventIds?: string[] | null,
+): Promise<PlatformEvent[]> {
   const store = await loadStore()
-  const events = orgId ? store.events.filter((event) => event.orgId === orgId) : store.events
+  let events = orgId ? store.events.filter((event) => event.orgId === orgId) : store.events
+  if (eventIds) {
+    const allowed = new Set(eventIds)
+    events = events.filter((event) => allowed.has(event.id))
+  }
   return [...events].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
 }
 
@@ -72,20 +79,29 @@ export async function createOrg(name: string): Promise<Organization> {
   })
 }
 
+function withEventIds(user: PlatformUser): PlatformUser {
+  return {
+    ...user,
+    eventIds: Array.isArray(user.eventIds) ? user.eventIds : [],
+  }
+}
+
 export async function listUsers(orgId: string): Promise<PlatformUser[]> {
   const store = await loadStore()
-  return store.users.filter((user) => user.orgId === orgId)
+  return store.users.filter((user) => user.orgId === orgId).map(withEventIds)
 }
 
 export async function findUserByEmail(email: string): Promise<PlatformUser | null> {
   const store = await loadStore()
   const needle = email.trim().toLowerCase()
-  return store.users.find((user) => user.email.toLowerCase() === needle) ?? null
+  const user = store.users.find((row) => row.email.toLowerCase() === needle) ?? null
+  return user ? withEventIds(user) : null
 }
 
 export async function getUser(id: string): Promise<PlatformUser | null> {
   const store = await loadStore()
-  return store.users.find((user) => user.id === id) ?? null
+  const user = store.users.find((row) => row.id === id) ?? null
+  return user ? withEventIds(user) : null
 }
 
 export async function createUser(input: {
@@ -94,6 +110,7 @@ export async function createUser(input: {
   password: string
   role: UserRole
   orgId: string
+  eventIds?: string[]
 }): Promise<PlatformUser> {
   return withLock(async () => {
     const store = await loadStore()
@@ -101,16 +118,58 @@ export async function createUser(input: {
     if (store.users.some((user) => user.email.toLowerCase() === email)) {
       throw new Error('Email já registado')
     }
+    const role = input.role === 'platform_admin' ? 'org_owner' : input.role
+    const requestedIds = [...new Set((input.eventIds || []).map((id) => id.trim()).filter(Boolean))]
+    const eventIds =
+      role === 'org_member'
+        ? requestedIds.filter((id) => store.events.some((event) => event.id === id && event.orgId === input.orgId))
+        : []
+    if (role === 'org_member' && eventIds.length === 0) {
+      throw new Error('Escolha pelo menos um evento para o membro')
+    }
     const user: PlatformUser = {
       id: uid(),
       email,
       name: input.name.trim(),
       passwordHash: hashPassword(input.password),
-      role: input.role === 'platform_admin' ? 'org_owner' : input.role,
+      role,
       orgId: input.orgId,
+      eventIds,
       createdAt: new Date().toISOString(),
     }
     store.users.push(user)
+    await saveStore(store)
+    return user
+  })
+}
+
+export async function updateUser(
+  id: string,
+  patch: { name?: string; role?: UserRole; eventIds?: string[] },
+): Promise<PlatformUser | null> {
+  return withLock(async () => {
+    const store = await loadStore()
+    const user = store.users.find((row) => row.id === id)
+    if (!user) return null
+    if (patch.name !== undefined) user.name = patch.name.trim() || user.name
+    if (patch.role === 'org_owner' || patch.role === 'org_member') user.role = patch.role
+    if (patch.eventIds !== undefined || user.role === 'org_member') {
+      const requested =
+        patch.eventIds !== undefined
+          ? [...new Set(patch.eventIds.map((eventId) => eventId.trim()).filter(Boolean))]
+          : user.eventIds || []
+      user.eventIds =
+        user.role === 'org_member'
+          ? requested.filter((eventId) =>
+              store.events.some((event) => event.id === eventId && event.orgId === user.orgId),
+            )
+          : []
+      if (user.role === 'org_member' && user.eventIds.length === 0) {
+        throw new Error('Escolha pelo menos um evento para o membro')
+      }
+    } else if (user.role === 'org_owner') {
+      user.eventIds = []
+    }
     await saveStore(store)
     return user
   })

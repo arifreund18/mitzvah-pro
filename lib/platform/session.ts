@@ -1,6 +1,7 @@
 import { cookies } from 'next/headers'
 import { notFound } from 'next/navigation'
 import { NextResponse } from 'next/server'
+import { canActorAccessEvent } from '@/lib/platform/access'
 import {
   canManageUsers,
   isPlatformAdmin,
@@ -8,7 +9,7 @@ import {
   SESSION_COOKIE,
   type SessionActor,
 } from '@/lib/platform/auth'
-import { getEvent } from '@/lib/platform/store'
+import { getEvent, getUser } from '@/lib/platform/store'
 
 export async function currentActor(): Promise<SessionActor | null> {
   const jar = await cookies()
@@ -25,10 +26,12 @@ export async function requireEventAccess(eventId: string): Promise<NextResponse 
   const denied = await requireSession()
   if (denied) return denied
   const actor = await currentActor()
-  if (!actor || isPlatformAdmin(actor)) return null
+  if (!actor) return NextResponse.json({ error: 'Não autenticado' }, { status: 401 })
+  if (isPlatformAdmin(actor)) return null
   const event = await getEvent(eventId)
   if (!event) return NextResponse.json({ error: 'Evento não encontrado' }, { status: 404 })
-  if (event.orgId !== actor.orgId) {
+  const user = actor.kind === 'user' ? await getUser(actor.userId) : null
+  if (!canActorAccessEvent(actor, event, user)) {
     return NextResponse.json({ error: 'Sem permissão neste evento' }, { status: 403 })
   }
   return null

@@ -455,6 +455,8 @@ export type PlatformUser = {
   passwordHash: string
   role: UserRole
   orgId: string
+  /** When role is org_member, only these events are visible/editable. Owners ignore this. */
+  eventIds: string[]
   createdAt: string
 }
 

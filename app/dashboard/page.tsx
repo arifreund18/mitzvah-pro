@@ -4,7 +4,8 @@ import { Suspense } from 'react'
 import { DashboardShell } from '@/components/dashboard/DashboardShell'
 import { EventActions } from '@/components/dashboard/EventActions'
 import { MissingEventNotice } from '@/components/dashboard/MissingEventNotice'
-import { listEvents, getOrg } from '@/lib/platform/store'
+import { actorAllowedEventIds, actorSeesAllOrgEvents } from '@/lib/platform/access'
+import { listEvents, getOrg, getUser } from '@/lib/platform/store'
 import { typeLabel } from '@/lib/platform/defaults'
 import { eventPublicHostLabel, hostFromHeaders } from '@/lib/platform/site-url'
 import { actorOrgId, currentActor } from '@/lib/platform/session'
@@ -15,9 +16,13 @@ export const dynamic = 'force-dynamic'
 export default async function DashboardPage() {
   const actor = await currentActor()
   const orgId = actorOrgId(actor)
-  const events = await listEvents(orgId)
+  const user = actor?.kind === 'user' ? await getUser(actor.userId) : null
+  const scoped = !actorSeesAllOrgEvents(actor)
+  const eventIds = scoped ? actorAllowedEventIds(actor, user) : null
+  const events = await listEvents(orgId, eventIds)
   const org = actor ? await getOrg(actor.orgId) : null
   const host = hostFromHeaders(await headers())
+  const canCreate = actorSeesAllOrgEvents(actor)
   return (
     <DashboardShell>
       <Suspense fallback={null}>
@@ -29,20 +34,26 @@ export default async function DashboardPage() {
           <p className="mt-2 text-sm text-white/50">
             {isPlatformAdmin(actor)
               ? 'Visão global — todos os eventos de todas as organizações.'
-              : `Eventos da organização ${org?.name || actor?.orgId}.`}
+              : scoped
+                ? 'Eventos atribuídos à sua conta.'
+                : `Eventos da organização ${org?.name || actor?.orgId}.`}
           </p>
         </div>
-        <Link
-          href="/dashboard/events/new"
-          className="rounded-full bg-cyan-400 px-5 py-2.5 text-sm font-semibold text-[#0b1020]"
-        >
-          Novo evento
-        </Link>
+        {canCreate ? (
+          <Link
+            href="/dashboard/events/new"
+            className="rounded-full bg-cyan-400 px-5 py-2.5 text-sm font-semibold text-[#0b1020]"
+          >
+            Novo evento
+          </Link>
+        ) : null}
       </div>
       <div className="mt-10 grid gap-4">
         {events.length === 0 ? (
           <p className="rounded-2xl border border-white/10 bg-white/5 p-8 text-center text-white/50">
-            Nenhum evento. Crie o primeiro com “Novo evento”.
+            {scoped
+              ? 'Nenhum evento atribuído a esta conta. Peça à equipa Mitzvah para liberar o acesso.'
+              : 'Nenhum evento. Crie o primeiro com “Novo evento”.'}
           </p>
         ) : (
           events.map((event) => (
