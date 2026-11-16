@@ -87,6 +87,7 @@ export function createDefaultConfig(partial?: {
   const design = defaultCardDesign()
 
   return {
+    products: { site: true, invitation: true, saveTheDate: true },
     productMode: 'site',
     basics: {
       type,

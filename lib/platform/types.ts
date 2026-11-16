@@ -197,13 +197,25 @@ export type CardDesign = {
   suggestedPalette: string
 }
 
-/** Full site + invites, or invitation/email flow without site-building steps. */
+/** @deprecated Prefer `EventProducts`. Kept as derived flag: site vs no-site. */
 export type ProductMode = 'site' | 'invite_only'
+
+/** Independent offerings the family can mix: website, invitation email, save-the-date. */
+export type EventProducts = {
+  site: boolean
+  invitation: boolean
+  saveTheDate: boolean
+}
 
 export type EventConfig = {
   /**
-   * `site` = wizard completo (site + convites).
-   * `invite_only` = só convite/STD/RSVP/convidados (sem etapas do site).
+   * Multi-select of what this event includes. Drives wizard steps and sends.
+   * Prefer this over `productMode`.
+   */
+  products: EventProducts
+  /**
+   * Derived from `products.site` for older callers.
+   * `site` = includes website steps; `invite_only` = no website steps.
    */
   productMode: ProductMode
   basics: {
