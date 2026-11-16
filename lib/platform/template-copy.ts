@@ -28,8 +28,10 @@ export type TemplateUi = {
   dressCode: string
   parking: string
   emailPreview: string
+  invitePreview: string
   emailStd: string
   emailInvite: string
+  inviteCard: string
   toGuests: string
   openEnvelope: string
   viewWebsite: string
@@ -66,8 +68,10 @@ const PACKS: Record<EventLocale, TemplateUi> = {
     dressCode: 'Dress code',
     parking: 'Estacionamento',
     emailPreview: 'Preview do email',
+    invitePreview: 'Preview do convite',
     emailStd: 'Save the Date · email',
     emailInvite: 'Convite · email',
+    inviteCard: 'Convite · cartão',
     toGuests: 'Para a lista de convidados',
     openEnvelope: 'Abrir envelope',
     viewWebsite: 'Ver o site do evento',
@@ -110,8 +114,10 @@ const PACKS: Record<EventLocale, TemplateUi> = {
     dressCode: 'Dress code',
     parking: 'Parking',
     emailPreview: 'Email preview',
+    invitePreview: 'Invite preview',
     emailStd: 'Save the Date · email',
     emailInvite: 'Invitation · email',
+    inviteCard: 'Invitation · card',
     toGuests: 'To the guest list',
     openEnvelope: 'Open envelope',
     viewWebsite: 'View the event website',
@@ -154,8 +160,10 @@ const PACKS: Record<EventLocale, TemplateUi> = {
     dressCode: 'Dress code',
     parking: 'Estacionamiento',
     emailPreview: 'Vista previa del email',
+    invitePreview: 'Vista previa de la invitación',
     emailStd: 'Save the Date · email',
     emailInvite: 'Invitación · email',
+    inviteCard: 'Invitación · tarjeta',
     toGuests: 'Para la lista de invitados',
     openEnvelope: 'Abrir sobre',
     viewWebsite: 'Ver el sitio del evento',
@@ -198,8 +206,10 @@ const PACKS: Record<EventLocale, TemplateUi> = {
     dressCode: 'קוד לבוש',
     parking: 'חניה',
     emailPreview: 'תצוגת אימייל',
+    invitePreview: 'תצוגת הזמנה',
     emailStd: 'שמרו את התאריך · אימייל',
     emailInvite: 'הזמנה · אימייל',
+    inviteCard: 'הזמנה · כרטיס',
     toGuests: 'לרשימת האורחים',
     openEnvelope: 'פתיחת מעטפה',
     viewWebsite: 'לאתר האירוע',
