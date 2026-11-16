@@ -95,19 +95,18 @@ export function EnvelopeCard({
           preserveAspectRatio="none"
           aria-hidden="true"
         >
-          {/* Soft under-stroke + crisp edge = diamond seams like a paper envelope. */}
-          <line className="mp-envelope-folds-soft" x1="0" y1="0" x2="50" y2="55" />
-          <line className="mp-envelope-folds-soft" x1="100" y1="0" x2="50" y2="55" />
-          <line className="mp-envelope-folds-soft" x1="0" y1="100" x2="50" y2="55" />
-          <line className="mp-envelope-folds-soft" x1="100" y1="100" x2="50" y2="55" />
-          <line className="mp-envelope-folds-soft" x1="0" y1="42" x2="50" y2="72" />
-          <line className="mp-envelope-folds-soft" x1="100" y1="42" x2="50" y2="72" />
-          <line x1="0" y1="0" x2="50" y2="55" />
-          <line x1="100" y1="0" x2="50" y2="55" />
-          <line x1="0" y1="100" x2="50" y2="55" />
-          <line x1="100" y1="100" x2="50" y2="55" />
-          <line x1="0" y1="42" x2="50" y2="72" />
-          <line x1="100" y1="42" x2="50" y2="72" />
+          {/*
+            Diamond seams stop short of center so the seal covers the join cleanly
+            (no tip/cluster poking out under the circle).
+          */}
+          <line className="mp-envelope-folds-soft" x1="0" y1="0" x2="44" y2="44" />
+          <line className="mp-envelope-folds-soft" x1="100" y1="0" x2="56" y2="44" />
+          <line className="mp-envelope-folds-soft" x1="0" y1="100" x2="44" y2="56" />
+          <line className="mp-envelope-folds-soft" x1="100" y1="100" x2="56" y2="56" />
+          <line x1="0" y1="0" x2="44" y2="44" />
+          <line x1="100" y1="0" x2="56" y2="44" />
+          <line x1="0" y1="100" x2="44" y2="56" />
+          <line x1="100" y1="100" x2="56" y2="56" />
         </svg>
         {/* Card after flaps in DOM so open z-index stacking is reliable. */}
         <div className="mp-envelope-card" style={{ fontFamily: fontStack(config?.fontKey) }}>

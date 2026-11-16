@@ -50,46 +50,35 @@
 .mp-envelope-side-left,
 .mp-envelope-side-right {
   z-index: 1;
-}
-
-.mp-envelope-side-left::after,
-.mp-envelope-side-right::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  /* Tonal shift so side flaps read apart from the top flap. */
-  background: rgba(0, 0, 0, 0.055);
-  pointer-events: none;
+  transition: opacity 0.35s ease;
 }
 
 .mp-envelope-side-left {
-  clip-path: polygon(0 0, 50% 52%, 0 100%);
-  filter: drop-shadow(2px 0 0 rgba(0, 0, 0, 0.2))
-    drop-shadow(0 1px 0 rgba(0, 0, 0, 0.1));
+  clip-path: polygon(0 0, 50% 50%, 0 100%);
+  filter: none;
 }
 
 .mp-envelope-side-right {
-  clip-path: polygon(100% 0, 100% 100%, 50% 52%);
-  filter: drop-shadow(-2px 0 0 rgba(0, 0, 0, 0.2))
-    drop-shadow(0 1px 0 rgba(0, 0, 0, 0.1));
+  clip-path: polygon(100% 0, 100% 100%, 50% 50%);
+  filter: none;
 }
 
-/* Bottom / pocket flap — overlaps the sides; edge shadow defines the fold. */
+/* Bottom flap — same diamond tip as the top flap when closed (no extra lower V). */
 .mp-envelope-front {
-  clip-path: polygon(0 100%, 0 42%, 50% 72%, 100% 42%, 100% 100%);
+  clip-path: polygon(0 100%, 50% 50%, 100% 100%);
   z-index: 2;
-  filter: drop-shadow(0 -2px 0 rgba(0, 0, 0, 0.22))
-    drop-shadow(0 -4px 6px rgba(0, 0, 0, 0.12));
+  transition: clip-path 0.5s ease, filter 0.5s ease;
+  /* No closed-state shadow — it made a dark band under the seal. */
+  filter: none;
 }
 
-/* Top flap — sits above sides + bottom; soft shadow = visible fold lines. */
+/* Top flap — folds come from SVG strokes; no tip shadow under the seal. */
 .mp-envelope-flap {
-  clip-path: polygon(0 0, 100% 0, 50% 55%);
+  clip-path: polygon(0 0, 100% 0, 50% 50%);
   transform-origin: top center;
-  transition: transform 0.7s ease, z-index 0s linear 0.35s;
+  transition: transform 0.7s ease, z-index 0s linear 0.35s, filter 0.5s ease;
   z-index: 3;
-  filter: drop-shadow(0 3px 0 rgba(0, 0, 0, 0.2))
-    drop-shadow(0 6px 10px rgba(0, 0, 0, 0.18));
+  filter: none;
 }
 
 .mp-envelope.is-open .mp-envelope-flap {
@@ -102,15 +91,16 @@
 
 .mp-envelope.is-open .mp-envelope-side-left,
 .mp-envelope.is-open .mp-envelope-side-right {
-  /* Sides stay behind the emerging card. */
-  z-index: 1;
+  /* Closed-only diamond geometry — hide when open. */
+  opacity: 0;
+  z-index: 0;
 }
 
 .mp-envelope.is-open .mp-envelope-front {
-  /* Front pocket tucks over the card bottom. */
+  /* Open pocket shape; tucks over the card bottom. */
+  clip-path: polygon(0 100%, 0 42%, 50% 72%, 100% 42%, 100% 100%);
   z-index: 4;
-  filter: drop-shadow(0 -2px 0 rgba(0, 0, 0, 0.28))
-    drop-shadow(0 -5px 8px rgba(0, 0, 0, 0.14));
+  filter: drop-shadow(0 -1px 0 rgba(0, 0, 0, 0.18));
 }
 
 /*
@@ -148,7 +138,7 @@
 .mp-envelope-seal {
   position: absolute;
   left: 50%;
-  top: 48%;
+  top: 50%;
   z-index: 5;
   width: 56px;
   height: 56px;
@@ -159,7 +149,8 @@
   align-items: center;
   justify-content: center;
   overflow: hidden;
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.25);
+  box-shadow: none;
+  border: 1px solid rgba(0, 0, 0, 0.08);
   transition: opacity 0.4s ease, transform 0.4s ease;
 }
 
