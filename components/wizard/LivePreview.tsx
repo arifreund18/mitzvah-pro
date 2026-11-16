@@ -1,9 +1,11 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { EventSite } from '@/components/template/EventSite'
-import { EmailChrome, InvitationCard, SaveTheDateCard } from '@/components/template/EventEmails'
+import { EmailChrome, SaveTheDateCard } from '@/components/template/EventEmails'
 import { wizardUi } from '@/lib/platform/copy'
+import { mailHtml } from '@/lib/platform/mail'
+import { normalizeGuest } from '@/lib/platform/normalize-guest'
 import { templateUi } from '@/lib/platform/template-copy'
 import { eventPublicHostLabel } from '@/lib/platform/site-url'
 import type { EventConfig, WizardStepId } from '@/lib/platform/types'
@@ -17,12 +19,33 @@ export function LivePreview({
   step: WizardStepId
 }) {
   const scroller = useRef<HTMLDivElement>(null)
+  const [previewHost, setPreviewHost] = useState('localhost:3000')
   const ui = wizardUi(config.locales.default)
   const mail = templateUi(config.locales.default)
   const target =
     wizardSteps(config.locales.default, config.productMode).find((item) => item.id === step)
       ?.previewTarget ?? 'hero'
   const emailKind = step === 'saveTheDate' ? 'std' : step === 'invitation' ? 'invite' : null
+
+  const previewGuest = useMemo(
+    () =>
+      normalizeGuest({
+        familyName: config.basics.familyName || config.basics.honoreeName || 'Guest',
+        email: 'preview@mitzvah.pro',
+        token: 'PREVIEW',
+        inviteLocale: config.locales.default,
+      }),
+    [config.basics.familyName, config.basics.honoreeName, config.locales.default],
+  )
+
+  const inviteMailSrcDoc = useMemo(() => {
+    if (emailKind !== 'invite') return ''
+    return mailHtml('invite', config, previewHost, previewGuest)
+  }, [emailKind, config, previewGuest, previewHost])
+
+  useEffect(() => {
+    setPreviewHost(window.location.host)
+  }, [])
 
   useEffect(() => {
     if (emailKind) return
@@ -54,9 +77,21 @@ export function LivePreview({
             <SaveTheDateCard config={config} />
           </EmailChrome>
         ) : emailKind === 'invite' ? (
-          <EmailChrome kind="invite" config={config}>
-            <InvitationCard config={config} />
-          </EmailChrome>
+          <div className="min-h-full bg-[#1a2033] px-4 py-8">
+            <div className="mx-auto max-w-lg overflow-hidden rounded-2xl border border-white/10 bg-[#0e1424] text-white shadow-2xl">
+              <div className="border-b border-white/10 px-4 py-3 text-xs text-white/50">
+                <p>
+                  {mail.emailPreview} · {mail.emailInvite}
+                </p>
+                <p className="mt-1 text-white/70">{mail.toGuests}</p>
+              </div>
+              <iframe
+                title={mail.emailInvite}
+                className="block h-[760px] w-full border-0 bg-white"
+                srcDoc={inviteMailSrcDoc}
+              />
+            </div>
+          </div>
         ) : (
           <div className="origin-top scale-[0.92] md:scale-100">
             <EventSite config={config} highlight={step} mode="preview" />
