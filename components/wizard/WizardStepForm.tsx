@@ -21,6 +21,7 @@ import {
 import { LOCALE_OPTIONS } from '@/lib/platform/locales'
 import { normalizeGuest } from '@/lib/platform/normalize'
 import { eventPublicHostLabel } from '@/lib/platform/site-url'
+import { moveArrayItem } from '@/lib/platform/reorder'
 import { applyProductMode, reviewIssues } from '@/lib/platform/wizard'
 import { GuestCsvImport } from '@/components/dashboard/GuestCsvImport'
 import { GooglePhotosImport } from '@/components/wizard/GooglePhotosImport'
@@ -1136,6 +1137,12 @@ export const WizardStepForm = forwardRef<
   }
 
   if (step === 'faq') {
+    const moveFaq = (index: number, direction: 'up' | 'down') =>
+      set({
+        ...config,
+        faq: { items: moveArrayItem(config.faq.items, index, direction) },
+      })
+
     return (
       <div className="space-y-4">
         {config.faq.items.map((item, index) => (
@@ -1144,20 +1151,40 @@ export const WizardStepForm = forwardRef<
               <span>
                 {ui.question} {index + 1}
               </span>
-              <button
-                type="button"
-                className="text-rose-300"
-                onClick={() =>
-                  set({
-                    ...config,
-                    faq: {
-                      items: config.faq.items.filter((row) => row.id !== item.id),
-                    },
-                  })
-                }
-              >
-                {ui.remove}
-              </button>
+              <div className="flex items-center gap-2 text-sm">
+                <button
+                  type="button"
+                  className="px-0.5 text-white/50 disabled:opacity-30"
+                  disabled={index === 0}
+                  aria-label={ui.moveUp}
+                  onClick={() => moveFaq(index, 'up')}
+                >
+                  ↑
+                </button>
+                <button
+                  type="button"
+                  className="px-0.5 text-white/50 disabled:opacity-30"
+                  disabled={index === config.faq.items.length - 1}
+                  aria-label={ui.moveDown}
+                  onClick={() => moveFaq(index, 'down')}
+                >
+                  ↓
+                </button>
+                <button
+                  type="button"
+                  className="text-rose-300"
+                  onClick={() =>
+                    set({
+                      ...config,
+                      faq: {
+                        items: config.faq.items.filter((row) => row.id !== item.id),
+                      },
+                    })
+                  }
+                >
+                  {ui.remove}
+                </button>
+              </div>
             </div>
             <TextInput
               placeholder={ui.question}

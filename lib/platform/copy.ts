@@ -285,6 +285,8 @@ export type WizardUi = {
   question: string
   answer: string
   addQuestion: string
+  moveUp: string
+  moveDown: string
   guestsHint: string
   addGuest: string
   slug: string
@@ -394,6 +396,8 @@ const WIZARD_UI: Record<EventLocale, WizardUi> = {
     question: 'Pergunta',
     answer: 'Resposta',
     addQuestion: '+ Pergunta',
+    moveUp: 'Mover para cima',
+    moveDown: 'Mover para baixo',
     guestsHint: 'Adicione famílias agora ou depois no painel de convidados.',
     addGuest: 'Adicionar à lista',
     slug: 'Subdomínio',
@@ -528,6 +532,8 @@ const WIZARD_UI: Record<EventLocale, WizardUi> = {
     question: 'Question',
     answer: 'Answer',
     addQuestion: '+ Question',
+    moveUp: 'Move up',
+    moveDown: 'Move down',
     guestsHint: 'Add families now or later in the guest list.',
     addGuest: 'Add to list',
     slug: 'Subdomain',
@@ -662,6 +668,8 @@ const WIZARD_UI: Record<EventLocale, WizardUi> = {
     question: 'Pregunta',
     answer: 'Respuesta',
     addQuestion: '+ Pregunta',
+    moveUp: 'Subir',
+    moveDown: 'Bajar',
     guestsHint: 'Agrega familias ahora o después en la lista de invitados.',
     addGuest: 'Agregar a la lista',
     slug: 'Subdominio',
@@ -796,6 +804,8 @@ const WIZARD_UI: Record<EventLocale, WizardUi> = {
     question: 'שאלה',
     answer: 'תשובה',
     addQuestion: '+ שאלה',
+    moveUp: 'העברה למעלה',
+    moveDown: 'העברה למטה',
     guestsHint: 'אפשר להוסיף משפחות עכשיו או אחר כך ברשימת האורחים.',
     addGuest: 'הוספה לרשימה',
     slug: 'סאבדומיין',
