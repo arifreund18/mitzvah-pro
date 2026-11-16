@@ -76,7 +76,10 @@ export function GuestManualAdd({
         ],
       }),
     })
-    const data = (await res.json().catch(() => null)) as { error?: string } | null
+    const data = (await res.json().catch(() => null)) as {
+      error?: string
+      merged?: boolean
+    } | null
     setBusy(false)
     if (!res.ok) {
       setTone('err')
@@ -85,7 +88,11 @@ export function GuestManualAdd({
     }
     reset()
     setTone('ok')
-    setMessage('Convidado adicionado')
+    setMessage(
+      data?.merged
+        ? 'Pessoa adicionada à família existente (mesmo email)'
+        : 'Convidado adicionado',
+    )
     onAdded?.(draft)
     router.refresh()
   }

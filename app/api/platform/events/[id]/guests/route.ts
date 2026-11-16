@@ -1,5 +1,11 @@
 import { NextResponse } from 'next/server'
-import { addGuest, getEvent, replaceGuests, updateGuest } from '@/lib/platform/store'
+import {
+  addGuest,
+  deleteGuestPerson,
+  getEvent,
+  replaceGuests,
+  updateGuest,
+} from '@/lib/platform/store'
 import { requireEventAccess } from '@/lib/platform/session'
 import { consumeRateLimit } from '@/lib/platform/rate-limit'
 import { uid } from '@/lib/platform/ids'
@@ -89,9 +95,18 @@ export async function POST(request: Request, ctx: Ctx) {
           }),
         )
 
+  const email = body?.email?.trim() || ''
+  const existing =
+    email &&
+    event.guests.find((item) => {
+      const needle = email.toLowerCase()
+      if (item.email.trim().toLowerCase() === needle) return true
+      return (item.emails || []).some((value) => value.trim().toLowerCase() === needle)
+    })
+
   const guest = await addGuest(id, {
     familyName,
-    email: body?.email?.trim() || '',
+    email,
     partySize: people.length,
     status,
     meal,
@@ -100,7 +115,8 @@ export async function POST(request: Request, ctx: Ctx) {
     people,
     openRsvp: event.config.rsvp.openRsvpDefault,
   })
-  return NextResponse.json({ guest })
+  if (!guest) return NextResponse.json({ error: 'Evento não encontrado' }, { status: 404 })
+  return NextResponse.json({ guest, merged: Boolean(existing) })
 }
 
 export async function PUT(request: Request, ctx: Ctx) {
@@ -150,4 +166,28 @@ export async function PATCH(request: Request, ctx: Ctx) {
   const updated = await updateGuest(id, guestId, patch)
   if (!updated) return NextResponse.json({ error: 'Convidado não encontrado' }, { status: 404 })
   return NextResponse.json({ guest: updated.guest, event: updated.event })
+}
+
+export async function DELETE(request: Request, ctx: Ctx) {
+  const { id } = await ctx.params
+  const denied = await requireEventAccess(id)
+  if (denied) return denied
+
+  const body = (await request.json().catch(() => null)) as {
+    guestId?: string
+    personId?: string
+  } | null
+  const guestId = body?.guestId?.trim()
+  if (!guestId) {
+    return NextResponse.json({ error: 'Informe guestId' }, { status: 400 })
+  }
+
+  const result = await deleteGuestPerson(id, guestId, body?.personId?.trim() || null)
+  if (!result) return NextResponse.json({ error: 'Convidado não encontrado' }, { status: 404 })
+  return NextResponse.json({
+    ok: true,
+    deleted: result.deleted,
+    guest: result.guest || null,
+    event: result.event,
+  })
 }

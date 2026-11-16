@@ -76,6 +76,19 @@ export function GuestAdminPanel({ event }: { event: PlatformEvent }) {
     if (res.ok) router.refresh()
   }
 
+  async function removeGuest(guestId: string, personId?: string) {
+    const label = personId ? 'este convidado' : 'esta família e todos os convidados'
+    if (!confirm(`Excluir ${label}?`)) return
+    setBusyId(guestId)
+    const res = await fetch(`/api/platform/events/${event.id}/guests`, {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ guestId, personId }),
+    })
+    setBusyId('')
+    if (res.ok) router.refresh()
+  }
+
   return (
     <div className="mt-6 space-y-4">
       <p className="text-sm text-white/50">
@@ -139,12 +152,13 @@ export function GuestAdminPanel({ event }: { event: PlatformEvent }) {
               <th className="px-4 py-3 font-medium">Programação</th>
               <th className="px-4 py-3 font-medium">STD</th>
               <th className="px-4 py-3 font-medium">Convite</th>
+              <th className="px-4 py-3 font-medium">Ações</th>
             </tr>
           </thead>
           <tbody>
             {rows.length === 0 ? (
               <tr>
-                <td colSpan={7} className="px-4 py-8 text-center text-white/40">
+                <td colSpan={8} className="px-4 py-8 text-center text-white/40">
                   Nenhum convidado neste filtro.
                 </td>
               </tr>
@@ -160,11 +174,21 @@ export function GuestAdminPanel({ event }: { event: PlatformEvent }) {
                       <span className="block text-xs text-white/40">
                         {guest.partySize} · {adults}A / {children}C
                       </span>
-                      <ul className="mt-1 space-y-0.5 text-xs text-white/70">
+                      <ul className="mt-1 space-y-1 text-xs text-white/70">
                         {(guest.people || []).map((person) => (
-                          <li key={person.id}>
-                            {person.name || '—'} (
-                            {person.type === 'child' ? 'criança' : 'adulto'})
+                          <li key={person.id} className="flex flex-wrap items-center gap-2">
+                            <span>
+                              {person.name || '—'} (
+                              {person.type === 'child' ? 'criança' : 'adulto'})
+                            </span>
+                            <button
+                              type="button"
+                              disabled={busyId === guest.id}
+                              onClick={() => void removeGuest(guest.id, person.id)}
+                              className="text-rose-300 hover:text-rose-200 disabled:opacity-40"
+                            >
+                              Excluir
+                            </button>
                           </li>
                         ))}
                       </ul>
@@ -214,6 +238,16 @@ export function GuestAdminPanel({ event }: { event: PlatformEvent }) {
                     </td>
                     <td className="px-4 py-3 text-white/60">{fmt(guest.stdSentAt)}</td>
                     <td className="px-4 py-3 text-white/60">{fmt(guest.inviteSentAt)}</td>
+                    <td className="px-4 py-3">
+                      <button
+                        type="button"
+                        disabled={busyId === guest.id}
+                        onClick={() => void removeGuest(guest.id)}
+                        className="text-xs text-rose-300 hover:text-rose-200 disabled:opacity-40"
+                      >
+                        Excluir família
+                      </button>
+                    </td>
                   </tr>
                 )
               })

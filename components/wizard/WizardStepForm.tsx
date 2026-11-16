@@ -1341,6 +1341,36 @@ export const WizardStepForm = forwardRef<
         <p className="text-sm text-white/50">{ui.guestsHint}</p>
         <GuestManualAdd
           onAdded={(row) => {
+            const person = normalizePerson({
+              name: row.guestName,
+              type: row.guestType,
+              status: 'pending',
+            })
+            const email = row.email.trim().toLowerCase()
+            const existingIndex = email
+              ? guests.findIndex(
+                  (guest) =>
+                    guest.email.trim().toLowerCase() === email ||
+                    (guest.emails || []).some((item) => item.trim().toLowerCase() === email),
+                )
+              : -1
+            if (existingIndex >= 0) {
+              const current = guests[existingIndex]
+              const people = [...(current.people || [])]
+              const dup = people.find(
+                (item) => item.name.trim().toLowerCase() === person.name.trim().toLowerCase(),
+              )
+              if (!dup) people.push(person)
+              else if (person.type === 'child') dup.type = 'child'
+              const next = [...guests]
+              next[existingIndex] = normalizeGuest({
+                ...current,
+                familyName: row.familyName || current.familyName,
+                people,
+              })
+              onGuests(next)
+              return
+            }
             onGuests([
               ...guests,
               normalizeGuest({
@@ -1349,13 +1379,7 @@ export const WizardStepForm = forwardRef<
                 status: 'pending',
                 openRsvp: config.rsvp.openRsvpDefault,
                 inviteLocale: config.locales.default,
-                people: [
-                  normalizePerson({
-                    name: row.guestName,
-                    type: row.guestType,
-                    status: 'pending',
-                  }),
-                ],
+                people: [person],
               }),
             ])
           }}

@@ -406,6 +406,31 @@ export async function deleteEvent(id: string): Promise<boolean> {
   })
 }
 
+function guestEmailsMatch(guest: Guest, email: string): boolean {
+  const needle = email.trim().toLowerCase()
+  if (!needle) return false
+  if (guest.email.trim().toLowerCase() === needle) return true
+  return (guest.emails || []).some((item) => item.trim().toLowerCase() === needle)
+}
+
+function mergePeople(existing: GuestPerson[], incoming: GuestPerson[]): GuestPerson[] {
+  const people = [...existing]
+  for (const person of incoming) {
+    const name = person.name.trim().toLowerCase()
+    if (!name) {
+      people.push(person)
+      continue
+    }
+    const dup = people.find((item) => item.name.trim().toLowerCase() === name)
+    if (dup) {
+      dup.type = person.type === 'child' ? 'child' : dup.type
+      continue
+    }
+    people.push(person)
+  }
+  return people
+}
+
 export async function addGuest(
   eventId: string,
   guest: Partial<Guest> & { familyName: string },
@@ -414,15 +439,82 @@ export async function addGuest(
     const store = await loadStore()
     const event = store.events.find((item) => item.id === eventId)
     if (!event) return null
-    const record = normalizeGuest({
+    const now = new Date().toISOString()
+    const incoming = normalizeGuest({
       ...guest,
       id: uid(),
-      createdAt: new Date().toISOString(),
+      createdAt: now,
     })
-    event.guests.push(record)
-    event.updatedAt = record.createdAt
+    const email = incoming.email.trim()
+    if (email) {
+      const index = event.guests.findIndex((item) => guestEmailsMatch(item, email))
+      if (index >= 0) {
+        const current = event.guests[index]
+        const people = mergePeople(current.people || [], incoming.people || [])
+        const merged = normalizeGuest({
+          ...current,
+          familyName: guest.familyName?.trim() || current.familyName,
+          email: current.email || email,
+          emails: Array.from(
+            new Set([...(current.emails || []), ...(incoming.emails || []), email].filter(Boolean)),
+          ),
+          people,
+          partySize: people.length,
+        })
+        event.guests[index] = merged
+        event.updatedAt = now
+        await saveStore(store)
+        return merged
+      }
+    }
+    event.guests.push(incoming)
+    event.updatedAt = now
     await saveStore(store)
-    return record
+    return incoming
+  })
+}
+
+export async function deleteGuest(
+  eventId: string,
+  guestId: string,
+): Promise<{ event: PlatformEvent; deleted: 'family' | 'person'; guest?: Guest } | null> {
+  return deleteGuestPerson(eventId, guestId, null)
+}
+
+/** Remove one person from a family; if last person (or personId null), remove the family. */
+export async function deleteGuestPerson(
+  eventId: string,
+  guestId: string,
+  personId: string | null,
+): Promise<{ event: PlatformEvent; deleted: 'family' | 'person'; guest?: Guest } | null> {
+  return withLock(async () => {
+    const store = await loadStore()
+    const event = store.events.find((item) => item.id === eventId)
+    if (!event) return null
+    const index = event.guests.findIndex((item) => item.id === guestId)
+    if (index < 0) return null
+
+    if (!personId) {
+      event.guests.splice(index, 1)
+      event.updatedAt = new Date().toISOString()
+      await saveStore(store)
+      return { event, deleted: 'family' }
+    }
+
+    const current = event.guests[index]
+    const people = (current.people || []).filter((person) => person.id !== personId)
+    if (people.length === 0) {
+      event.guests.splice(index, 1)
+      event.updatedAt = new Date().toISOString()
+      await saveStore(store)
+      return { event, deleted: 'family' }
+    }
+
+    const guest = normalizeGuest({ ...current, people, partySize: people.length })
+    event.guests[index] = guest
+    event.updatedAt = new Date().toISOString()
+    await saveStore(store)
+    return { event, deleted: 'person', guest }
   })
 }
 
