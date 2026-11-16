@@ -1,4 +1,4 @@
-import type { EventConfig } from './types'
+import type { EventConfig } from './types.ts'
 
 function pad(n: number): string {
   return String(n).padStart(2, '0')
@@ -50,7 +50,21 @@ function titleOf(config: EventConfig): string {
   return config.domain.seoTitle || config.story.headline || config.basics.honoreeName || 'Event'
 }
 
-function locationOf(config: EventConfig): string {
+/** Full venue for calendar LOCATION — prefer invitation design address over city/country alone. */
+export function locationOf(config: EventConfig, kind: 'std' | 'invite' = 'invite'): string {
+  const design = kind === 'std' ? config.saveTheDate.design : config.invitation.design
+  const primary = [design.placeLabel, design.address1, design.address2]
+    .map((part) => part?.trim())
+    .filter(Boolean) as string[]
+  if (primary.length) {
+    const joined = primary.join(', ')
+    const extras: string[] = []
+    const city = config.basics.city?.trim()
+    const country = config.basics.country?.trim()
+    if (city && !joined.toLowerCase().includes(city.toLowerCase())) extras.push(city)
+    if (country && !joined.toLowerCase().includes(country.toLowerCase())) extras.push(country)
+    return [...primary, ...extras].join(', ')
+  }
   return [config.basics.city, config.basics.country].filter(Boolean).join(', ')
 }
 
@@ -58,7 +72,7 @@ function detailsOf(config: EventConfig): string {
   return config.story.subtitle || config.invitation.body || ''
 }
 
-export function google(config: EventConfig): string {
+export function google(config: EventConfig, kind: 'std' | 'invite' = 'invite'): string {
   const parts = eventStartParts(config)
   if (!parts) return ''
   const { start, end } = compactLocal(parts)
@@ -67,7 +81,7 @@ export function google(config: EventConfig): string {
     text: titleOf(config),
     dates: `${start}/${end}`,
     details: detailsOf(config),
-    location: locationOf(config),
+    location: locationOf(config, kind),
   })
   return `https://calendar.google.com/calendar/render?${params.toString()}`
 }
@@ -77,7 +91,7 @@ export function googleCalendarUrl(config: EventConfig): string {
   return google(config)
 }
 
-export function outlook(config: EventConfig): string {
+export function outlook(config: EventConfig, kind: 'std' | 'invite' = 'invite'): string {
   const parts = eventStartParts(config)
   if (!parts) return ''
   const startIso = `${parts.year}-${pad(parts.month)}-${pad(parts.day)}T${pad(parts.hour)}:${pad(parts.minute)}:00`
@@ -88,14 +102,17 @@ export function outlook(config: EventConfig): string {
     rru: 'addevent',
     subject: titleOf(config),
     body: detailsOf(config),
-    location: locationOf(config),
+    location: locationOf(config, kind),
     startdt: startIso,
     enddt: endIso,
   })
   return `https://outlook.live.com/calendar/0/deeplink/compose?${params.toString()}`
 }
 
-export function icsContent(config: EventConfig, opts?: { url?: string }): string {
+export function icsContent(
+  config: EventConfig,
+  opts?: { url?: string; kind?: 'std' | 'invite' },
+): string {
   const parts = eventStartParts(config)
   if (!parts) return ''
   const { start, end } = compactLocal(parts)
@@ -118,7 +135,7 @@ export function icsContent(config: EventConfig, opts?: { url?: string }): string
     `DTEND:${end}`,
     `SUMMARY:${escape(titleOf(config))}`,
     `DESCRIPTION:${escape(detailsOf(config))}`,
-    `LOCATION:${escape(locationOf(config))}`,
+    `LOCATION:${escape(locationOf(config, opts?.kind || 'invite'))}`,
   ]
   if (opts?.url) lines.push(`URL:${opts.url}`)
   lines.push('END:VEVENT', 'END:VCALENDAR', '')

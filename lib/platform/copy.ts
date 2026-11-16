@@ -1,4 +1,4 @@
-import type { EventConfig, EventLocale, EventType, WizardStepId } from './types'
+import type { EventConfig, EventLocale, EventType, WizardStepId } from './types.ts'
 
 export const BCP47: Record<EventLocale, string> = {
   en: 'en-US',
