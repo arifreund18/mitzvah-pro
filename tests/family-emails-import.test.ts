@@ -6,7 +6,7 @@ import {
   parseEmailsInput,
 } from '../lib/platform/family-emails.ts'
 import { mergeImportedGuestsByEmail, parseGuestImportRows } from '../lib/platform/csv.ts'
-import { normalizeGuest } from '../lib/platform/normalize-guest.ts'
+import { normalizeGuest, normalizePerson } from '../lib/platform/normalize-guest.ts'
 
 describe('family multi-email', () => {
   it('parses comma-separated emails', () => {
@@ -57,12 +57,12 @@ describe('family multi-email', () => {
       normalizeGuest({
         familyName: 'A',
         email: 'a@x.com, b@y.com',
-        people: [{ name: 'One', type: 'adult', status: 'pending', meal: '', dietary: '' }],
+        people: [normalizePerson({ name: 'One', type: 'adult', status: 'pending' })],
       }),
       normalizeGuest({
         familyName: 'A',
         emails: ['a@x.com', 'b@y.com'],
-        people: [{ name: 'Two', type: 'child', status: 'pending', meal: '', dietary: '' }],
+        people: [normalizePerson({ name: 'Two', type: 'child', status: 'pending' })],
       }),
     ])
     assert.equal(merged.length, 1)

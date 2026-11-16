@@ -20,10 +20,10 @@ async function sendOne(opts: {
   config: EventConfig
   host: string
   guest: Guest
-}): Promise<{ ok: boolean; resendId: string | null; error: string }> {
+}): Promise<{ ok: boolean; resendId: string | null; error: string; recipients: string[] }> {
   const recipients = guestMailRecipients(opts.guest)
   if (recipients.length === 0) {
-    return { ok: false, resendId: null, error: 'sem email', recipients: [] as string[] }
+    return { ok: false, resendId: null, error: 'sem email', recipients: [] }
   }
   const result = await opts.resend.emails.send({
     from: opts.from,
