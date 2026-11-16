@@ -30,8 +30,17 @@ export {
 
 let writeChain: Promise<unknown> = Promise.resolve()
 
+/** Uncached load — dashboard, auth, cron, and all write paths. */
 async function loadStore(): Promise<PlatformStore> {
   return loadPlatformStore()
+}
+
+/**
+ * Short-lived cache for public read paths (site, RSVP GET, design-asset, preview).
+ * Never use inside withLock / save paths.
+ */
+async function loadStorePublic(): Promise<PlatformStore> {
+  return loadPlatformStore({ cache: true })
 }
 
 async function saveStore(store: PlatformStore): Promise<void> {
@@ -193,14 +202,14 @@ export async function getEvent(id: string): Promise<PlatformEvent | null> {
 }
 
 export async function getEventBySlug(slug: string): Promise<PlatformEvent | null> {
-  const store = await loadStore()
+  const store = await loadStorePublic()
   return store.events.find((event) => event.slug === slug) ?? null
 }
 
 export async function getEventByCustomHost(host: string): Promise<PlatformEvent | null> {
   const needle = host.split(':')[0].toLowerCase().replace(/^www\./, '')
   if (!needle) return null
-  const store = await loadStore()
+  const store = await loadStorePublic()
   return (
     store.events.find((event) => {
       const custom = event.config.domain.customHost.replace(/^www\./, '')
@@ -211,13 +220,13 @@ export async function getEventByCustomHost(host: string): Promise<PlatformEvent 
 
 export async function getEventByPreviewToken(token: string): Promise<PlatformEvent | null> {
   if (!token) return null
-  const store = await loadStore()
+  const store = await loadStorePublic()
   return store.events.find((event) => event.previewToken === token) ?? null
 }
 
 export async function getEventByApprovalToken(token: string): Promise<PlatformEvent | null> {
   if (!token) return null
-  const store = await loadStore()
+  const store = await loadStorePublic()
   return store.events.find((event) => event.approvalToken === token) ?? null
 }
 
@@ -532,13 +541,13 @@ export async function loadPlatformStoreForCron(): Promise<PlatformStore> {
   return loadStore()
 }
 
-/** Scan all events for a family invite token. */
+/** Scan all events for a family invite token (public GET; writes re-load uncached). */
 export async function getFamilyByToken(
   token: string,
 ): Promise<{ event: PlatformEvent; guest: Guest } | null> {
   const needle = token?.trim()
   if (!needle) return null
-  const store = await loadStore()
+  const store = await loadStorePublic()
   for (const event of store.events) {
     const guest = event.guests.find((item) => item.token === needle)
     if (guest) return { event, guest }

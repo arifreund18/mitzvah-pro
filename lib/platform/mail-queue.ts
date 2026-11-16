@@ -1,5 +1,6 @@
 import postgres from 'postgres'
 import { uid } from './ids'
+import { oncePerProcess } from './once'
 import { loadPlatformStore, savePlatformStore, storageDriver } from './persistence'
 import type { MailJob, MailJobStatus } from './types'
 import { MAIL_BATCH_SIZE, mailJobProgress } from './mail-job'
@@ -35,7 +36,7 @@ function usePostgresTable(): boolean {
   return storageDriver() === 'postgres' && Boolean(process.env.DATABASE_URL)
 }
 
-async function ensureMailJobsTable() {
+const ensureMailJobsTable = oncePerProcess(async () => {
   const db = pg()
   if (!db) return
   await db`
@@ -51,7 +52,7 @@ async function ensureMailJobsTable() {
       updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
     )
   `
-}
+})
 
 type MailJobPayload = {
   guestIds: string[]

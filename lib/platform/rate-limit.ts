@@ -1,5 +1,6 @@
 import { storageDriver } from './persistence'
 import postgres from 'postgres'
+import { oncePerProcess } from './once'
 
 export type RateBucket = {
   key: string
@@ -23,7 +24,7 @@ function pg() {
   return pgClient
 }
 
-async function ensureTable() {
+const ensureTable = oncePerProcess(async () => {
   const db = pg()
   if (!db) return
   await db`
@@ -33,7 +34,7 @@ async function ensureTable() {
       window_start BIGINT NOT NULL
     )
   `
-}
+})
 
 /** Sliding fixed window. Returns { ok, remaining }. */
 export async function consumeRateLimit(

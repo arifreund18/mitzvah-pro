@@ -4,11 +4,20 @@
  */
 import type { PlatformStore, PlatformEvent, Guest, EmailLog } from './types'
 import { normalizeEvent, normalizeGuest } from './normalize'
+import { oncePerProcess } from './once'
 
 type Sql = ReturnType<typeof import('postgres')>
 
+let schemaDb: Sql | null = null
+let ensureRelationalSchemaOnce: (() => Promise<void>) | null = null
+
 export async function ensureRelationalSchema(db: Sql): Promise<void> {
-  await db.unsafe(`
+  schemaDb = db
+  if (!ensureRelationalSchemaOnce) {
+    ensureRelationalSchemaOnce = oncePerProcess(async () => {
+      const active = schemaDb
+      if (!active) throw new Error('Postgres client ausente para schema relacional')
+      await active.unsafe(`
     CREATE TABLE IF NOT EXISTS orgs (
       id TEXT PRIMARY KEY,
       name TEXT NOT NULL,
@@ -102,14 +111,23 @@ export async function ensureRelationalSchema(db: Sql): Promise<void> {
       updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
     );
   `)
-  // Upgrade older families tables created without people JSONB columns.
-  await db.unsafe(`
+      // Upgrade older families tables created without people JSONB columns.
+      await active.unsafe(`
     ALTER TABLE families ADD COLUMN IF NOT EXISTS people JSONB NOT NULL DEFAULT '[]'::jsonb;
     ALTER TABLE families ADD COLUMN IF NOT EXISTS party_size INT NOT NULL DEFAULT 1;
     ALTER TABLE families ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'pending';
     ALTER TABLE families ADD COLUMN IF NOT EXISTS meal TEXT NOT NULL DEFAULT '';
     ALTER TABLE families ADD COLUMN IF NOT EXISTS dietary TEXT NOT NULL DEFAULT '';
   `)
+    })
+  }
+  await ensureRelationalSchemaOnce()
+}
+
+/** Test-only: allow schema ensure to run again after a simulated failure. */
+export function resetRelationalSchemaEnsureForTests(): void {
+  ensureRelationalSchemaOnce = null
+  schemaDb = null
 }
 
 export async function relationalEventCount(db: Sql): Promise<number> {
