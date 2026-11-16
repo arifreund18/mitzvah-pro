@@ -21,6 +21,7 @@ function sampleDesign(partial: Partial<CardDesign> = {}): CardDesign {
     fontKey: 'georgia',
     cardColor: '#1a2033',
     cardTextColor: '#ffffff',
+    ctaRsvpColor: '#ffffff',
     cardImageUrl: '',
     cardImagePosition: 'center',
     greetingColor: '#6a5b4c',
@@ -100,6 +101,7 @@ function inviteConfig(): EventConfig {
         ctaCalendar: 'Add to calendar',
         ctaMap: 'View map',
         ctaRsvp: 'RSVP',
+        ctaRsvpColor: '#000000',
       }),
     },
     saveTheDate: { design: sampleDesign(), message: '', envelopeLabel: '' },
@@ -127,6 +129,7 @@ describe('mailHtml invite (Bar-Beni layout)', () => {
     assert.match(html, /700 Mount Vernon Hwy NE/)
     assert.match(html, /View map/)
     assert.match(html, />RSVP</)
+    assert.match(html, /color:#000000;background-color:#1a2033/)
     assert.match(html, /cdn\.example\/seal\.png/)
     assert.match(html, /background-color:#1a2033/)
     assert.match(

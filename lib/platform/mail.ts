@@ -181,6 +181,7 @@ export function mailHtml(
 
   const cardColor = design.cardColor || config.branding.primaryColor || '#1a2033'
   const cardTextColor = design.cardTextColor || '#ffffff'
+  const rsvpTextColor = design.ctaRsvpColor || '#ffffff'
   const textColor = design.bodyColor || design.headingColor || '#111111'
   const mutedColor = textColor === '#FFFFFF' || textColor === '#ffffff' ? '#EEEEEE' : '#333333'
   const titleColor = design.headingColor || design.nameColor || textColor
@@ -277,7 +278,7 @@ export function mailHtml(
           </tr>
           <tr>
             <td align="center" style="padding:32px 8px 0;">
-              <a href="${escapeHtml(rsvpHref)}" style="display:inline-block;font-family:${font};font-size:14px;font-weight:bold;color:#ffffff;background-color:${escapeHtml(cardColor)};text-decoration:none;padding:14px 28px;border-radius:999px;">${escapeHtml(rsvpLabel)}</a>
+              <a href="${escapeHtml(rsvpHref)}" style="display:inline-block;font-family:${font};font-size:14px;font-weight:bold;color:${escapeHtml(rsvpTextColor)};background-color:${escapeHtml(cardColor)};text-decoration:none;padding:14px 28px;border-radius:999px;">${escapeHtml(rsvpLabel)}</a>
             </td>
           </tr>
         </table>

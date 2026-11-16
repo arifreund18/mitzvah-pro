@@ -23,6 +23,7 @@ export function defaultCardDesign(): CardDesign {
     fontKey: 'georgia',
     cardColor: '#f7f1e4',
     cardTextColor: '#1c1630',
+    ctaRsvpColor: '#ffffff',
     cardImageUrl: '',
     cardImagePosition: 'center',
     greetingColor: '#6a5b4c',

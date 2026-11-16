@@ -46,25 +46,28 @@ function compactLocal(parts: NonNullable<ReturnType<typeof eventStartParts>>, en
   return { start, end }
 }
 
-function titleOf(config: EventConfig): string {
+/** Calendar event title — prefer design "Assunto (email)" (`subject`). */
+export function titleOf(config: EventConfig, kind: 'std' | 'invite' = 'invite'): string {
+  const design = kind === 'std' ? config.saveTheDate.design : config.invitation.design
+  const custom = design.subject?.trim()
+  if (custom) {
+    const name = config.basics.honoreeName || 'Mitzvah.pro'
+    return custom.includes('{name}') ? custom.replaceAll('{name}', name) : custom
+  }
   return config.domain.seoTitle || config.story.headline || config.basics.honoreeName || 'Event'
 }
 
-/** Full venue for calendar LOCATION — prefer invitation design address over city/country alone. */
+/**
+ * Full venue for calendar LOCATION — use invitation place/address fields as-is.
+ * Do not append basics.city/country when design already has an address (avoids
+ * extras like "Sandy Springs, USA" when address1 already has Atlanta, GA).
+ */
 export function locationOf(config: EventConfig, kind: 'std' | 'invite' = 'invite'): string {
   const design = kind === 'std' ? config.saveTheDate.design : config.invitation.design
   const primary = [design.placeLabel, design.address1, design.address2]
     .map((part) => part?.trim())
     .filter(Boolean) as string[]
-  if (primary.length) {
-    const joined = primary.join(', ')
-    const extras: string[] = []
-    const city = config.basics.city?.trim()
-    const country = config.basics.country?.trim()
-    if (city && !joined.toLowerCase().includes(city.toLowerCase())) extras.push(city)
-    if (country && !joined.toLowerCase().includes(country.toLowerCase())) extras.push(country)
-    return [...primary, ...extras].join(', ')
-  }
+  if (primary.length) return primary.join(', ')
   return [config.basics.city, config.basics.country].filter(Boolean).join(', ')
 }
 
@@ -78,7 +81,7 @@ export function google(config: EventConfig, kind: 'std' | 'invite' = 'invite'): 
   const { start, end } = compactLocal(parts)
   const params = new URLSearchParams({
     action: 'TEMPLATE',
-    text: titleOf(config),
+    text: titleOf(config, kind),
     dates: `${start}/${end}`,
     details: detailsOf(config),
     location: locationOf(config, kind),
@@ -100,7 +103,7 @@ export function outlook(config: EventConfig, kind: 'std' | 'invite' = 'invite'):
   const params = new URLSearchParams({
     path: '/calendar/action/compose',
     rru: 'addevent',
-    subject: titleOf(config),
+    subject: titleOf(config, kind),
     body: detailsOf(config),
     location: locationOf(config, kind),
     startdt: startIso,
@@ -133,7 +136,7 @@ export function icsContent(
     `DTSTAMP:${stamp}`,
     `DTSTART:${start}`,
     `DTEND:${end}`,
-    `SUMMARY:${escape(titleOf(config))}`,
+    `SUMMARY:${escape(titleOf(config, opts?.kind || 'invite'))}`,
     `DESCRIPTION:${escape(detailsOf(config))}`,
     `LOCATION:${escape(locationOf(config, opts?.kind || 'invite'))}`,
   ]

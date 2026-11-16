@@ -146,6 +146,8 @@ export type CardDesign = {
   // Card surface
   cardColor: string
   cardTextColor: string
+  /** Text color for the RSVP button in the invite email. */
+  ctaRsvpColor: string
   cardImageUrl: string
   /** CSS background-position for cardImageUrl, e.g. "50% 30%" or "center". */
   cardImagePosition: string
