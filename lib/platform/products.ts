@@ -9,7 +9,9 @@ export const DEFAULT_PRODUCTS: EventProducts = {
 
 export const PRODUCT_IDS = ['site', 'invitation', 'saveTheDate'] as const
 
+/** Steps that only make sense with a public event website (includes Look/branding). */
 const SITE_STEP_IDS = new Set<WizardStepId>([
+  'branding',
   'story',
   'schedule',
   'venues',

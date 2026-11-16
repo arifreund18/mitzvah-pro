@@ -97,3 +97,8 @@ export function isPlatformAdmin(actor: SessionActor | null): boolean {
 export function canManageUsers(actor: SessionActor | null): boolean {
   return isPlatformAdmin(actor) || actor?.role === 'org_owner'
 }
+
+/** Owners (and platform admins) can change event products and enabled languages. */
+export function canManageEventOptions(actor: SessionActor | null): boolean {
+  return canManageUsers(actor)
+}
