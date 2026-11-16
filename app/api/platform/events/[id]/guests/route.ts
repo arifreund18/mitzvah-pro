@@ -3,6 +3,7 @@ import { addGuest, getEvent, replaceGuests, updateGuest } from '@/lib/platform/s
 import { requireEventAccess } from '@/lib/platform/session'
 import { consumeRateLimit } from '@/lib/platform/rate-limit'
 import { uid } from '@/lib/platform/ids'
+import { normalizePerson } from '@/lib/platform/normalize-guest'
 import type { Guest, GuestPerson, GuestRsvp, ScheduleInviteMode } from '@/lib/platform/types'
 import { SCHEDULE_INVITE_MODES } from '@/lib/platform/types'
 
@@ -70,15 +71,23 @@ export async function POST(request: Request, ctx: Ctx) {
 
   const people: GuestPerson[] =
     Array.isArray(body?.people) && body.people.length
-      ? body.people
-      : Array.from({ length: partySize }, (_, i) => ({
-          id: uid(),
-          name: i === 0 ? familyName : `${familyName} ${i + 1}`,
-          type: 'adult' as const,
-          status,
-          meal,
-          dietary,
-        }))
+      ? body.people.map((person) =>
+          normalizePerson({
+            ...person,
+            status: person.status || status,
+            meal: person.meal || meal,
+            dietary: person.dietary || dietary,
+          }),
+        )
+      : Array.from({ length: partySize }, (_, i) =>
+          normalizePerson({
+            name: i === 0 ? familyName : `${familyName} ${i + 1}`,
+            type: 'adult',
+            status,
+            meal,
+            dietary,
+          }),
+        )
 
   const guest = await addGuest(id, {
     familyName,
