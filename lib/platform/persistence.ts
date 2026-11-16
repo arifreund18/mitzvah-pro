@@ -6,7 +6,9 @@ import { createSeedEvent } from './defaults'
 import { DEFAULT_ORG_ID, isProductionEnv } from './auth'
 import { hashPassword } from './password'
 import { normalizeEvent } from './normalize'
+import { oncePerProcess } from './once'
 import { loadStoreFromRelational, syncStoreToRelational } from './relational'
+import { createStoreReadCache } from './store-read-cache'
 import type { Organization, PlatformStore, PlatformUser } from './types'
 
 export type StorageDriver = 'postgres' | 'blob' | 'file'
@@ -15,12 +17,16 @@ const LOCAL_PATH = path.join(process.cwd(), 'data', 'platform.json')
 const TMP_PATH = path.join('/tmp', 'mitzvah-platform.json')
 const BLOB_PATH = 'mitzvah-platform.json'
 const PG_ROW_ID = 'default'
+/** Default TTL for public read cache (override with PLATFORM_STORE_CACHE_TTL_MS; 0 disables). */
+export const PUBLIC_STORE_CACHE_TTL_MS = 10_000
 
 export const EPHEMERAL_STORAGE_ERROR =
   'Persistência efêmera na Vercel: configure DATABASE_URL (Postgres/Neon) ou BLOB_READ_WRITE_TOKEN. Sem isto, eventos criados somem e o wizard responde 404.'
 
 let filePath: string | null = null
 let pgClient: ReturnType<typeof postgres> | null = null
+
+const publicStoreCache = createStoreReadCache<PlatformStore>(PUBLIC_STORE_CACHE_TTL_MS)
 
 function defaultOrg(): Organization {
   return { id: DEFAULT_ORG_ID, name: 'Mitzvah', createdAt: new Date().toISOString() }
@@ -115,7 +121,7 @@ function sql() {
   return pgClient
 }
 
-async function ensurePostgresTable() {
+const ensurePostgresTable = oncePerProcess(async () => {
   await sql()`
     CREATE TABLE IF NOT EXISTS platform_store (
       id TEXT PRIMARY KEY,
@@ -145,7 +151,7 @@ async function ensurePostgresTable() {
   `
   const { ensureRelationalSchema } = await import('./relational')
   await ensureRelationalSchema(sql())
-}
+})
 
 async function loadPostgres(): Promise<PlatformStore> {
   await ensurePostgresTable()
@@ -263,23 +269,53 @@ async function saveFile(store: PlatformStore): Promise<void> {
   }
 }
 
-export async function loadPlatformStore(): Promise<PlatformStore> {
+async function loadPlatformStoreUncached(): Promise<PlatformStore> {
   const driver = storageDriver()
   if (driver === 'postgres') return loadPostgres()
   if (driver === 'blob') return loadBlob()
   return loadFile()
 }
 
+export type LoadPlatformStoreOptions = {
+  /** Use short in-memory cache (public reads only). Invalidated on every save. */
+  cache?: boolean
+}
+
+export async function loadPlatformStore(
+  opts?: LoadPlatformStoreOptions,
+): Promise<PlatformStore> {
+  return publicStoreCache.get(loadPlatformStoreUncached, { cache: Boolean(opts?.cache) })
+}
+
+export function invalidatePlatformStoreCache(): void {
+  publicStoreCache.invalidate()
+}
+
+/** Test-only: reset public-read cache counters/state. */
+export function resetPlatformStoreCacheForTests(): void {
+  publicStoreCache.reset()
+}
+
+/** Test-only: how many uncached loads ran since last reset. */
+export function platformStoreCacheLoadCountForTests(): number {
+  return publicStoreCache.loadCount()
+}
+
 export async function savePlatformStore(store: PlatformStore): Promise<void> {
   assertDurableStorage()
-  const driver = storageDriver()
-  if (driver === 'postgres') {
-    await savePostgres(store)
-    return
+  try {
+    const driver = storageDriver()
+    if (driver === 'postgres') {
+      await savePostgres(store)
+      return
+    }
+    if (driver === 'blob') {
+      await saveBlob(store)
+      return
+    }
+    await saveFile(store)
+  } finally {
+    // Always drop stale public cache after a write attempt on this instance.
+    invalidatePlatformStoreCache()
   }
-  if (driver === 'blob') {
-    await saveBlob(store)
-    return
-  }
-  await saveFile(store)
 }
