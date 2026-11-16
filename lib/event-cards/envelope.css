@@ -19,48 +19,137 @@
 
 .mp-envelope.is-open {
   cursor: default;
+  /* Flat stacking so z-index reliably beats the rotated flap. */
+  transform-style: flat;
 }
 
 .mp-envelope-back,
 .mp-envelope-front,
 .mp-envelope-flap,
+.mp-envelope-side,
 .mp-envelope-liner {
   position: absolute;
   inset: 0;
   border-radius: 8px;
+  pointer-events: none;
 }
 
 .mp-envelope-back {
   box-shadow: 0 18px 40px rgba(0, 0, 0, 0.35);
+  z-index: 0;
 }
 
 .mp-envelope-liner {
   inset: 12px;
   border-radius: 4px;
   opacity: 0.95;
+  z-index: 0;
 }
 
+/* Side flaps — diamond seams when closed (like a real envelope back). */
+.mp-envelope-side-left,
+.mp-envelope-side-right {
+  z-index: 1;
+}
+
+.mp-envelope-side-left::after,
+.mp-envelope-side-right::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  /* Tonal shift so side flaps read apart from the top flap. */
+  background: rgba(0, 0, 0, 0.055);
+  pointer-events: none;
+}
+
+.mp-envelope-side-left {
+  clip-path: polygon(0 0, 50% 52%, 0 100%);
+  filter: drop-shadow(2px 0 0 rgba(0, 0, 0, 0.2))
+    drop-shadow(0 1px 0 rgba(0, 0, 0, 0.1));
+}
+
+.mp-envelope-side-right {
+  clip-path: polygon(100% 0, 100% 100%, 50% 52%);
+  filter: drop-shadow(-2px 0 0 rgba(0, 0, 0, 0.2))
+    drop-shadow(0 1px 0 rgba(0, 0, 0, 0.1));
+}
+
+/* Bottom / pocket flap — overlaps the sides; edge shadow defines the fold. */
 .mp-envelope-front {
-  clip-path: polygon(0 40%, 50% 70%, 100% 40%, 100% 100%, 0 100%);
+  clip-path: polygon(0 100%, 0 42%, 50% 72%, 100% 42%, 100% 100%);
   z-index: 2;
+  filter: drop-shadow(0 -2px 0 rgba(0, 0, 0, 0.22))
+    drop-shadow(0 -4px 6px rgba(0, 0, 0, 0.12));
 }
 
+/* Top flap — sits above sides + bottom; soft shadow = visible fold lines. */
 .mp-envelope-flap {
   clip-path: polygon(0 0, 100% 0, 50% 55%);
   transform-origin: top center;
-  transition: transform 0.7s ease;
+  transition: transform 0.7s ease, z-index 0s linear 0.35s;
   z-index: 3;
+  filter: drop-shadow(0 3px 0 rgba(0, 0, 0, 0.2))
+    drop-shadow(0 6px 10px rgba(0, 0, 0, 0.18));
 }
 
 .mp-envelope.is-open .mp-envelope-flap {
   transform: rotateX(180deg);
+  /* Behind the invitation card once open (like a physical envelope). */
+  z-index: 0;
+  transition: transform 0.7s ease, z-index 0s linear 0s;
+  filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.14));
+}
+
+.mp-envelope.is-open .mp-envelope-side-left,
+.mp-envelope.is-open .mp-envelope-side-right {
+  /* Sides stay behind the emerging card. */
+  z-index: 1;
+}
+
+.mp-envelope.is-open .mp-envelope-front {
+  /* Front pocket tucks over the card bottom. */
+  z-index: 4;
+  filter: drop-shadow(0 -2px 0 rgba(0, 0, 0, 0.28))
+    drop-shadow(0 -5px 8px rgba(0, 0, 0, 0.14));
+}
+
+/*
+ * Explicit fold strokes (closed only). Drop-shadow alone is too soft on
+ * light cream paper; these match the diamond seams of a real envelope back.
+ */
+.mp-envelope-folds {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 3;
+  pointer-events: none;
+  overflow: hidden;
+  opacity: 1;
+  transition: opacity 0.35s ease;
+}
+
+.mp-envelope-folds line {
+  stroke: rgba(55, 35, 15, 0.38);
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  vector-effect: non-scaling-stroke;
+}
+
+.mp-envelope-folds .mp-envelope-folds-soft {
+  stroke: rgba(55, 35, 15, 0.18);
+  stroke-width: 3;
+}
+
+.mp-envelope.is-open .mp-envelope-folds {
+  opacity: 0;
 }
 
 .mp-envelope-seal {
   position: absolute;
   left: 50%;
   top: 48%;
-  z-index: 4;
+  z-index: 5;
   width: 56px;
   height: 56px;
   margin-left: -28px;
@@ -77,6 +166,8 @@
 .mp-envelope.is-open .mp-envelope-seal {
   opacity: 0;
   transform: scale(0.6);
+  pointer-events: none;
+  z-index: 0;
 }
 
 .mp-envelope-seal img {
@@ -120,5 +211,6 @@
   transform: translateY(-42%) scale(1);
   opacity: 1;
   pointer-events: auto;
-  z-index: 5;
+  /* Above the open flap (z=0), below the front pocket (z=4). */
+  z-index: 3;
 }

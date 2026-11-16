@@ -83,11 +83,36 @@ export function EnvelopeCard({
       >
         <div className="mp-envelope-back" style={envelopeFace} />
         <div className="mp-envelope-liner" style={{ background: liner }} />
+        {/* Side + bottom flaps create the diamond fold geometry when closed. */}
+        <div className="mp-envelope-side mp-envelope-side-left" style={envelopeFace} />
+        <div className="mp-envelope-side mp-envelope-side-right" style={envelopeFace} />
+        <div className="mp-envelope-front" style={envelopeFace} />
+        <div className="mp-envelope-flap" style={envelopeFace} />
+        {/* Stroke overlay — readable fold lines on light cream paper. */}
+        <svg
+          className="mp-envelope-folds"
+          viewBox="0 0 100 100"
+          preserveAspectRatio="none"
+          aria-hidden="true"
+        >
+          {/* Soft under-stroke + crisp edge = diamond seams like a paper envelope. */}
+          <line className="mp-envelope-folds-soft" x1="0" y1="0" x2="50" y2="55" />
+          <line className="mp-envelope-folds-soft" x1="100" y1="0" x2="50" y2="55" />
+          <line className="mp-envelope-folds-soft" x1="0" y1="100" x2="50" y2="55" />
+          <line className="mp-envelope-folds-soft" x1="100" y1="100" x2="50" y2="55" />
+          <line className="mp-envelope-folds-soft" x1="0" y1="42" x2="50" y2="72" />
+          <line className="mp-envelope-folds-soft" x1="100" y1="42" x2="50" y2="72" />
+          <line x1="0" y1="0" x2="50" y2="55" />
+          <line x1="100" y1="0" x2="50" y2="55" />
+          <line x1="0" y1="100" x2="50" y2="55" />
+          <line x1="100" y1="100" x2="50" y2="55" />
+          <line x1="0" y1="42" x2="50" y2="72" />
+          <line x1="100" y1="42" x2="50" y2="72" />
+        </svg>
+        {/* Card after flaps in DOM so open z-index stacking is reliable. */}
         <div className="mp-envelope-card" style={{ fontFamily: fontStack(config?.fontKey) }}>
           {children}
         </div>
-        <div className="mp-envelope-front" style={envelopeFace} />
-        <div className="mp-envelope-flap" style={envelopeFace} />
         <div className="mp-envelope-seal" style={{ background: sealBg }}>
           {seal ? (
             // eslint-disable-next-line @next/next/no-img-element
