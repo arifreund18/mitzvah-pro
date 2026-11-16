@@ -16,7 +16,7 @@ export default async function SaveTheDateTokenPage({
 }) {
   const { slug, token } = await params
   const event = await getEventBySlug(slug)
-  if (!event || (event.status !== 'published' && event.status !== 'approved')) notFound()
+  if (!event || event.status === 'archived') notFound()
   const guest = event.guests.find((g) => g.token === token)
   if (!guest) notFound()
 

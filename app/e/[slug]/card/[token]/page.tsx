@@ -16,7 +16,8 @@ export default async function InvitationCardTokenPage({
 }) {
   const { slug, token } = await params
   const event = await getEventBySlug(slug)
-  if (!event || (event.status !== 'published' && event.status !== 'approved')) notFound()
+  // Draft + test invites must open the sealed envelope; only archived is blocked.
+  if (!event || event.status === 'archived') notFound()
   const guest = event.guests.find((g) => g.token === token)
   if (!guest) notFound()
 

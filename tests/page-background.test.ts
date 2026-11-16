@@ -78,14 +78,14 @@ describe('pageBackgroundStyle', () => {
     })
   })
 
-  it('applies pageTexture as cover background image', () => {
+  it('applies pageTexture as tiled full-bleed background', () => {
     const style = pageBackgroundStyle(
       design({ pageColor: '#010101', pageTexture: 'https://cdn.example/texture.png' }),
     )
     assert.equal(style.backgroundColor, '#010101')
     assert.equal(style.backgroundImage, 'url(https://cdn.example/texture.png)')
-    assert.equal(style.backgroundSize, 'cover')
-    assert.equal(style.backgroundPosition, 'center')
+    assert.equal(style.backgroundSize, '160px auto')
+    assert.equal(style.backgroundRepeat, 'repeat')
   })
 })
 
@@ -97,13 +97,14 @@ describe('pageBackgroundCss', () => {
     )
     assert.match(css, /background-image:url\('https:\/\/cdn\.example\/page-texture\.png'\)/)
     assert.match(css, /background-color:#0a0a0a/)
+    assert.match(css, /background-repeat:repeat/)
   })
 
   it('falls back to solid pageColor', () => {
     assert.equal(pageBackgroundCss(design({ pageColor: '#abcdef' }), escapeHtml), 'background:#abcdef;')
   })
 
-  it('ignores data: texture URLs in email CSS (Gmail size/parse break)', () => {
+  it('ignores inline data: texture URLs without a public override', () => {
     const css = pageBackgroundCss(
       design({
         pageColor: '#FFFFF0',
@@ -115,5 +116,15 @@ describe('pageBackgroundCss', () => {
     assert.doesNotMatch(css, /background-image/)
     assert.doesNotMatch(css, /data:image/)
   })
+
+  it('accepts a public https override for studio data uploads', () => {
+    const css = pageBackgroundCss(
+      design({ pageColor: '#FFFFF0', pageTexture: 'data:image/png;base64,AAA' }),
+      escapeHtml,
+      'https://mitzvah.pro/api/platform/e/adissi/design-asset?surface=invite&kind=pageTexture',
+    )
+    assert.match(css, /background-image:url\('https:\/\/mitzvah\.pro\/api\/platform\/e\/adissi\/design-asset/)
+  })
 })
+
 

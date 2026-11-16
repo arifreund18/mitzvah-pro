@@ -1,7 +1,11 @@
 import { google } from './calendar'
-import { isEmailSafeImageUrl, pageBackgroundCss } from './card-background'
+import {
+  designAssetPublicUrl,
+  isEmailSafeImageUrl,
+  pageBackgroundCss,
+} from './card-background'
 import { typeLabel } from './copy'
-import { eventPublicUrl, protocolFor } from './site-url'
+import { apexHost, eventApexPathUrl, protocolFor } from './site-url'
 import type { CardDesign, EventConfig, EventLocale, Guest } from './types'
 
 export function escapeHtml(value: string): string {
@@ -82,19 +86,30 @@ function mapUrlOf(kind: 'std' | 'invite', config: EventConfig): string {
   return design.mapUrl || ''
 }
 
+function mailImageSrc(
+  kind: 'std' | 'invite',
+  config: EventConfig,
+  host: string,
+  raw: string,
+  assetKind: 'pageTexture' | 'sealUrl',
+): string {
+  const value = raw.trim()
+  if (!value) return ''
+  if (isEmailSafeImageUrl(value)) return value
+  // Studio data: uploads → public HTTPS endpoint so Gmail can fetch without inlining base64.
+  return designAssetPublicUrl(config.domain.slug, assetKind, {
+    host,
+    surface: kind === 'std' ? 'std' : 'invite',
+  })
+}
+
 export function mailSubject(kind: 'std' | 'invite', config: EventConfig, guest?: Guest): string {
   const name = config.basics.honoreeName || 'Mitzvah.pro'
   const locale = guest ? localeOf(guest, config) : config.locales.default
   if (kind === 'std') {
     const custom = designOf('std', config).subject?.trim()
     if (custom) return custom.includes('{name}') ? custom.replaceAll('{name}', name) : custom
-    return locale === 'he'
-      ? `Save the Date — ${name}`
-      : locale === 'pt'
-        ? `Save the Date — ${name}`
-        : locale === 'es'
-          ? `Save the Date — ${name}`
-          : `Save the Date — ${name}`
+    return `Save the Date — ${name}`
   }
   const custom = designOf('invite', config).subject?.trim()
   if (custom) return custom.includes('{name}') ? custom.replaceAll('{name}', name) : custom
@@ -115,21 +130,28 @@ export function mailHtml(
   const dir = locale === 'he' ? 'rtl' : 'ltr'
   const font = fontFamily(design.fontKey || 'georgia', locale)
   const token = guest.token
-  const cardPath = kind === 'std' ? `/std/${token}` : `/invite/${token}`
-  const href = eventPublicUrl(config.domain.slug, cardPath, { host })
-  const rsvpHref = eventPublicUrl(config.domain.slug, `/rsvp/${token}`, { host })
+  // Apex paths always resolve without depending on per-event subdomain DNS.
+  const cardPath = kind === 'std' ? `/std/${token}` : `/card/${token}`
+  const href = eventApexPathUrl(config.domain.slug, cardPath, { host })
+  const rsvpHref = eventApexPathUrl(config.domain.slug, `/rsvp/${token}`, { host })
+  const apex = apexHost(host)
   const pixelPath =
     kind === 'std'
       ? `/api/platform/std/open/${encodeURIComponent(token)}`
       : `/api/platform/invite/open/${encodeURIComponent(token)}`
-  const pixelUrl = `${protocolFor(host)}://${host}${pixelPath}`
-  const icsHref = `${protocolFor(host)}://${host}/api/platform/calendar/${encodeURIComponent(token)}`
+  const pixelUrl = `${protocolFor(apex)}://${apex}${pixelPath}`
+  const icsHref = `${protocolFor(apex)}://${apex}/api/platform/calendar/${encodeURIComponent(token)}`
   const googleHref = google(config) || `${icsHref}?to=google`
   const mapHref = mapUrlOf(kind, config)
   const sealRaw = sealUrl(kind, config)
-  // data: URLs (studio uploads) break Gmail size/parsing — only remote images in mail.
-  const seal = isEmailSafeImageUrl(sealRaw) ? sealRaw.trim() : ''
+  const seal = sealRaw
+    ? mailImageSrc(kind, config, host, sealRaw, 'sealUrl')
+    : ''
   const sealLabel = config.invitation.sealLabel || 'Mitzvah'
+  const pageTextureRaw = design.pageTexture?.trim() || ''
+  const pageTextureForMail = pageTextureRaw
+    ? mailImageSrc(kind, config, host, pageTextureRaw, 'pageTexture')
+    : ''
 
   const body = kind === 'std' ? config.saveTheDate.message : config.invitation.body
   const greeting = kind === 'invite' ? config.invitation.greeting : 'Save the Date'
@@ -163,12 +185,12 @@ export function mailHtml(
       </td></tr>`
     : ''
 
-  const pageBgCss = pageBackgroundCss(design, escapeHtml)
+  const pageBgCss = pageBackgroundCss(design, escapeHtml, pageTextureForMail)
 
   return `<!doctype html>
 <html lang="${escapeHtml(locale)}" dir="${dir}">
 <body style="margin:0;${pageBgCss}font-family:${escapeHtml(font)};color:${escapeHtml(textColor)};" dir="${dir}">
-  <table width="100%" cellpadding="0" cellspacing="0" style="padding:32px 12px;" dir="${dir}">
+  <table width="100%" cellpadding="0" cellspacing="0" style="padding:40px 16px;${pageBgCss}" dir="${dir}">
     <tr><td align="center">
       <table width="480" cellpadding="0" cellspacing="0" style="background:${escapeHtml(cardBg)};border-radius:24px;padding:40px 32px;text-align:center;font-family:${escapeHtml(font)};">
         ${sealBlock}

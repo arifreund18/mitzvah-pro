@@ -51,7 +51,13 @@ export function EnvelopeCard({
   const envelopeTexture = config?.envelopeTexture
 
   const stageStyle: CSSProperties = pageTexture
-    ? { backgroundColor: bg, backgroundImage: `url(${pageTexture})`, backgroundSize: 'cover' }
+    ? {
+        backgroundColor: bg,
+        backgroundImage: `url(${pageTexture})`,
+        backgroundSize: '160px auto',
+        backgroundPosition: 'top center',
+        backgroundRepeat: 'repeat',
+      }
     : { background: bg }
 
   const envelopeFace: CSSProperties = envelopeTexture

@@ -259,7 +259,7 @@ export function EmailChrome({
           <p className="mt-1 text-white/70">{ui.toGuests}</p>
           <p className="mt-2 font-medium text-white">{subject}</p>
         </div>
-        <div className="px-4 py-10" style={pageBackgroundStyle(design)}>
+        <div className="min-h-[480px] px-8 py-16" style={pageBackgroundStyle(design)}>
           {children}
         </div>
       </div>
