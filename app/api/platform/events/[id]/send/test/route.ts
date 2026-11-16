@@ -1,17 +1,39 @@
 import { NextResponse } from 'next/server'
-import { getEvent, appendEmailLog, updateEvent } from '@/lib/platform/store'
+import { addGuest, appendEmailLog, getEvent, updateEvent } from '@/lib/platform/store'
 import { requireEventAccess } from '@/lib/platform/session'
 import { getResend } from '@/lib/email/send'
 import { provisionEventMailDomain, refreshEventMailDomain } from '@/lib/email/provision-domain'
 import { eventSendFrom } from '@/lib/platform/mail-domain'
 import { mailHtml, mailSubject } from '@/lib/platform/mail'
 import { normalizeGuest } from '@/lib/platform/normalize-guest'
-import type { EventConfig } from '@/lib/platform/types'
+import type { EventConfig, Guest } from '@/lib/platform/types'
 
 type Ctx = { params: Promise<{ id: string }> }
 
 function isEmail(value: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)
+}
+
+async function ensureTestGuest(eventId: string, to: string, config: EventConfig): Promise<Guest | null> {
+  const event = await getEvent(eventId)
+  if (!event) return null
+  const existing = event.guests.find(
+    (guest) =>
+      guest.email.toLowerCase() === to ||
+      guest.emails.some((email) => email.toLowerCase() === to),
+  )
+  if (existing) return existing
+  return addGuest(eventId, {
+    familyName: 'Família Teste',
+    email: to,
+    emails: [to],
+    partySize: 2,
+    status: 'pending',
+    inviteLocale: config.locales.default,
+    scheduleInviteMode: 'all',
+    scheduleItemIds: [],
+    openRsvp: true,
+  })
 }
 
 export async function POST(request: Request, ctx: Ctx) {
@@ -61,22 +83,24 @@ export async function POST(request: Request, ctx: Ctx) {
 
   const from = eventSendFrom(config)
   const resend = getResend()
-  const sample = normalizeGuest({
-    familyName: 'Família Teste',
-    email: to,
-    emails: [to],
-    partySize: 2,
-    status: 'pending',
-    inviteLocale: config.locales.default,
-    scheduleInviteMode: 'all',
-    scheduleItemIds: [],
-    openRsvp: config.rsvp.openRsvpDefault,
-  })
+  const sample =
+    (await ensureTestGuest(id, to, config)) ||
+    normalizeGuest({
+      familyName: 'Família Teste',
+      email: to,
+      emails: [to],
+      partySize: 2,
+      status: 'pending',
+      inviteLocale: config.locales.default,
+      scheduleInviteMode: 'all',
+      scheduleItemIds: [],
+      openRsvp: true,
+    })
 
   if (!resend) {
     await appendEmailLog({
       eventId: id,
-      familyId: null,
+      familyId: sample.id,
       type: `test-${kind}`,
       status: 'local',
       toEmail: to,
@@ -88,6 +112,7 @@ export async function POST(request: Request, ctx: Ctx) {
       warning: 'RESEND_API_KEY ausente — teste não enviado de verdade.',
       to,
       kind,
+      cardToken: sample.token,
     })
   }
   if (!from) {
@@ -111,7 +136,7 @@ export async function POST(request: Request, ctx: Ctx) {
   if (result.error) {
     await appendEmailLog({
       eventId: id,
-      familyId: null,
+      familyId: sample.id,
       type: `test-${kind}`,
       status: 'failed',
       toEmail: to,
@@ -122,7 +147,7 @@ export async function POST(request: Request, ctx: Ctx) {
 
   await appendEmailLog({
     eventId: id,
-    familyId: null,
+    familyId: sample.id,
     type: `test-${kind}`,
     status: 'sent',
     toEmail: to,
@@ -135,6 +160,7 @@ export async function POST(request: Request, ctx: Ctx) {
     to,
     kind,
     from,
+    cardToken: sample.token,
     resendId: (result.data as { id?: string } | null)?.id || null,
   })
 }

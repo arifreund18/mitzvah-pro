@@ -46,7 +46,7 @@ function config(partial: {
         verifiedAt: null,
       },
     },
-  } as EventConfig
+  } as unknown as EventConfig
 }
 
 describe('mail from display name', () => {
