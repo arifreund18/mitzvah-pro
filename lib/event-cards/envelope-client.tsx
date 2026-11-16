@@ -83,11 +83,35 @@ export function EnvelopeCard({
       >
         <div className="mp-envelope-back" style={envelopeFace} />
         <div className="mp-envelope-liner" style={{ background: liner }} />
+        {/* Side + bottom flaps create the diamond fold geometry when closed. */}
+        <div className="mp-envelope-side mp-envelope-side-left" style={envelopeFace} />
+        <div className="mp-envelope-side mp-envelope-side-right" style={envelopeFace} />
+        <div className="mp-envelope-front" style={envelopeFace} />
+        <div className="mp-envelope-flap" style={envelopeFace} />
+        {/* Stroke overlay — readable fold lines on light cream paper. */}
+        <svg
+          className="mp-envelope-folds"
+          viewBox="0 0 100 100"
+          preserveAspectRatio="none"
+          aria-hidden="true"
+        >
+          {/*
+            Diamond seams stop short of center so the seal covers the join cleanly
+            (no tip/cluster poking out under the circle).
+          */}
+          <line className="mp-envelope-folds-soft" x1="0" y1="0" x2="44" y2="44" />
+          <line className="mp-envelope-folds-soft" x1="100" y1="0" x2="56" y2="44" />
+          <line className="mp-envelope-folds-soft" x1="0" y1="100" x2="44" y2="56" />
+          <line className="mp-envelope-folds-soft" x1="100" y1="100" x2="56" y2="56" />
+          <line x1="0" y1="0" x2="44" y2="44" />
+          <line x1="100" y1="0" x2="56" y2="44" />
+          <line x1="0" y1="100" x2="44" y2="56" />
+          <line x1="100" y1="100" x2="56" y2="56" />
+        </svg>
+        {/* Card after flaps in DOM so open z-index stacking is reliable. */}
         <div className="mp-envelope-card" style={{ fontFamily: fontStack(config?.fontKey) }}>
           {children}
         </div>
-        <div className="mp-envelope-front" style={envelopeFace} />
-        <div className="mp-envelope-flap" style={envelopeFace} />
         <div className="mp-envelope-seal" style={{ background: sealBg }}>
           {seal ? (
             // eslint-disable-next-line @next/next/no-img-element
