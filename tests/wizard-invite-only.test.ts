@@ -10,6 +10,7 @@ const INVITE_ONLY_STEP_IDS = wizardStepIdsForProducts({
 })
 
 const SITE_ONLY_STEPS = [
+  'branding',
   'story',
   'schedule',
   'venues',
@@ -21,7 +22,7 @@ const SITE_ONLY_STEPS = [
 ] as const
 
 describe('invite_only wizard contract', () => {
-  it('keeps invitation flow steps and drops site-building steps', () => {
+  it('keeps invitation flow steps and drops site-building steps including Look', () => {
     for (const id of ['invitation', 'rsvp', 'guestsBootstrap', 'domain'] as const) {
       assert.ok(INVITE_ONLY_STEP_IDS.includes(id))
     }
@@ -41,6 +42,7 @@ describe('invite_only wizard contract', () => {
       saveTheDate: true,
     })
     assert.ok(ids.includes('story'))
+    assert.ok(ids.includes('branding'))
     assert.ok(ids.includes('invitation'))
   })
 
@@ -53,5 +55,6 @@ describe('invite_only wizard contract', () => {
     assert.ok(stdOnly.includes('saveTheDate'))
     assert.equal(stdOnly.includes('invitation'), false)
     assert.equal(stdOnly.includes('story'), false)
+    assert.equal(stdOnly.includes('branding'), false)
   })
 })

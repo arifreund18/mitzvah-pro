@@ -5,6 +5,7 @@ import {
   parseGuestImportRows,
   type GuestImportRow,
 } from '@/lib/platform/csv'
+import { fetchGoogleSheetsCsv } from '@/lib/platform/google-sheets-guests'
 import { decodeBase64File, parseGuestXlsx } from '@/lib/platform/xlsx-guests'
 import { addGuests, getEvent } from '@/lib/platform/store'
 import { requireEventAccess } from '@/lib/platform/session'
@@ -98,7 +99,15 @@ async function readImportPayload(request: Request): Promise<{
     return { previewMode, parsed: parseGuestCsvPreview(body.csv), confirmRows: null }
   }
 
-  return { previewMode, parsed: null, confirmRows: null, error: 'CSV/XLSX ausente' }
+  if (typeof body?.sheetUrl === 'string' && body.sheetUrl.trim()) {
+    const fetched = await fetchGoogleSheetsCsv(body.sheetUrl.trim())
+    if ('error' in fetched) {
+      return { previewMode, parsed: null, confirmRows: null, error: fetched.error }
+    }
+    return { previewMode, parsed: parseGuestCsvPreview(fetched.csv), confirmRows: null }
+  }
+
+  return { previewMode, parsed: null, confirmRows: null, error: 'CSV/XLSX ou Google Sheets ausente' }
 }
 
 export async function POST(request: Request, ctx: Ctx) {

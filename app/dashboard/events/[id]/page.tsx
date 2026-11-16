@@ -1,8 +1,9 @@
 import { redirect } from 'next/navigation'
 import { DashboardShell } from '@/components/dashboard/DashboardShell'
 import { EventAdmin } from '@/components/dashboard/EventAdmin'
+import { canManageEventOptions } from '@/lib/platform/auth'
 import { getEvent } from '@/lib/platform/store'
-import { assertEventPageAccess } from '@/lib/platform/session'
+import { assertEventPageAccess, currentActor } from '@/lib/platform/session'
 
 export const dynamic = 'force-dynamic'
 
@@ -15,10 +16,11 @@ export default async function EventDetailPage({
   await assertEventPageAccess(id)
   const event = await getEvent(id)
   if (!event) redirect('/dashboard?missing=1')
+  const actor = await currentActor()
 
   return (
     <DashboardShell>
-      <EventAdmin event={event} />
+      <EventAdmin event={event} canManageOptions={canManageEventOptions(actor)} />
     </DashboardShell>
   )
 }

@@ -14,17 +14,16 @@ import {
   THEMES,
   type EventConfig,
   type EventLocale,
-  type EventProducts,
   type Guest,
   type NotifyMode,
 } from '@/lib/platform/types'
 import { LOCALE_OPTIONS } from '@/lib/platform/locales'
 import { normalizeGuest } from '@/lib/platform/normalize'
-import { normalizeProducts, toggleProduct } from '@/lib/platform/products'
 import { eventPublicHostLabel } from '@/lib/platform/site-url'
 import { moveArrayItem } from '@/lib/platform/reorder'
-import { applyProducts, reviewIssues } from '@/lib/platform/wizard'
+import { reviewIssues } from '@/lib/platform/wizard'
 import { GuestCsvImport } from '@/components/dashboard/GuestCsvImport'
+import { GuestManualAdd } from '@/components/dashboard/GuestManualAdd'
 import { GooglePhotosImport } from '@/components/wizard/GooglePhotosImport'
 
 function readFileAsDataUrl(file: File, tooBig: string): Promise<string> {
@@ -85,105 +84,11 @@ export const WizardStepForm = forwardRef<
   }))
 
   if (step === 'basics') {
-    const products = normalizeProducts(
-      config.products,
-      config.productMode,
-      config.saveTheDate?.enabled,
-    )
     const enabledLocales = config.locales.enabled.length
       ? config.locales.enabled
       : ([config.locales.default] as EventLocale[])
-    const productOptions: { id: keyof EventProducts; title: string; hint: string }[] = [
-      { id: 'site', title: ui.productModeSite, hint: ui.productModeSiteHint },
-      { id: 'invitation', title: ui.productModeInvite, hint: ui.productModeInviteHint },
-      { id: 'saveTheDate', title: ui.productModeStd, hint: ui.productModeStdHint },
-    ]
     return (
       <div className="space-y-5">
-        <Field label={ui.productMode} hint={ui.productModeHint}>
-          <div className="grid gap-2 sm:grid-cols-3">
-            {productOptions.map((option) => {
-              const selected = products[option.id]
-              return (
-                <button
-                  key={option.id}
-                  type="button"
-                  onClick={() =>
-                    patch((draft) =>
-                      applyProducts(
-                        draft,
-                        toggleProduct(
-                          normalizeProducts(
-                            draft.products,
-                            draft.productMode,
-                            draft.saveTheDate?.enabled,
-                          ),
-                          option.id,
-                        ),
-                      ),
-                    )
-                  }
-                  className={`rounded-xl border px-3 py-3 text-start text-sm ${
-                    selected
-                      ? 'border-cyan-400 bg-cyan-400/10 text-cyan-100'
-                      : 'border-white/15 bg-white/5 text-white/80'
-                  }`}
-                >
-                  <span className="block font-medium">
-                    {selected ? '✓ ' : ''}
-                    {option.title}
-                  </span>
-                  <span className="text-xs text-white/40">{option.hint}</span>
-                </button>
-              )
-            })}
-          </div>
-        </Field>
-        <Field label={ui.languagesEnabled} hint={ui.languagesEnabledHint}>
-          <div className="grid grid-cols-2 gap-2">
-            {LOCALE_OPTIONS.map((option) => {
-              const selected = enabledLocales.includes(option.value)
-              return (
-                <button
-                  key={option.value}
-                  type="button"
-                  onClick={() =>
-                    patch((draft) => {
-                      const current = draft.locales.enabled.length
-                        ? draft.locales.enabled
-                        : [draft.locales.default]
-                      let nextEnabled: EventLocale[]
-                      if (selected) {
-                        if (current.length === 1) return draft
-                        nextEnabled = current.filter((item) => item !== option.value)
-                      } else {
-                        nextEnabled = [...current, option.value]
-                      }
-                      const nextDefault = nextEnabled.includes(draft.locales.default)
-                        ? draft.locales.default
-                        : nextEnabled[0]
-                      return {
-                        ...draft,
-                        locales: { default: nextDefault, enabled: nextEnabled },
-                      }
-                    })
-                  }
-                  className={`rounded-xl border px-3 py-3 text-start text-sm ${
-                    selected
-                      ? 'border-cyan-400 bg-cyan-400/10 text-cyan-100'
-                      : 'border-white/15 bg-white/5 text-white/80'
-                  }`}
-                >
-                  <span className="block font-medium">
-                    {selected ? '✓ ' : ''}
-                    {option.label}
-                  </span>
-                  <span className="text-xs text-white/40">{option.hint}</span>
-                </button>
-              )
-            })}
-          </div>
-        </Field>
         <Field label={ui.language} hint={ui.languageHint}>
           <div className="grid grid-cols-2 gap-2">
             {LOCALE_OPTIONS.filter((option) => enabledLocales.includes(option.value)).map((option) => (
@@ -961,19 +866,10 @@ export const WizardStepForm = forwardRef<
             type="checkbox"
             checked={config.saveTheDate.enabled}
             onChange={(e) =>
-              set(
-                applyProducts(
-                  config,
-                  {
-                    ...normalizeProducts(
-                      config.products,
-                      config.productMode,
-                      config.saveTheDate?.enabled,
-                    ),
-                    saveTheDate: e.target.checked,
-                  },
-                ),
-              )
+              set({
+                ...config,
+                saveTheDate: { ...config.saveTheDate, enabled: e.target.checked },
+              })
             }
           />
           {ui.showStd}
@@ -1442,6 +1338,21 @@ export const WizardStepForm = forwardRef<
     return (
       <div className="space-y-4">
         <p className="text-sm text-white/50">{ui.guestsHint}</p>
+        <GuestManualAdd
+          onAdded={(row) => {
+            onGuests([
+              ...guests,
+              normalizeGuest({
+                familyName: row.familyName,
+                email: row.email,
+                partySize: row.partySize,
+                status: 'pending',
+                openRsvp: config.rsvp.openRsvpDefault,
+                inviteLocale: config.locales.default,
+              }),
+            ])
+          }}
+        />
         <GuestCsvImport
           onImported={(rows) => {
             if (!rows.length) return
@@ -1454,21 +1365,6 @@ export const WizardStepForm = forwardRef<
             <TextInput value={guest.email} readOnly />
           </div>
         ))}
-        <form
-          ref={draftGuestForm}
-          className="space-y-2 rounded-2xl border border-dashed border-white/20 p-4"
-          onSubmit={(e) => {
-            e.preventDefault()
-            commitDraftGuest(e.currentTarget)
-          }}
-        >
-          <TextInput name="familyName" placeholder={ui.family} required />
-          <TextInput name="email" type="email" placeholder="Email" />
-          <TextInput name="partySize" type="number" min={1} defaultValue={1} />
-          <button type="submit" className="rounded-full bg-white/10 px-4 py-2 text-sm">
-            {ui.addGuest}
-          </button>
-        </form>
       </div>
     )
   }

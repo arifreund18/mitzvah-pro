@@ -7,13 +7,20 @@ import { EventActions } from '@/components/dashboard/EventActions'
 import { EventOptionsPanel } from '@/components/dashboard/EventOptionsPanel'
 import { GuestAdminPanel } from '@/components/dashboard/GuestAdminPanel'
 import { GuestCsvImport } from '@/components/dashboard/GuestCsvImport'
+import { GuestManualAdd } from '@/components/dashboard/GuestManualAdd'
 import { normalizeProducts } from '@/lib/platform/products'
 import { SECTION_EDITOR_IDS, SECTION_LABELS } from '@/lib/platform/section-editor'
 import type { PlatformEvent } from '@/lib/platform/types'
 import { eventApexPathUrl, eventPublicHostLabel, eventPublicUrl } from '@/lib/platform/site-url'
 import { eventMailDomainName } from '@/lib/platform/mail-domain'
 
-export function EventAdmin({ event }: { event: PlatformEvent }) {
+export function EventAdmin({
+  event,
+  canManageOptions = false,
+}: {
+  event: PlatformEvent
+  canManageOptions?: boolean
+}) {
   const router = useRouter()
   const [busy, setBusy] = useState('')
   const [message, setMessage] = useState('')
@@ -356,9 +363,11 @@ export function EventAdmin({ event }: { event: PlatformEvent }) {
         ))}
       </div>
 
-      <div className="mt-12">
-        <EventOptionsPanel event={event} />
-      </div>
+      {canManageOptions ? (
+        <div className="mt-12">
+          <EventOptionsPanel event={event} />
+        </div>
+      ) : null}
 
       <h2 className="font-display mt-12 text-2xl">Editar seção</h2>
       <p className="mt-2 text-sm text-white/50">
@@ -383,20 +392,23 @@ export function EventAdmin({ event }: { event: PlatformEvent }) {
         Envie Save the Date e convite por email. Sem Resend no localhost, o status é marcado mesmo assim.
         Com Vercel DNS + Resend, cada evento usa o remetente isolado do slug.
       </p>
-      <div className="mt-4 flex flex-wrap items-start gap-4">
-        <GuestCsvImport eventId={event.id} onImported={() => router.refresh()} />
-        <a
-          href={`/api/platform/events/${event.id}/guests/export`}
-          className="rounded-full border border-white/20 px-4 py-2 text-sm hover:bg-white/10"
-        >
-          Exportar CSV
-        </a>
-        <a
-          href={`/api/platform/events/${event.id}/guests/export?format=xlsx`}
-          className="rounded-full border border-white/20 px-4 py-2 text-sm hover:bg-white/10"
-        >
-          Exportar XLSX
-        </a>
+      <div className="mt-4 space-y-4">
+        <GuestManualAdd eventId={event.id} />
+        <div className="flex flex-wrap items-start gap-4">
+          <GuestCsvImport eventId={event.id} onImported={() => router.refresh()} />
+          <a
+            href={`/api/platform/events/${event.id}/guests/export`}
+            className="rounded-full border border-white/20 px-4 py-2 text-sm hover:bg-white/10"
+          >
+            Exportar CSV
+          </a>
+          <a
+            href={`/api/platform/events/${event.id}/guests/export?format=xlsx`}
+            className="rounded-full border border-white/20 px-4 py-2 text-sm hover:bg-white/10"
+          >
+            Exportar XLSX
+          </a>
+        </div>
       </div>
       <GuestAdminPanel event={event} />
     </div>

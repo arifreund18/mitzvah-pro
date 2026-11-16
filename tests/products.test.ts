@@ -128,9 +128,17 @@ describe('event products', () => {
       saveTheDate: false,
     })
     assert.ok(siteOnly.includes('story'))
+    assert.ok(siteOnly.includes('branding'))
     assert.equal(siteOnly.includes('invitation'), false)
     assert.equal(siteOnly.includes('saveTheDate'), false)
     assert.equal(siteOnly.includes('guestsBootstrap'), false)
+
+    const noSite = wizardStepIdsForProducts({
+      site: false,
+      invitation: true,
+      saveTheDate: false,
+    })
+    assert.equal(noSite.includes('branding'), false)
   })
 
   it('parses create payload multi-select', () => {
