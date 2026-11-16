@@ -170,8 +170,8 @@ export function GuestCsvImport({
 
       <div className="border-t border-white/10 pt-4">
         <p className="text-white/50">
-          Google Sheets — partilhe a folha como leitor (“qualquer pessoa com o link”) ou publique como CSV.
-          Colunas iguais ao CSV.
+          Google Sheets — partilhe a <strong>folha</strong> (não a pasta) como leitor (“qualquer pessoa com
+          o link”). Cole o link completo do browser. Colunas iguais ao CSV.
         </p>
         <div className="mt-3 flex flex-wrap gap-2">
           <input
