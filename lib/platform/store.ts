@@ -445,27 +445,31 @@ export async function addGuest(
       id: uid(),
       createdAt: now,
     })
-    const email = incoming.email.trim()
-    if (email) {
-      const index = event.guests.findIndex((item) => guestEmailsMatch(item, email))
-      if (index >= 0) {
-        const current = event.guests[index]
-        const people = mergePeople(current.people || [], incoming.people || [])
-        const merged = normalizeGuest({
-          ...current,
-          familyName: guest.familyName?.trim() || current.familyName,
-          email: current.email || email,
-          emails: Array.from(
-            new Set([...(current.emails || []), ...(incoming.emails || []), email].filter(Boolean)),
-          ),
-          people,
-          partySize: people.length,
-        })
-        event.guests[index] = merged
-        event.updatedAt = now
-        await saveStore(store)
-        return merged
-      }
+    const incomingEmails = Array.from(
+      new Set([incoming.email, ...(incoming.emails || [])].map((item) => item.trim()).filter(Boolean)),
+    )
+    const index = incomingEmails.length
+      ? event.guests.findIndex((item) =>
+          incomingEmails.some((email) => guestEmailsMatch(item, email)),
+        )
+      : -1
+    if (index >= 0) {
+      const current = event.guests[index]
+      const people = mergePeople(current.people || [], incoming.people || [])
+      const merged = normalizeGuest({
+        ...current,
+        familyName: guest.familyName?.trim() || current.familyName,
+        email: current.email || incomingEmails[0] || '',
+        emails: Array.from(
+          new Set([...(current.emails || []), ...(incoming.emails || []), ...incomingEmails]),
+        ),
+        people,
+        partySize: people.length,
+      })
+      event.guests[index] = merged
+      event.updatedAt = now
+      await saveStore(store)
+      return merged
     }
     event.guests.push(incoming)
     event.updatedAt = now
@@ -527,10 +531,41 @@ export async function addGuests(
     const event = store.events.find((item) => item.id === eventId)
     if (!event) return null
     const now = new Date().toISOString()
-    const added = rows
-      .map((row) => row.familyName?.trim() && normalizeGuest({ ...row, id: uid(), createdAt: now }))
-      .filter((row): row is Guest => Boolean(row))
-    event.guests.push(...added)
+    const added: Guest[] = []
+    for (const row of rows) {
+      if (!row.familyName?.trim()) continue
+      const incoming = normalizeGuest({ ...row, id: uid(), createdAt: now })
+      const incomingEmails = Array.from(
+        new Set(
+          [incoming.email, ...(incoming.emails || [])].map((item) => item.trim()).filter(Boolean),
+        ),
+      )
+      const index = incomingEmails.length
+        ? event.guests.findIndex((item) =>
+            incomingEmails.some((email) => guestEmailsMatch(item, email)),
+          )
+        : -1
+      if (index >= 0) {
+        const current = event.guests[index]
+        const people = mergePeople(current.people || [], incoming.people || [])
+        const merged = normalizeGuest({
+          ...current,
+          familyName: incoming.familyName || current.familyName,
+          email: current.email || incomingEmails[0] || '',
+          emails: Array.from(
+            new Set([...(current.emails || []), ...(incoming.emails || []), ...incomingEmails]),
+          ),
+          people,
+          partySize: people.length,
+          notes: incoming.notes || current.notes,
+        })
+        event.guests[index] = merged
+        added.push(merged)
+      } else {
+        event.guests.push(incoming)
+        added.push(incoming)
+      }
+    }
     event.updatedAt = now
     await saveStore(store)
     return added

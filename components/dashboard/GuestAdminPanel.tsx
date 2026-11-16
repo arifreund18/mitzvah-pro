@@ -169,7 +169,11 @@ export function GuestAdminPanel({ event }: { event: PlatformEvent }) {
                 return (
                   <tr key={guest.id} className="border-t border-white/10 align-top">
                     <td className="px-4 py-3">{guest.familyName}</td>
-                    <td className="px-4 py-3 text-white/60">{guest.email || '—'}</td>
+                    <td className="px-4 py-3 text-white/60">
+                      {(guest.emails?.length ? guest.emails : guest.email ? [guest.email] : []).join(
+                        ', ',
+                      ) || '—'}
+                    </td>
                     <td className="px-4 py-3">
                       <span className="block text-xs text-white/40">
                         {guest.partySize} · {adults}A / {children}C

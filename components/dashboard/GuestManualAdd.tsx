@@ -115,12 +115,12 @@ export function GuestManualAdd({
           />
         </label>
         <label className="block">
-          <span className="text-xs text-white/50">Email</span>
+          <span className="text-xs text-white/50">Email(s)</span>
           <input
-            type="email"
+            type="text"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            placeholder="email@familia.com"
+            placeholder="a@x.com, b@y.com"
             className="mt-1 w-full rounded-xl border border-white/15 bg-white/5 px-3 py-2 outline-none"
           />
         </label>

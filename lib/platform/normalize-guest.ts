@@ -1,3 +1,4 @@
+import { parseEmailsInput } from './family-emails.ts'
 import { uid } from './ids.ts'
 import { familyToken } from './tokens.ts'
 import type {
@@ -46,9 +47,11 @@ export function normalizePerson(row: Partial<GuestPerson> & { name?: string }): 
 
 export function normalizeGuest(row: Partial<Guest> & { familyName?: string }): Guest {
   const emailsRaw = Array.isArray(row.emails) ? row.emails : []
-  const primary = (row.email || emailsRaw[0] || '').trim()
   const emails = Array.from(
-    new Set([primary, ...emailsRaw.map((e) => String(e).trim())].filter(Boolean)),
+    new Set([
+      ...parseEmailsInput(row.email || ''),
+      ...emailsRaw.flatMap((item) => parseEmailsInput(String(item))),
+    ]),
   )
   let people = Array.isArray(row.people)
     ? row.people.map((p) => normalizePerson(p))

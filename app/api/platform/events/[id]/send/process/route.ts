@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { getEvent, markMailSent, appendEmailLog } from '@/lib/platform/store'
 import { requireEventAccess } from '@/lib/platform/session'
 import { getResend } from '@/lib/email/send'
+import { guestMailRecipients } from '@/lib/platform/family-emails'
 import { mailHtml, mailSubject } from '@/lib/platform/mail'
 import {
   getLatestMailJobForEvent,
@@ -54,15 +55,17 @@ export async function POST(request: Request, ctx: Ctx) {
 
   for (const guestId of batch) {
     const guest = guestById.get(guestId)
-    if (!guest?.email) {
+    const recipients = guest ? guestMailRecipients(guest) : []
+    if (!guest || recipients.length === 0) {
       job.processed += 1
       job.failed += 1
       job.errors.push(`${guestId}: convidado sem email`)
       continue
     }
+    const toEmail = recipients.join(', ')
     const result = await resend.emails.send({
       from: job.from,
-      to: guest.email,
+      to: recipients,
       subject: mailSubject(job.kind, event.config, guest),
       html: mailHtml(job.kind, event.config, job.host, guest),
     })
@@ -76,19 +79,19 @@ export async function POST(request: Request, ctx: Ctx) {
         familyId: guest.id,
         type: job.kind,
         status: 'sent',
-        toEmail: guest.email,
+        toEmail,
         resendId: data?.id || null,
       })
     } else {
       job.failed += 1
-      job.errors.push(`${guest.email}: ${result.error.message}`)
+      job.errors.push(`${toEmail}: ${result.error.message}`)
       job.lastError = result.error.message
       await appendEmailLog({
         eventId: id,
         familyId: guest.id,
         type: job.kind,
         status: 'failed',
-        toEmail: guest.email,
+        toEmail,
         error: result.error.message,
       })
     }

@@ -1,10 +1,12 @@
 import { NextResponse } from 'next/server'
 import {
-  guestFromImportRow,
+  mergeImportedGuestsByEmail,
   parseGuestCsvPreview,
   parseGuestImportRows,
+  guestFromImportRow,
   type GuestImportRow,
 } from '@/lib/platform/csv'
+import { parseEmailsInput } from '@/lib/platform/family-emails'
 import { fetchGoogleSheetsCsv } from '@/lib/platform/google-sheets-guests'
 import { decodeBase64File, parseGuestXlsx } from '@/lib/platform/xlsx-guests'
 import { addGuests, getEvent } from '@/lib/platform/store'
@@ -134,15 +136,19 @@ export async function POST(request: Request, ctx: Ctx) {
     )
   }
 
-  // Detect duplicates against existing guests by email
+  // Detect duplicates against existing guests by any email in the cell
   const existingEmails = new Set(
-    event.guests.map((guest) => guest.email.trim().toLowerCase()).filter(Boolean),
+    event.guests
+      .flatMap((guest) => [guest.email, ...(guest.emails || [])])
+      .map((item) => item.trim().toLowerCase())
+      .filter(Boolean),
   )
   const existingDupes = parsed.preview
     .map((row, i) => {
-      const email = row.email.trim().toLowerCase()
-      if (email && existingEmails.has(email)) {
-        return `Linha ${i + 1}: email já existe (${row.email})`
+      const emails = parseEmailsInput(row.email)
+      const hit = emails.find((email) => existingEmails.has(email))
+      if (hit) {
+        return `Linha ${i + 1}: email já existe (${hit}) — será fundido na família`
       }
       return null
     })
@@ -157,8 +163,9 @@ export async function POST(request: Request, ctx: Ctx) {
     })
   }
 
-  const guests: Guest[] =
-    payload.confirmRows?.map((row) => guestFromImportRow(row)) || parsed.guests
+  const guests: Guest[] = payload.confirmRows
+    ? mergeImportedGuestsByEmail(payload.confirmRows.map((row) => guestFromImportRow(row)))
+    : parsed.guests
   const added = await addGuests(id, guests)
   if (!added) return NextResponse.json({ error: 'Evento não encontrado' }, { status: 404 })
   return NextResponse.json({

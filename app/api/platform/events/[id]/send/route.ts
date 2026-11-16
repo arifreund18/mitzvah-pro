@@ -3,6 +3,7 @@ import { getEvent, markMailSent, updateEvent, appendEmailLog } from '@/lib/platf
 import { requireEventAccess } from '@/lib/platform/session'
 import { getResend } from '@/lib/email/send'
 import { provisionEventMailDomain, refreshEventMailDomain } from '@/lib/email/provision-domain'
+import { guestMailRecipients } from '@/lib/platform/family-emails'
 import { eventSendFrom } from '@/lib/platform/mail-domain'
 import { mailHtml, mailSubject } from '@/lib/platform/mail'
 import { createMailJob, MAIL_BATCH_SIZE } from '@/lib/platform/mail-queue'
@@ -20,17 +21,21 @@ async function sendOne(opts: {
   host: string
   guest: Guest
 }): Promise<{ ok: boolean; resendId: string | null; error: string }> {
+  const recipients = guestMailRecipients(opts.guest)
+  if (recipients.length === 0) {
+    return { ok: false, resendId: null, error: 'sem email', recipients: [] as string[] }
+  }
   const result = await opts.resend.emails.send({
     from: opts.from,
-    to: opts.guest.email,
+    to: recipients,
     subject: mailSubject(opts.kind, opts.config, opts.guest),
     html: mailHtml(opts.kind, opts.config, opts.host, opts.guest),
   })
   if (result.error) {
-    return { ok: false, resendId: null, error: result.error.message }
+    return { ok: false, resendId: null, error: result.error.message, recipients }
   }
   const data = result.data as { id?: string } | null
-  return { ok: true, resendId: data?.id || null, error: '' }
+  return { ok: true, resendId: data?.id || null, error: '', recipients }
 }
 
 export async function POST(request: Request, ctx: Ctx) {
@@ -60,7 +65,7 @@ export async function POST(request: Request, ctx: Ctx) {
     request.headers.get('host') ||
     new URL(request.url).host
   const targets = event.guests.filter((guest) => {
-    if (!guest.email) return false
+    if (guestMailRecipients(guest).length === 0) return false
     if (body?.guestIds?.length) return body.guestIds.includes(guest.id)
     return true
   })
@@ -100,7 +105,7 @@ export async function POST(request: Request, ctx: Ctx) {
         familyId: guest.id,
         type: kind,
         status: 'local',
-        toEmail: guest.email,
+        toEmail: guestMailRecipients(guest).join(', ') || guest.email,
         error: 'RESEND_API_KEY ausente',
       })
     }
@@ -158,6 +163,7 @@ export async function POST(request: Request, ctx: Ctx) {
   const errors: string[] = []
   for (const guest of targets) {
     const result = await sendOne({ resend, from, kind, config, host, guest })
+    const toEmail = result.recipients.join(', ') || guest.email
     if (result.ok) {
       deliveredIds.push(guest.id)
       await appendEmailLog({
@@ -165,17 +171,17 @@ export async function POST(request: Request, ctx: Ctx) {
         familyId: guest.id,
         type: kind,
         status: 'sent',
-        toEmail: guest.email,
+        toEmail,
         resendId: result.resendId,
       })
     } else {
-      errors.push(`${guest.email}: ${result.error}`)
+      errors.push(`${toEmail || guest.id}: ${result.error}`)
       await appendEmailLog({
         eventId: id,
         familyId: guest.id,
         type: kind,
         status: 'failed',
-        toEmail: guest.email,
+        toEmail,
         error: result.error,
       })
     }

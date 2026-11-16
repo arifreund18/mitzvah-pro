@@ -9,6 +9,7 @@ import {
 import { requireEventAccess } from '@/lib/platform/session'
 import { consumeRateLimit } from '@/lib/platform/rate-limit'
 import { uid } from '@/lib/platform/ids'
+import { parseEmailsInput } from '@/lib/platform/family-emails'
 import { normalizePerson } from '@/lib/platform/normalize-guest'
 import type { Guest, GuestPerson, GuestRsvp, ScheduleInviteMode } from '@/lib/platform/types'
 import { SCHEDULE_INVITE_MODES } from '@/lib/platform/types'
@@ -38,6 +39,7 @@ export async function POST(request: Request, ctx: Ctx) {
   const body = (await request.json().catch(() => null)) as {
     familyName?: string
     email?: string
+    emails?: string[]
     partySize?: number
     status?: GuestRsvp
     meal?: string
@@ -95,18 +97,26 @@ export async function POST(request: Request, ctx: Ctx) {
           }),
         )
 
-  const email = body?.email?.trim() || ''
+  const emails = Array.from(
+    new Set([
+      ...parseEmailsInput(body?.email || ''),
+      ...(Array.isArray(body?.emails) ? body.emails.flatMap((item) => parseEmailsInput(item)) : []),
+    ]),
+  )
+  const email = emails[0] || ''
   const existing =
-    email &&
+    emails.length > 0 &&
     event.guests.find((item) => {
-      const needle = email.toLowerCase()
-      if (item.email.trim().toLowerCase() === needle) return true
-      return (item.emails || []).some((value) => value.trim().toLowerCase() === needle)
+      return emails.some((needle) => {
+        if (item.email.trim().toLowerCase() === needle) return true
+        return (item.emails || []).some((value) => value.trim().toLowerCase() === needle)
+      })
     })
 
   const guest = await addGuest(id, {
     familyName,
     email,
+    emails,
     partySize: people.length,
     status,
     meal,
