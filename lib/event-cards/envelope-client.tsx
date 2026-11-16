@@ -83,32 +83,44 @@ export function EnvelopeCard({
       >
         <div className="mp-envelope-back" style={envelopeFace} />
         <div className="mp-envelope-liner" style={{ background: liner }} />
-        {/* Side + bottom flaps create the diamond fold geometry when closed. */}
+        {/* Stacked flaps: sides → bottom → top (soft shadows = natural seams). */}
         <div className="mp-envelope-side mp-envelope-side-left" style={envelopeFace} />
         <div className="mp-envelope-side mp-envelope-side-right" style={envelopeFace} />
         <div className="mp-envelope-front" style={envelopeFace} />
         <div className="mp-envelope-flap" style={envelopeFace} />
-        {/* Stroke overlay — readable fold lines on light cream paper. */}
+        {/* Soft top-flap seam only — reads as paper shadow, not a drawn X. */}
         <svg
           className="mp-envelope-folds"
           viewBox="0 0 100 100"
           preserveAspectRatio="none"
           aria-hidden="true"
         >
-          {/*
-            Diamond seams stop short of center so the seal covers the join cleanly
-            (no tip/cluster poking out under the circle).
-          */}
-          <line className="mp-envelope-folds-soft" x1="0" y1="0" x2="44" y2="44" />
-          <line className="mp-envelope-folds-soft" x1="100" y1="0" x2="56" y2="44" />
-          <line className="mp-envelope-folds-soft" x1="0" y1="100" x2="44" y2="56" />
-          <line className="mp-envelope-folds-soft" x1="100" y1="100" x2="56" y2="56" />
-          <line x1="0" y1="0" x2="44" y2="44" />
-          <line x1="100" y1="0" x2="56" y2="44" />
-          <line x1="0" y1="100" x2="44" y2="56" />
-          <line x1="100" y1="100" x2="56" y2="56" />
+          <defs>
+            <filter id="mp-fold-soft" x="-20%" y="-20%" width="140%" height="140%">
+              <feGaussianBlur in="SourceGraphic" stdDeviation="0.25" />
+            </filter>
+          </defs>
+          {/* Soft top-flap seams only — bottom is implied by layered flaps. */}
+          <line
+            x1="0"
+            y1="0"
+            x2="50"
+            y2="58"
+            stroke="rgba(40,25,10,0.18)"
+            strokeWidth="1.25"
+            filter="url(#mp-fold-soft)"
+          />
+          <line
+            x1="100"
+            y1="0"
+            x2="50"
+            y2="58"
+            stroke="rgba(40,25,10,0.18)"
+            strokeWidth="1.25"
+            filter="url(#mp-fold-soft)"
+          />
         </svg>
-        {/* Card after flaps in DOM so open z-index stacking is reliable. */}
+        {/* Card above flaps in open state so invitation text is never covered. */}
         <div className="mp-envelope-card" style={{ fontFamily: fontStack(config?.fontKey) }}>
           {children}
         </div>
