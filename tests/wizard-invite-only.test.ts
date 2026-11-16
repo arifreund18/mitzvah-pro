@@ -1,18 +1,13 @@
 import { describe, it } from 'node:test'
 import assert from 'node:assert/strict'
+import { wizardStepIdsForProducts } from '../lib/platform/products.ts'
 
-/** Mirrors INVITE_ONLY_STEP_IDS in lib/platform/wizard.ts */
-const INVITE_ONLY_STEP_IDS = [
-  'basics',
-  'branding',
-  'rsvp',
-  'saveTheDate',
-  'invitation',
-  'reminders',
-  'guestsBootstrap',
-  'domain',
-  'review',
-] as const
+/** Mirrors invite-only product selection (no site). */
+const INVITE_ONLY_STEP_IDS = wizardStepIdsForProducts({
+  site: false,
+  invitation: true,
+  saveTheDate: true,
+})
 
 const SITE_ONLY_STEPS = [
   'story',
@@ -40,7 +35,23 @@ describe('invite_only wizard contract', () => {
   })
 
   it('defaults missing productMode to full site behavior', () => {
-    const mode = undefined === 'invite_only' ? 'invite_only' : 'site'
-    assert.equal(mode, 'site')
+    const ids = wizardStepIdsForProducts({
+      site: true,
+      invitation: true,
+      saveTheDate: true,
+    })
+    assert.ok(ids.includes('story'))
+    assert.ok(ids.includes('invitation'))
+  })
+
+  it('supports multi-select products independently', () => {
+    const stdOnly = wizardStepIdsForProducts({
+      site: false,
+      invitation: false,
+      saveTheDate: true,
+    })
+    assert.ok(stdOnly.includes('saveTheDate'))
+    assert.equal(stdOnly.includes('invitation'), false)
+    assert.equal(stdOnly.includes('story'), false)
   })
 })

@@ -17,6 +17,7 @@ import { PLACE_CATEGORIES } from './types'
 import { resolveLocales } from './locales'
 import { normalizeMailDomain } from './mail-domain'
 import { normalizeGuest, normalizePerson } from './normalize-guest.ts'
+import { normalizeProducts, productModeFrom } from './products'
 
 export { normalizeGuest, normalizePerson } from './normalize-guest.ts'
 
@@ -124,10 +125,13 @@ export function normalizeConfig(raw: EventConfig | null | undefined): EventConfi
           ]
         : []
 
+  const products = normalizeProducts(raw.products, raw.productMode, raw.saveTheDate?.enabled)
+
   return {
     ...base,
     ...raw,
-    productMode: raw.productMode === 'invite_only' ? 'invite_only' : 'site',
+    products,
+    productMode: productModeFrom(products),
     basics: {
       ...base.basics,
       ...raw.basics,
@@ -165,6 +169,7 @@ export function normalizeConfig(raw: EventConfig | null | undefined): EventConfi
     saveTheDate: {
       ...base.saveTheDate,
       ...raw.saveTheDate,
+      enabled: products.saveTheDate,
       design: { ...defaultCardDesign(), ...base.saveTheDate.design, ...raw.saveTheDate?.design },
     },
     invitation: {

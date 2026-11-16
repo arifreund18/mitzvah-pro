@@ -5,10 +5,11 @@ import { hashPassword } from './password'
 import { loadPlatformStore, savePlatformStore } from './persistence'
 import { isReservedSlug } from './site-url'
 import { normalizeConfig, normalizeGuest } from './normalize'
-import { applyProductMode } from './wizard'
+import { applyProducts, parseProductsInput } from './products'
 import type {
   EventConfig,
   EventLocale,
+  EventProducts,
   Guest,
   GuestPerson,
   GuestRsvp,
@@ -279,6 +280,7 @@ export async function createEvent(input: {
   enabled?: EventLocale[]
   orgId?: string
   productMode?: 'site' | 'invite_only'
+  products?: Partial<EventProducts>
 }): Promise<PlatformEvent> {
   return withLock(async () => {
     const store = await loadStore()
@@ -295,9 +297,10 @@ export async function createEvent(input: {
       enabled: input.enabled,
       slug,
     })
-    if (input.productMode === 'invite_only') {
-      config = applyProductMode(config, 'invite_only')
-    }
+    config = applyProducts(
+      config,
+      parseProductsInput(input.products, input.productMode),
+    )
     const event: PlatformEvent = {
       id: uid(),
       orgId,

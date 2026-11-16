@@ -4,8 +4,10 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useMemo, useState } from 'react'
 import { EventActions } from '@/components/dashboard/EventActions'
+import { EventOptionsPanel } from '@/components/dashboard/EventOptionsPanel'
 import { GuestAdminPanel } from '@/components/dashboard/GuestAdminPanel'
 import { GuestCsvImport } from '@/components/dashboard/GuestCsvImport'
+import { normalizeProducts } from '@/lib/platform/products'
 import { SECTION_EDITOR_IDS, SECTION_LABELS } from '@/lib/platform/section-editor'
 import type { PlatformEvent } from '@/lib/platform/types'
 import { eventApexPathUrl, eventPublicHostLabel, eventPublicUrl } from '@/lib/platform/site-url'
@@ -23,6 +25,30 @@ export function EventAdmin({ event }: { event: PlatformEvent }) {
   const stdUrl = eventPublicUrl(event.slug, '/std')
   const inviteUrl = eventPublicUrl(event.slug, '/invite')
   const guests = event.guests
+  const products = normalizeProducts(
+    event.config.products,
+    event.config.productMode,
+    event.config.saveTheDate?.enabled,
+  )
+  const visibleSections = SECTION_EDITOR_IDS.filter((section) => {
+    if (
+      section === 'story' ||
+      section === 'schedule' ||
+      section === 'venues' ||
+      section === 'places' ||
+      section === 'media' ||
+      section === 'faq' ||
+      section === 'contact' ||
+      section === 'legal'
+    ) {
+      return products.site
+    }
+    if (section === 'invitation') return products.invitation
+    if (section === 'saveTheDate') return products.saveTheDate
+    if (section === 'rsvp') return products.site || products.invitation
+    if (section === 'reminders') return products.invitation || products.saveTheDate
+    return true
+  })
   const peopleCounts = useMemo(() => {
     let adults = 0
     let children = 0
@@ -268,7 +294,7 @@ export function EventAdmin({ event }: { event: PlatformEvent }) {
         </a>
         <button
           type="button"
-          disabled={!!busy || !event.config.saveTheDate.enabled}
+          disabled={!!busy || !products.saveTheDate}
           onClick={() => send('std')}
           className="rounded-full bg-cyan-400 px-4 py-2 font-semibold text-[#0b1020] disabled:opacity-40"
         >
@@ -276,7 +302,7 @@ export function EventAdmin({ event }: { event: PlatformEvent }) {
         </button>
         <button
           type="button"
-          disabled={!!busy}
+          disabled={!!busy || !products.invitation}
           onClick={() => send('invite')}
           className="rounded-full bg-white px-4 py-2 font-semibold text-[#0b1020] disabled:opacity-40"
         >
@@ -295,7 +321,7 @@ export function EventAdmin({ event }: { event: PlatformEvent }) {
         </label>
         <button
           type="button"
-          disabled={!!busy || !event.config.saveTheDate.enabled}
+          disabled={!!busy || !products.saveTheDate}
           onClick={() => void sendTest('std')}
           className="rounded-full border border-cyan-400/40 px-4 py-2 text-cyan-100 hover:bg-cyan-400/10 disabled:opacity-40"
         >
@@ -303,7 +329,7 @@ export function EventAdmin({ event }: { event: PlatformEvent }) {
         </button>
         <button
           type="button"
-          disabled={!!busy}
+          disabled={!!busy || !products.invitation}
           onClick={() => void sendTest('invite')}
           className="rounded-full border border-white/25 px-4 py-2 hover:bg-white/10 disabled:opacity-40"
         >
@@ -330,12 +356,16 @@ export function EventAdmin({ event }: { event: PlatformEvent }) {
         ))}
       </div>
 
+      <div className="mt-12">
+        <EventOptionsPanel event={event} />
+      </div>
+
       <h2 className="font-display mt-12 text-2xl">Editar seção</h2>
       <p className="mt-2 text-sm text-white/50">
         Edite uma seção do evento publicado sem reabrir o wizard completo.
       </p>
       <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {SECTION_EDITOR_IDS.map((section) => (
+        {visibleSections.map((section) => (
           <Link
             key={section}
             href={`/dashboard/events/${event.id}/sections/${section}`}

@@ -3,6 +3,7 @@ import { actorAllowedEventIds, actorSeesAllOrgEvents } from '@/lib/platform/acce
 import { actorOrgId, currentActor, requireSession } from '@/lib/platform/session'
 import { resolveLocales } from '@/lib/platform/locales'
 import { platformApiError } from '@/lib/platform/api-error'
+import { parseProductsInput } from '@/lib/platform/products'
 import { createEvent, getUser, listEvents } from '@/lib/platform/store'
 
 export async function GET() {
@@ -28,11 +29,12 @@ export async function POST(request: Request) {
     locale?: string
     enabled?: string[]
     productMode?: string
+    products?: { site?: boolean; invitation?: boolean; saveTheDate?: boolean }
   } | null
   const honoreeName = body?.honoreeName?.trim()
   const familyName = body?.familyName?.trim()
   const locales = resolveLocales(body?.enabled, body?.locale)
-  const productMode = body?.productMode === 'invite_only' ? 'invite_only' : 'site'
+  const products = parseProductsInput(body?.products, body?.productMode)
   if (!honoreeName) {
     return NextResponse.json({ error: 'Informe o nome do celebrante' }, { status: 400 })
   }
@@ -43,7 +45,8 @@ export async function POST(request: Request) {
       locale: locales.default,
       enabled: locales.enabled,
       orgId: actor?.orgId,
-      productMode,
+      products,
+      productMode: products.site ? 'site' : 'invite_only',
     })
     return NextResponse.json({ event })
   } catch (error) {

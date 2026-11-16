@@ -58,6 +58,9 @@ export async function POST(request: Request, ctx: Ctx) {
   if (kind === 'std' && !event.config.saveTheDate.enabled) {
     return NextResponse.json({ error: 'Save the Date está desativado neste evento' }, { status: 400 })
   }
+  if (kind === 'invite' && event.config.products && event.config.products.invitation === false) {
+    return NextResponse.json({ error: 'Convite está desativado neste evento' }, { status: 400 })
+  }
 
   const host =
     request.headers.get('x-forwarded-host') ||

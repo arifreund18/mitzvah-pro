@@ -14,15 +14,16 @@ import {
   THEMES,
   type EventConfig,
   type EventLocale,
+  type EventProducts,
   type Guest,
   type NotifyMode,
-  type ProductMode,
 } from '@/lib/platform/types'
 import { LOCALE_OPTIONS } from '@/lib/platform/locales'
 import { normalizeGuest } from '@/lib/platform/normalize'
+import { normalizeProducts, toggleProduct } from '@/lib/platform/products'
 import { eventPublicHostLabel } from '@/lib/platform/site-url'
 import { moveArrayItem } from '@/lib/platform/reorder'
-import { applyProductMode, reviewIssues } from '@/lib/platform/wizard'
+import { applyProducts, reviewIssues } from '@/lib/platform/wizard'
 import { GuestCsvImport } from '@/components/dashboard/GuestCsvImport'
 import { GooglePhotosImport } from '@/components/wizard/GooglePhotosImport'
 
@@ -84,47 +85,108 @@ export const WizardStepForm = forwardRef<
   }))
 
   if (step === 'basics') {
-    const wizardLocales = config.locales.enabled.length
+    const products = normalizeProducts(
+      config.products,
+      config.productMode,
+      config.saveTheDate?.enabled,
+    )
+    const enabledLocales = config.locales.enabled.length
       ? config.locales.enabled
-      : LOCALE_OPTIONS.map((item) => item.value)
-    const mode = (config.productMode || 'site') as ProductMode
+      : ([config.locales.default] as EventLocale[])
+    const productOptions: { id: keyof EventProducts; title: string; hint: string }[] = [
+      { id: 'site', title: ui.productModeSite, hint: ui.productModeSiteHint },
+      { id: 'invitation', title: ui.productModeInvite, hint: ui.productModeInviteHint },
+      { id: 'saveTheDate', title: ui.productModeStd, hint: ui.productModeStdHint },
+    ]
     return (
       <div className="space-y-5">
-        <Field label={ui.productMode}>
-          <div className="grid gap-2 sm:grid-cols-2">
-            {(
-              [
-                {
-                  value: 'site' as const,
-                  title: ui.productModeSite,
-                  hint: ui.productModeSiteHint,
-                },
-                {
-                  value: 'invite_only' as const,
-                  title: ui.productModeInvite,
-                  hint: ui.productModeInviteHint,
-                },
-              ] as const
-            ).map((option) => (
-              <button
-                key={option.value}
-                type="button"
-                onClick={() => patch((draft) => applyProductMode(draft, option.value))}
-                className={`rounded-xl border px-3 py-3 text-start text-sm ${
-                  mode === option.value
-                    ? 'border-cyan-400 bg-cyan-400/10 text-cyan-100'
-                    : 'border-white/15 bg-white/5 text-white/80'
-                }`}
-              >
-                <span className="block font-medium">{option.title}</span>
-                <span className="text-xs text-white/40">{option.hint}</span>
-              </button>
-            ))}
+        <Field label={ui.productMode} hint={ui.productModeHint}>
+          <div className="grid gap-2 sm:grid-cols-3">
+            {productOptions.map((option) => {
+              const selected = products[option.id]
+              return (
+                <button
+                  key={option.id}
+                  type="button"
+                  onClick={() =>
+                    patch((draft) =>
+                      applyProducts(
+                        draft,
+                        toggleProduct(
+                          normalizeProducts(
+                            draft.products,
+                            draft.productMode,
+                            draft.saveTheDate?.enabled,
+                          ),
+                          option.id,
+                        ),
+                      ),
+                    )
+                  }
+                  className={`rounded-xl border px-3 py-3 text-start text-sm ${
+                    selected
+                      ? 'border-cyan-400 bg-cyan-400/10 text-cyan-100'
+                      : 'border-white/15 bg-white/5 text-white/80'
+                  }`}
+                >
+                  <span className="block font-medium">
+                    {selected ? '✓ ' : ''}
+                    {option.title}
+                  </span>
+                  <span className="text-xs text-white/40">{option.hint}</span>
+                </button>
+              )
+            })}
+          </div>
+        </Field>
+        <Field label={ui.languagesEnabled} hint={ui.languagesEnabledHint}>
+          <div className="grid grid-cols-2 gap-2">
+            {LOCALE_OPTIONS.map((option) => {
+              const selected = enabledLocales.includes(option.value)
+              return (
+                <button
+                  key={option.value}
+                  type="button"
+                  onClick={() =>
+                    patch((draft) => {
+                      const current = draft.locales.enabled.length
+                        ? draft.locales.enabled
+                        : [draft.locales.default]
+                      let nextEnabled: EventLocale[]
+                      if (selected) {
+                        if (current.length === 1) return draft
+                        nextEnabled = current.filter((item) => item !== option.value)
+                      } else {
+                        nextEnabled = [...current, option.value]
+                      }
+                      const nextDefault = nextEnabled.includes(draft.locales.default)
+                        ? draft.locales.default
+                        : nextEnabled[0]
+                      return {
+                        ...draft,
+                        locales: { default: nextDefault, enabled: nextEnabled },
+                      }
+                    })
+                  }
+                  className={`rounded-xl border px-3 py-3 text-start text-sm ${
+                    selected
+                      ? 'border-cyan-400 bg-cyan-400/10 text-cyan-100'
+                      : 'border-white/15 bg-white/5 text-white/80'
+                  }`}
+                >
+                  <span className="block font-medium">
+                    {selected ? '✓ ' : ''}
+                    {option.label}
+                  </span>
+                  <span className="text-xs text-white/40">{option.hint}</span>
+                </button>
+              )
+            })}
           </div>
         </Field>
         <Field label={ui.language} hint={ui.languageHint}>
           <div className="grid grid-cols-2 gap-2">
-            {LOCALE_OPTIONS.filter((option) => wizardLocales.includes(option.value)).map((option) => (
+            {LOCALE_OPTIONS.filter((option) => enabledLocales.includes(option.value)).map((option) => (
               <button
                 key={option.value}
                 type="button"
@@ -899,7 +961,19 @@ export const WizardStepForm = forwardRef<
             type="checkbox"
             checked={config.saveTheDate.enabled}
             onChange={(e) =>
-              set({ ...config, saveTheDate: { ...config.saveTheDate, enabled: e.target.checked } })
+              set(
+                applyProducts(
+                  config,
+                  {
+                    ...normalizeProducts(
+                      config.products,
+                      config.productMode,
+                      config.saveTheDate?.enabled,
+                    ),
+                    saveTheDate: e.target.checked,
+                  },
+                ),
+              )
             }
           />
           {ui.showStd}

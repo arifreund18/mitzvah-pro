@@ -12,8 +12,8 @@ export default async function NewEventPage() {
     <DashboardShell>
       <h1 className="font-display text-3xl">Novo evento</h1>
       <p className="mt-2 mb-8 max-w-xl text-sm text-white/50">
-        Escolha se quer site completo ou só o convite, os idiomas, o nome e a família. No wizard você
-        define em qual idioma vai preencher.
+        Escolha Site, Convite e/ou Save the Date, os idiomas, o nome e a família. Pode alterar estas
+        opções depois no wizard ou no painel do evento.
       </p>
       <NewEventForm />
     </DashboardShell>

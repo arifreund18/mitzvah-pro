@@ -20,7 +20,7 @@ export function WizardStudio({ event }: { event: PlatformEvent }) {
   const [config, setConfig] = useState<EventConfig>(event.config)
   const [guests, setGuests] = useState<Guest[]>(event.guests)
   const [step, setStep] = useState<WizardStepId>(() =>
-    normalizeWizardStep(event.wizard.currentStep, event.config.productMode),
+    normalizeWizardStep(event.wizard.currentStep, event.config),
   )
   const [saveState, setSaveState] = useState<'saved' | 'saving' | 'error'>('saved')
   const [mobileTab, setMobileTab] = useState<'form' | 'preview'>('form')
@@ -28,21 +28,20 @@ export function WizardStudio({ event }: { event: PlatformEvent }) {
   const [publishing, setPublishing] = useState(false)
   const completed = useRef(
     new Set<WizardStepId>(
-      event.wizard.completedSteps.map((id) => normalizeWizardStep(id, event.config.productMode)),
+      event.wizard.completedSteps.map((id) => normalizeWizardStep(id, event.config)),
     ),
   )
   const skipFirst = useRef(true)
   const stepForm = useRef<WizardStepFormHandle>(null)
 
   const ui = wizardUi(config.locales.default)
-  const mode = config.productMode || 'site'
-  const steps = wizardSteps(config.locales.default, mode)
+  const steps = wizardSteps(config.locales.default, config)
   const def = steps.find((item) => item.id === step) ?? steps[0]
   const issues = useMemo(() => reviewIssues(config), [config])
-  const prev = adjacentStep(step, -1, mode)
-  const next = adjacentStep(step, 1, mode)
+  const prev = adjacentStep(step, -1, config)
+  const next = adjacentStep(step, 1, config)
   const dir = config.locales.default === 'he' ? 'rtl' : 'ltr'
-  const inviteOnly = mode === 'invite_only'
+  const inviteOnly = !(config.products?.site ?? config.productMode !== 'invite_only')
 
   useEffect(() => {
     if (!steps.some((item) => item.id === step)) {

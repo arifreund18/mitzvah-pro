@@ -1,6 +1,10 @@
-import { wizardUi } from './copy'
-import type { EventConfig, EventLocale, ProductMode, WizardStepId } from './types'
-import { WIZARD_STEP_IDS } from './types'
+import { wizardUi } from './copy.ts'
+import {
+  applyProducts,
+  normalizeProducts,
+  wizardStepIdsForProducts,
+} from './products.ts'
+import type { EventConfig, EventLocale, EventProducts, ProductMode, WizardStepId } from './types.ts'
 
 export type WizardStepDef = {
   id: WizardStepId
@@ -30,30 +34,39 @@ const STEP_META: Record<WizardStepId, { required: boolean; previewTarget: string
   review: { required: true, previewTarget: 'hero' },
 }
 
-/** Steps kept when the family only wants invites (no full event website yet). */
-export const INVITE_ONLY_STEP_IDS: readonly WizardStepId[] = [
-  'basics',
-  'branding',
-  'rsvp',
-  'saveTheDate',
-  'invitation',
-  'reminders',
-  'guestsBootstrap',
-  'domain',
-  'review',
-]
+function productsOf(
+  configOrProducts: EventConfig | EventProducts | ProductMode | undefined,
+): EventProducts {
+  if (!configOrProducts) return normalizeProducts(undefined, 'site', true)
+  if (typeof configOrProducts === 'string') {
+    return normalizeProducts(undefined, configOrProducts, true)
+  }
+  if ('productMode' in configOrProducts || 'locales' in configOrProducts) {
+    const config = configOrProducts as EventConfig
+    return normalizeProducts(config.products, config.productMode, config.saveTheDate?.enabled)
+  }
+  return normalizeProducts(configOrProducts as EventProducts)
+}
 
-export function wizardStepIdsFor(mode: ProductMode | undefined): readonly WizardStepId[] {
-  if (mode === 'invite_only') return INVITE_ONLY_STEP_IDS
-  return WIZARD_STEP_IDS
+/** @deprecated Prefer wizardStepIdsForProducts; kept for invite-only tests/legacy. */
+export const INVITE_ONLY_STEP_IDS: readonly WizardStepId[] = wizardStepIdsForProducts({
+  site: false,
+  invitation: true,
+  saveTheDate: true,
+})
+
+export function wizardStepIdsFor(
+  modeOrProducts: ProductMode | EventProducts | EventConfig | undefined,
+): readonly WizardStepId[] {
+  return wizardStepIdsForProducts(productsOf(modeOrProducts))
 }
 
 export function wizardSteps(
   locale: EventLocale,
-  mode: ProductMode | undefined = 'site',
+  modeOrProducts: ProductMode | EventProducts | EventConfig | undefined = 'site',
 ): WizardStepDef[] {
   const ui = wizardUi(locale)
-  return wizardStepIdsFor(mode).map((id) => ({
+  return wizardStepIdsFor(modeOrProducts).map((id) => ({
     id,
     title: ui.steps[id]?.title || id,
     subtitle: ui.steps[id]?.subtitle || '',
@@ -63,25 +76,28 @@ export function wizardSteps(
 
 export const WIZARD_STEPS = wizardSteps('pt')
 
-export function stepIndex(id: WizardStepId, mode: ProductMode | undefined = 'site'): number {
-  return wizardStepIdsFor(mode).indexOf(id)
+export function stepIndex(
+  id: WizardStepId,
+  modeOrProducts: ProductMode | EventProducts | EventConfig | undefined = 'site',
+): number {
+  return wizardStepIdsFor(modeOrProducts).indexOf(id)
 }
 
 export function adjacentStep(
   id: WizardStepId,
   delta: -1 | 1,
-  mode: ProductMode | undefined = 'site',
+  modeOrProducts: ProductMode | EventProducts | EventConfig | undefined = 'site',
 ): WizardStepId | null {
-  const ids = wizardStepIdsFor(mode)
+  const ids = wizardStepIdsFor(modeOrProducts)
   const i = ids.indexOf(id) + delta
   return ids[i] ?? null
 }
 
 export function normalizeWizardStep(
   value: string | undefined,
-  mode: ProductMode | undefined = 'site',
+  modeOrProducts: ProductMode | EventProducts | EventConfig | undefined = 'site',
 ): WizardStepId {
-  const ids = wizardStepIdsFor(mode)
+  const ids = wizardStepIdsFor(modeOrProducts)
   if (value && (ids as readonly string[]).includes(value)) {
     return value as WizardStepId
   }
@@ -92,19 +108,23 @@ export type ReviewIssue = { step: WizardStepId; message: string }
 
 export function reviewIssues(config: EventConfig): ReviewIssue[] {
   const issues = wizardUi(config.locales.default).issues
-  const inviteOnly = config.productMode === 'invite_only'
+  const products = productsOf(config)
   const list: ReviewIssue[] = []
   if (!config.basics.honoreeName.trim()) list.push({ step: 'basics', message: issues.honoree })
   if (!config.basics.date) list.push({ step: 'basics', message: issues.date })
   if (!config.basics.city.trim()) list.push({ step: 'basics', message: issues.city })
-  if (!inviteOnly) {
+  if (products.site) {
     if (!config.story.headline.trim()) list.push({ step: 'story', message: issues.headline })
     if (!config.schedule.items.some((item) => item.title.trim())) {
       list.push({ step: 'schedule', message: issues.schedule })
     }
   }
-  if (!config.invitation.body.trim()) list.push({ step: 'invitation', message: issues.invite })
-  if (!config.rsvp.deadline) list.push({ step: 'rsvp', message: issues.rsvp })
+  if (products.invitation && !config.invitation.body.trim()) {
+    list.push({ step: 'invitation', message: issues.invite })
+  }
+  if ((products.site || products.invitation) && !config.rsvp.deadline) {
+    list.push({ step: 'rsvp', message: issues.rsvp })
+  }
   if (!config.domain.slug.trim()) list.push({ step: 'domain', message: issues.slug })
   return list
 }
@@ -112,30 +132,19 @@ export function reviewIssues(config: EventConfig): ReviewIssue[] {
 export function isStepComplete(id: WizardStepId, config: EventConfig): boolean {
   const related = reviewIssues(config).filter((issue) => issue.step === id)
   if (!STEP_META[id]?.required) return true
-  if (config.productMode === 'invite_only' && !INVITE_ONLY_STEP_IDS.includes(id)) return true
+  const active = wizardStepIdsFor(config)
+  if (!active.includes(id)) return true
   return related.length === 0
 }
 
-/** When switching to invite-only, keep the public site as coming-soon until they expand later. */
+/** @deprecated Prefer applyProducts. */
 export function applyProductMode(config: EventConfig, productMode: ProductMode): EventConfig {
-  if (productMode === 'invite_only') {
-    return {
-      ...config,
-      productMode,
-      legal: {
-        ...config.legal,
-        comingSoon: true,
-        comingSoonMessage:
-          config.legal.comingSoonMessage ||
-          (config.locales.default === 'en'
-            ? 'The event website will be available soon. Your invitation is on the way.'
-            : config.locales.default === 'es'
-              ? 'El sitio del evento estará disponible pronto. Tu invitación está en camino.'
-              : config.locales.default === 'he'
-                ? 'אתר האירוע יהיה זמין בקרוב. ההזמנה בדרך.'
-                : 'O site do evento estará disponível em breve. O convite segue por email.'),
-      },
-    }
-  }
-  return { ...config, productMode }
+  const current = productsOf(config)
+  return applyProducts(config, {
+    ...current,
+    site: productMode === 'site',
+    invitation: current.invitation || productMode === 'invite_only',
+  })
 }
+
+export { applyProducts } from './products.ts'

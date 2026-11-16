@@ -33,7 +33,7 @@ export function LivePreview({
   const mail = templateUi(config.locales.default)
   const locale = config.locales.default
   const target =
-    wizardSteps(locale, config.productMode).find((item) => item.id === step)?.previewTarget ??
+    wizardSteps(locale, config).find((item) => item.id === step)?.previewTarget ??
     'hero'
   const emailKind = step === 'saveTheDate' ? 'std' : step === 'invitation' ? 'invite' : null
 
