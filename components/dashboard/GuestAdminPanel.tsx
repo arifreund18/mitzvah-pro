@@ -157,10 +157,17 @@ export function GuestAdminPanel({ event }: { event: PlatformEvent }) {
                     <td className="px-4 py-3">{guest.familyName}</td>
                     <td className="px-4 py-3 text-white/60">{guest.email || '—'}</td>
                     <td className="px-4 py-3">
-                      {guest.partySize}
                       <span className="block text-xs text-white/40">
-                        {adults}A / {children}C
+                        {guest.partySize} · {adults}A / {children}C
                       </span>
+                      <ul className="mt-1 space-y-0.5 text-xs text-white/70">
+                        {(guest.people || []).map((person) => (
+                          <li key={person.id}>
+                            {person.name || '—'} (
+                            {person.type === 'child' ? 'criança' : 'adulto'})
+                          </li>
+                        ))}
+                      </ul>
                     </td>
                     <td className="px-4 py-3">{guest.status}</td>
                     <td className="px-4 py-3">

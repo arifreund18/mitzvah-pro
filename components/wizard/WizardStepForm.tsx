@@ -19,6 +19,7 @@ import {
 } from '@/lib/platform/types'
 import { LOCALE_OPTIONS } from '@/lib/platform/locales'
 import { normalizeGuest } from '@/lib/platform/normalize'
+import { normalizePerson } from '@/lib/platform/normalize-guest'
 import { eventPublicHostLabel } from '@/lib/platform/site-url'
 import { moveArrayItem } from '@/lib/platform/reorder'
 import { reviewIssues } from '@/lib/platform/wizard'
@@ -1345,10 +1346,16 @@ export const WizardStepForm = forwardRef<
               normalizeGuest({
                 familyName: row.familyName,
                 email: row.email,
-                partySize: row.partySize,
                 status: 'pending',
                 openRsvp: config.rsvp.openRsvpDefault,
                 inviteLocale: config.locales.default,
+                people: [
+                  normalizePerson({
+                    name: row.guestName,
+                    type: row.guestType,
+                    status: 'pending',
+                  }),
+                ],
               }),
             ])
           }}
@@ -1360,9 +1367,16 @@ export const WizardStepForm = forwardRef<
           }}
         />
         {guests.map((guest) => (
-          <div key={guest.id} className="grid gap-2 rounded-2xl border border-white/10 p-3 sm:grid-cols-2">
-            <TextInput value={guest.familyName} readOnly />
-            <TextInput value={guest.email} readOnly />
+          <div key={guest.id} className="rounded-2xl border border-white/10 p-3 text-sm">
+            <p className="font-medium">{guest.familyName}</p>
+            <p className="text-white/50">{guest.email || '—'}</p>
+            <ul className="mt-2 space-y-1 text-white/70">
+              {(guest.people || []).map((person) => (
+                <li key={person.id}>
+                  {person.name || '—'} · {person.type === 'child' ? 'criança' : 'adulto'}
+                </li>
+              ))}
+            </ul>
           </div>
         ))}
       </div>

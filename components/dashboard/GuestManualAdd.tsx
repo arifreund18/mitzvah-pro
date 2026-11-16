@@ -2,32 +2,54 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import type { PersonType } from '@/lib/platform/types'
+
+export type ManualGuestDraft = {
+  familyName: string
+  email: string
+  guestName: string
+  guestType: PersonType
+}
 
 export function GuestManualAdd({
   eventId,
   onAdded,
 }: {
   eventId?: string
-  onAdded?: (guest: { familyName: string; email: string; partySize: number }) => void
+  onAdded?: (guest: ManualGuestDraft) => void
 }) {
   const router = useRouter()
   const [familyName, setFamilyName] = useState('')
   const [email, setEmail] = useState('')
-  const [partySize, setPartySize] = useState(1)
+  const [guestName, setGuestName] = useState('')
+  const [guestType, setGuestType] = useState<PersonType>('adult')
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState('')
   const [tone, setTone] = useState<'ok' | 'err'>('ok')
 
+  function reset() {
+    setFamilyName('')
+    setEmail('')
+    setGuestName('')
+    setGuestType('adult')
+  }
+
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault()
-    const name = familyName.trim()
-    if (!name) return
+    const family = familyName.trim()
+    const person = guestName.trim()
+    if (!family || !person) return
+
+    const draft: ManualGuestDraft = {
+      familyName: family,
+      email: email.trim(),
+      guestName: person,
+      guestType,
+    }
 
     if (!eventId) {
-      onAdded?.({ familyName: name, email: email.trim(), partySize: Math.max(1, partySize) })
-      setFamilyName('')
-      setEmail('')
-      setPartySize(1)
+      onAdded?.(draft)
+      reset()
       setTone('ok')
       setMessage('Convidado adicionado à lista')
       return
@@ -39,10 +61,19 @@ export function GuestManualAdd({
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        familyName: name,
-        email: email.trim(),
-        partySize: Math.max(1, partySize),
+        familyName: family,
+        email: draft.email,
         status: 'pending',
+        partySize: 1,
+        people: [
+          {
+            name: person,
+            type: guestType,
+            status: 'pending',
+            meal: '',
+            dietary: '',
+          },
+        ],
       }),
     })
     const data = (await res.json().catch(() => null)) as { error?: string } | null
@@ -52,12 +83,10 @@ export function GuestManualAdd({
       setMessage(data?.error || 'Não foi possível adicionar')
       return
     }
-    setFamilyName('')
-    setEmail('')
-    setPartySize(1)
+    reset()
     setTone('ok')
     setMessage('Convidado adicionado')
-    onAdded?.({ familyName: name, email: email.trim(), partySize })
+    onAdded?.(draft)
     router.refresh()
   }
 
@@ -67,39 +96,52 @@ export function GuestManualAdd({
       className="rounded-2xl border border-white/15 bg-white/5 p-4 text-sm"
     >
       <p className="text-xs uppercase tracking-wide text-white/40">Adicionar manualmente</p>
-      <div className="mt-3 grid gap-2 sm:grid-cols-3">
-        <label className="block sm:col-span-1">
+      <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+        <label className="block">
           <span className="text-xs text-white/50">Família</span>
           <input
             required
             value={familyName}
             onChange={(e) => setFamilyName(e.target.value)}
+            placeholder="Família Silva"
             className="mt-1 w-full rounded-xl border border-white/15 bg-white/5 px-3 py-2 outline-none"
           />
         </label>
-        <label className="block sm:col-span-1">
+        <label className="block">
           <span className="text-xs text-white/50">Email</span>
           <input
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
+            placeholder="email@familia.com"
             className="mt-1 w-full rounded-xl border border-white/15 bg-white/5 px-3 py-2 outline-none"
           />
         </label>
-        <label className="block sm:col-span-1">
-          <span className="text-xs text-white/50">Pessoas</span>
+        <label className="block">
+          <span className="text-xs text-white/50">Nome do convidado</span>
           <input
-            type="number"
-            min={1}
-            value={partySize}
-            onChange={(e) => setPartySize(Number(e.target.value) || 1)}
+            required
+            value={guestName}
+            onChange={(e) => setGuestName(e.target.value)}
+            placeholder="Primeiro nome"
             className="mt-1 w-full rounded-xl border border-white/15 bg-white/5 px-3 py-2 outline-none"
           />
+        </label>
+        <label className="block">
+          <span className="text-xs text-white/50">Tipo</span>
+          <select
+            value={guestType}
+            onChange={(e) => setGuestType(e.target.value as PersonType)}
+            className="mt-1 w-full rounded-xl border border-white/15 bg-[#12182a] px-3 py-2 outline-none"
+          >
+            <option value="adult">Adulto</option>
+            <option value="child">Criança</option>
+          </select>
         </label>
       </div>
       <button
         type="submit"
-        disabled={busy || !familyName.trim()}
+        disabled={busy || !familyName.trim() || !guestName.trim()}
         className="mt-3 rounded-full bg-cyan-400 px-4 py-2 font-semibold text-[#0b1020] disabled:opacity-40"
       >
         {busy ? 'A guardar…' : 'Adicionar convidado'}
