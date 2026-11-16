@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test'
 import assert from 'node:assert/strict'
-import { google, locationOf } from '../lib/platform/calendar.ts'
+import { google, locationOf, titleOf } from '../lib/platform/calendar.ts'
 import type { CardDesign, EventConfig } from '../lib/platform/types.ts'
 
 /** Minimal config without loading defaults.ts (ESM strip-types). */
@@ -21,6 +21,7 @@ function sampleDesign(partial: Partial<CardDesign> = {}): CardDesign {
     fontKey: 'georgia',
     cardColor: '#1a2033',
     cardTextColor: '#ffffff',
+    ctaRsvpColor: '#ffffff',
     cardImageUrl: '',
     cardImagePosition: 'center',
     greetingColor: '#6a5b4c',
@@ -72,12 +73,15 @@ function config(opts: {
   country?: string
   date?: string
   startTime?: string
+  subject?: string
+  honoreeName?: string
+  seoTitle?: string
 }): EventConfig {
   return {
-    domain: { slug: 'beni', seoTitle: '' },
+    domain: { slug: 'beni', seoTitle: opts.seoTitle || '' },
     basics: {
       type: 'bar',
-      honoreeName: 'Beni',
+      honoreeName: opts.honoreeName || 'Beni',
       familyName: 'Freund',
       date: opts.date || '',
       startTime: opts.startTime || '17:00',
@@ -96,6 +100,7 @@ function config(opts: {
         placeLabel: opts.placeLabel || '',
         address1: opts.address1 || '',
         address2: opts.address2 || '',
+        subject: opts.subject || '',
       }),
     },
     saveTheDate: { design: sampleDesign() },
@@ -108,15 +113,17 @@ describe('locationOf', () => {
       config({
         placeLabel: "Congregation B'nai Torah",
         address1: '700 Mount Vernon Hwy NE, Atlanta, GA',
-        city: 'Atlanta',
+        city: 'Sandy Springs',
         country: 'USA',
       }),
       'invite',
     )
-    assert.match(location, /Congregation B'nai Torah/)
-    assert.match(location, /700 Mount Vernon Hwy NE/)
-    assert.match(location, /Atlanta, GA/)
-    assert.equal(location.includes('Atlanta, Atlanta'), false)
+    assert.equal(
+      location,
+      "Congregation B'nai Torah, 700 Mount Vernon Hwy NE, Atlanta, GA",
+    )
+    assert.equal(location.includes('Sandy Springs'), false)
+    assert.equal(location.includes('USA'), false)
   })
 
   it('falls back to city/country when design address is empty', () => {
@@ -133,12 +140,46 @@ describe('locationOf', () => {
         startTime: '17:00',
         placeLabel: "Congregation B'nai Torah",
         address1: '700 Mount Vernon Hwy NE, Atlanta, GA',
+        city: 'Sandy Springs',
+        country: 'USA',
       }),
       'invite',
     )
     assert.ok(href)
     const location = new URL(href).searchParams.get('location') || ''
-    assert.match(location, /Congregation B'nai Torah/)
-    assert.match(location, /700 Mount Vernon Hwy NE/)
+    assert.equal(
+      location,
+      "Congregation B'nai Torah, 700 Mount Vernon Hwy NE, Atlanta, GA",
+    )
+  })
+})
+
+describe('titleOf', () => {
+  it('uses Assunto (email) subject for the calendar event name', () => {
+    assert.equal(
+      titleOf(
+        config({
+          subject: "Laura Adissi's Bat Mitzvah",
+          honoreeName: 'Laura Adissi',
+          seoTitle: 'Laura Adissi — Mitzvah.pro',
+        }),
+        'invite',
+      ),
+      "Laura Adissi's Bat Mitzvah",
+    )
+  })
+
+  it('puts subject into the Google Calendar text param', () => {
+    const href = google(
+      config({
+        date: '2027-02-13',
+        startTime: '17:30',
+        subject: "Laura Adissi's Bat Mitzvah",
+        seoTitle: 'Laura Adissi — Mitzvah.pro',
+      }),
+      'invite',
+    )
+    assert.ok(href)
+    assert.equal(new URL(href).searchParams.get('text'), "Laura Adissi's Bat Mitzvah")
   })
 })

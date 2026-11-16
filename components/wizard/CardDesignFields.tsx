@@ -12,6 +12,7 @@ const COLOR_FIELDS: { key: keyof CardDesign; label: string }[] = [
   { key: 'sealBg', label: 'Fundo do selo' },
   { key: 'cardColor', label: 'Cor do cartão' },
   { key: 'cardTextColor', label: 'Texto do cartão' },
+  { key: 'ctaRsvpColor', label: 'Texto do RSVP' },
   { key: 'greetingColor', label: 'Cor da saudação' },
   { key: 'nameColor', label: 'Cor do nome' },
   { key: 'bodyColor', label: 'Cor do corpo' },
