@@ -27,17 +27,15 @@ import { GuestCsvImport } from '@/components/dashboard/GuestCsvImport'
 import { GuestManualAdd } from '@/components/dashboard/GuestManualAdd'
 import { GooglePhotosImport } from '@/components/wizard/GooglePhotosImport'
 
-function readFileAsDataUrl(file: File, tooBig: string): Promise<string> {
-  return new Promise((resolve, reject) => {
-    if (file.size > 1_500_000) {
-      reject(new Error(tooBig))
-      return
-    }
-    const reader = new FileReader()
-    reader.onload = () => resolve(String(reader.result))
-    reader.onerror = () => reject(new Error('upload'))
-    reader.readAsDataURL(file)
-  })
+async function uploadWizardImage(
+  eventId: string | undefined,
+  file: File,
+  tooBig: string,
+  kind: string,
+): Promise<string> {
+  if (!eventId) throw new Error('Salve o evento antes de importar imagens.')
+  const { uploadStudioImageFile } = await import('@/lib/platform/studio-image-upload')
+  return uploadStudioImageFile({ eventId, file, kind, tooBigMessage: tooBig })
 }
 
 export type WizardStepFormHandle = {
@@ -468,7 +466,7 @@ export const WizardStepForm = forwardRef<
                     e.target.value = ''
                     if (!file) return
                     try {
-                      const url = await readFileAsDataUrl(file, ui.imageTooBig)
+                      const url = await uploadWizardImage(eventId, file, ui.imageTooBig, 'hotel')
                       patchHotel(hotel.id, { photoUrl: url })
                     } catch (err) {
                       alert(err instanceof Error ? err.message : ui.uploadFail)
@@ -798,7 +796,7 @@ export const WizardStepForm = forwardRef<
               const file = e.target.files?.[0]
               if (!file) return
               try {
-                const url = await readFileAsDataUrl(file, ui.imageTooBig)
+                const url = await uploadWizardImage(eventId, file, ui.imageTooBig, 'hero')
                 set({ ...config, media: { ...config.media, heroUrl: url } })
               } catch (err) {
                 alert(err instanceof Error ? err.message : ui.uploadFail)
@@ -896,6 +894,7 @@ export const WizardStepForm = forwardRef<
         </Field>
         <CardDesignFields
           design={config.saveTheDate.design}
+          eventId={eventId}
           onChange={(design) =>
             set({ ...config, saveTheDate: { ...config.saveTheDate, design } })
           }
@@ -962,7 +961,7 @@ export const WizardStepForm = forwardRef<
                 e.target.value = ''
                 if (!file) return
                 try {
-                  const url = await readFileAsDataUrl(file, ui.imageTooBig)
+                  const url = await uploadWizardImage(eventId, file, ui.imageTooBig, 'seal')
                   set({ ...config, invitation: { ...config.invitation, sealImageUrl: url } })
                 } catch (err) {
                   alert(err instanceof Error ? err.message : ui.uploadFail)
@@ -979,6 +978,7 @@ export const WizardStepForm = forwardRef<
         </Field>
         <CardDesignFields
           design={config.invitation.design}
+          eventId={eventId}
           onChange={(design) =>
             set({ ...config, invitation: { ...config.invitation, design } })
           }
