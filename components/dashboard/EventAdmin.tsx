@@ -224,9 +224,9 @@ export function EventAdmin({
     setMessageTone('ok')
     setMessage(
       data?.mail?.status === 'verified'
-        ? `Remetente verificado · ${data.mail.fromEmail}`
+        ? `Domínio isolado verificado · ${data.mail.fromEmail}`
         : data?.mail?.status === 'pending'
-          ? `Verificação de email pendente · ${data.mail.fromEmail}`
+          ? `DNS/DKIM pendente · ${data.mail.fromEmail}`
           : 'Configuração de email atualizada',
     )
     router.refresh()
@@ -389,8 +389,8 @@ export function EventAdmin({
         Convidados
       </h2>
       <p className="mt-2 text-sm text-white/50">
-        Envie Save the Date e convite por email. Sem provedor configurado no localhost, o status é marcado mesmo assim.
-        Com SES, o From usa o domínio compartilhado e o Reply-To do anfitrião.
+        Envie Save the Date e convite por email. Sem provedor no localhost, o status é marcado mesmo assim.
+        Com SES + Vercel DNS, cada evento usa convites@mail.{'{slug}'}.mitzvah.pro (reputação isolada).
       </p>
       <div className="mt-4 space-y-4">
         <GuestManualAdd eventId={event.id} />
@@ -486,12 +486,12 @@ function MailDomainStatus({
   const from = mail.fromEmail || `convites@${domain}`
   const label =
     mail.status === 'verified'
-      ? `Email verificado · ${from}`
+      ? `Email isolado · ${from}`
       : mail.status === 'pending'
-        ? `Email pendente de verificação · ${from}`
+        ? `Email DNS/DKIM pendente · ${from}`
         : mail.status === 'failed'
-          ? `Email: falha · ${from}`
-          : `Email compartilhado (configure EMAIL_FROM_ADDRESS=convites@mitzvah.pro + AWS — ${domain})`
+          ? `Email: falha no domínio · ${from}`
+          : `Email compartilhado (configure AWS + VERCEL_TOKEN para isolar ${domain})`
   const needsRetry = mail.status === 'failed' || mail.status === 'pending' || mail.status === 'skipped'
   return (
     <div className="mt-2 flex flex-wrap items-center gap-3 text-sm">

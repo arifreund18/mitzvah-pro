@@ -34,7 +34,7 @@ npm run build
 3. Senha padrão: `mitzvah` (`DASHBOARD_PASSWORD`)
 4. Crie um evento → o wizard abre com preview ao vivo
 5. Save the Date e convite são **emails** (preview no wizard; envio no dashboard do evento)
-6. Publique → o **site** fica em `seu-slug.mitzvah.pro`; o **email** sai de `convites@mitzvah.pro` (`EMAIL_FROM_ADDRESS`) com nome do evento e Reply-To do anfitrião (fallback Resend)
+6. Publique → o **site** fica em `seu-slug.mitzvah.pro` e o **email** em `convites@mail.seu-slug.mitzvah.pro` (SES + DKIM + DNS Vercel; fallback `EMAIL_FROM_ADDRESS`)
 
 Há um evento semente **do studio** em `/e/beni` (demo da plataforma, não é o BarBeni). O evento real do Beni continua em `/BarBeni/en`.
 
@@ -51,11 +51,12 @@ No DNS/Vercel, aponte o wildcard `*.mitzvah.pro` para **este** projeto. `/e/{slu
 | `AWS_REGION` | Não | Região SES (default `us-east-2`) |
 | `AWS_ACCESS_KEY_ID` | Sim (SES) | Credencial IAM de envio (não commitar) |
 | `AWS_SECRET_ACCESS_KEY` | Sim (SES) | Credencial IAM (não commitar) |
-| `EMAIL_FROM_ADDRESS` | Sim (SES) | Remetente único (ex. `convites@mitzvah.pro`) |
+| `EMAIL_FROM_ADDRESS` | Sim (SES) | Fallback apex (ex. `convites@mitzvah.pro`) enquanto o domínio do evento não verifica |
 | `EMAIL_SES_PRODUCTION` | Não | `true` após sair do sandbox (senão 1/s e 200/24h) |
 | `RESEND_API_KEY` | Fallback | Só se `EMAIL_PROVIDER=resend` |
 | `RESEND_FROM_EMAIL` | Fallback | Remetente Resend |
-| `VERCEL_TOKEN` | Site DNS | Subdomínio `{slug}` (não e-mail) |
+| `VERCEL_TOKEN` | Sim (isolamento email + site) | DNS `{slug}` e `mail.{slug}` |
+| `MAIL_DOMAIN_PREFIX` | Não | Default `mail` → `mail.{slug}.mitzvah.pro` |
 | `MITZVAH_CONTACT_EMAIL` | Não | Exibido na página (default `mitzvah@mitzvah.pro`) |
 | `MITZVAH_CONTACT_FORWARD_TO` | Não | Destino dos emails do form |
 | `DASHBOARD_PASSWORD` | Não | Senha do studio **mitzvah-pro** (default `mitzvah`) |
@@ -86,15 +87,15 @@ Atalhos antigos `/en/invite` e `/pt/invite` (etc.) ainda redirecionam para `/Bar
 
 ## Email (Amazon SES + fallback Resend)
 
-Padrão: **Amazon SES** (`us-east-2`), remetente único `EMAIL_FROM_ADDRESS=convites@mitzvah.pro`, display name por evento e Reply-To do anfitrião. Ver [`docs/SES.md`](docs/SES.md).
+Padrão: **Amazon SES** (`us-east-2`) com **domínio isolado por evento** `mail.{slug}.mitzvah.pro` (DKIM + DNS Vercel) para não misturar reputação. Display name + Reply-To do anfitrião. Ver [`docs/SES.md`](docs/SES.md).
 
-No publish não se provisiona DNS de e-mail. Em sandbox o envio respeita ~1/s e 200/24h; falhas retryable ficam `deferred` na fila.
+Enquanto o domínio do evento está `pending`, usa-se `EMAIL_FROM_ADDRESS`. Em sandbox: ~1/s e 200/24h; falhas retryable ficam `deferred`.
 
-Fallback: `EMAIL_PROVIDER=resend` + `RESEND_FROM_EMAIL` (sem domínio por slug).
+Fallback: `EMAIL_PROVIDER=resend` restaura o fluxo Resend + `mail.{slug}`.
 
 ## Deploy Vercel
 
 1. Projeto **mitzvah-pro** (este repo): domínio `mitzvah.pro` e wildcard `*.mitzvah.pro`
 2. Projeto **bar-beni** (outro repo): URL interna; este app aponta `BAR_BENI_ORIGIN` para ela
 3. `NEXT_PUBLIC_SITE_HOST=mitzvah.pro`
-4. Credenciais SES + `EMAIL_FROM_ADDRESS` (ver `docs/SES.md`); `VERCEL_TOKEN` só para DNS do site
+4. Credenciais SES (envio + Create/Get identity) + `EMAIL_FROM_ADDRESS` + `VERCEL_TOKEN` (site e `mail.{slug}`)
