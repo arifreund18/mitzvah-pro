@@ -1,7 +1,7 @@
 import type { CSSProperties, ReactNode } from 'react'
 import { formatEventDate, typeLabel, wizardUi } from '@/lib/platform/copy'
 import { pageBackgroundStyle } from '@/lib/platform/card-background'
-import { chromeCtaText, inviteRsvpLabel } from '@/lib/platform/guest-locale'
+import { chromeCtaText, inviteRsvpLabel, primaryEventLocale } from '@/lib/platform/guest-locale'
 import { templateUi } from '@/lib/platform/template-copy'
 import { THEME_PRESETS } from '@/components/template/theme-presets'
 import type { CardDesign, EventConfig, EventLocale } from '@/lib/platform/types'
@@ -52,7 +52,7 @@ export function SaveTheDateCard({
 }) {
   const theme = THEME_PRESETS[config.branding.theme]
   const accent = config.branding.accentColor || '#22d3ee'
-  const locale = localeProp || config.locales.default
+  const locale = localeProp || primaryEventLocale(config)
   const ui = templateUi(locale)
   const d = design || config.saveTheDate.design
   const name = d.eventName || config.basics.honoreeName || wizardUi(locale).site.honoreeFallback
@@ -142,7 +142,7 @@ export function InvitationCard({
 }) {
   const theme = THEME_PRESETS[config.branding.theme]
   const accent = config.branding.accentColor || '#22d3ee'
-  const locale = localeProp || config.locales.default
+  const locale = localeProp || primaryEventLocale(config)
   const ui = templateUi(locale)
   const d = design || config.invitation.design
   const name = d.eventName || config.basics.honoreeName || wizardUi(locale).site.honoreeFallback
@@ -242,13 +242,14 @@ export function EmailChrome({
   config: EventConfig
   children: ReactNode
 }) {
-  const ui = templateUi(config.locales.default)
+  const locale = primaryEventLocale(config)
+  const ui = templateUi(locale)
   const name = config.basics.honoreeName || 'Mitzvah.pro'
   const design = kind === 'std' ? config.saveTheDate.design : config.invitation.design
   const subject =
     kind === 'std'
       ? `Save the Date — ${name}`
-      : `${typeLabel(config.basics.type, config.locales.default)} — ${name}`
+      : `${typeLabel(config.basics.type, locale)} — ${name}`
 
   return (
     <div className="min-h-full bg-[#1a2033] px-4 py-8">

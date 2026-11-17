@@ -1,5 +1,6 @@
 import type { EventConfig, EventLocale, Guest, WizardStepId } from '@/lib/platform/types'
 import { formatEventDate, typeLabel, wizardUi } from '@/lib/platform/copy'
+import { primaryEventLocale } from '@/lib/platform/guest-locale'
 import {
   getLocalizedFaqItem,
   getLocalizedHotel,
@@ -49,7 +50,7 @@ export function EventSite({
 }) {
   const theme = THEME_PRESETS[config.branding.theme]
   const accent = config.branding.accentColor || '#22d3ee'
-  const locale = displayLocale || config.locales.default
+  const locale = displayLocale || primaryEventLocale(config)
   if (mode === 'live' && config.legal.comingSoon) {
     return <ComingSoon config={config} locale={locale} />
   }

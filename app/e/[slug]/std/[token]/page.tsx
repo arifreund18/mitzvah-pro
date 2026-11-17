@@ -2,7 +2,7 @@ import { headers } from 'next/headers'
 import { notFound } from 'next/navigation'
 import { SaveTheDateCard } from '@/components/template/EventEmails'
 import { EnvelopeClient } from '@/lib/event-cards'
-import { localizedOpenLabel } from '@/lib/platform/guest-locale'
+import { localizedOpenLabel, resolveGuestLocale } from '@/lib/platform/guest-locale'
 import { openEnvelopeLabel } from '@/lib/platform/guest-ui'
 import { getLocalizedCardDesign } from '@/lib/platform/i18n-content'
 import { hostFromHeaders, eventPublicUrl } from '@/lib/platform/site-url'
@@ -24,7 +24,7 @@ export default async function SaveTheDateTokenPage({
   await markGuestOpened(event.id, guest.id, 'std')
 
   const host = hostFromHeaders(await headers())
-  const locale = guest.inviteLocale || event.config.locales.default
+  const locale = resolveGuestLocale(guest, event.config)
   const design = getLocalizedCardDesign(event.config, locale, 'std')
 
   return (

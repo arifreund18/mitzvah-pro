@@ -1,10 +1,14 @@
 import { createDefaultConfig, defaultCardDesign } from './defaults'
+import {
+  coerceGuestInviteLocale,
+  primaryEventLocale,
+  scrubForeignChromeFromDesign,
+} from './guest-locale.ts'
 import { uid } from './ids'
 import { DEFAULT_ORG_ID } from './auth'
 import type {
   ContactPerson,
   EventConfig,
-  EventLocale,
   FaqItem,
   GalleryItem,
   Hotel,
@@ -16,7 +20,7 @@ import type {
 import { PLACE_CATEGORIES } from './types'
 import { resolveLocales } from './locales'
 import { normalizeMailDomain } from './mail-domain'
-import { normalizeGuest, normalizePerson } from './normalize-guest.ts'
+import { normalizeGuest } from './normalize-guest.ts'
 import { normalizeProducts, productModeFrom } from './products'
 
 export { normalizeGuest, normalizePerson } from './normalize-guest.ts'
@@ -126,8 +130,9 @@ export function normalizeConfig(raw: EventConfig | null | undefined): EventConfi
         : []
 
   const products = normalizeProducts(raw.products, raw.productMode, raw.saveTheDate?.enabled)
+  const locales = resolveLocales(raw.locales?.enabled, raw.locales?.default)
 
-  return {
+  const config: EventConfig = {
     ...base,
     ...raw,
     products,
@@ -137,7 +142,7 @@ export function normalizeConfig(raw: EventConfig | null | undefined): EventConfi
       ...raw.basics,
       startTime: raw.basics?.startTime || base.basics.startTime,
     },
-    locales: resolveLocales(raw.locales?.enabled, raw.locales?.default),
+    locales,
     branding: { ...base.branding, ...raw.branding },
     story: { ...base.story, ...raw.story, honoreeBio: raw.story?.honoreeBio || '' },
     contentI18n: raw.contentI18n && typeof raw.contentI18n === 'object' ? raw.contentI18n : {},
@@ -206,6 +211,18 @@ export function normalizeConfig(raw: EventConfig | null | undefined): EventConfi
       customHostToken: raw.domain?.customHostToken || uid(),
     },
   }
+
+  // Drop leftover PT/ES/HE stock CTAs when the event primary language is EN (and vice-versa).
+  const chromeLocale = primaryEventLocale(config)
+  config.invitation = {
+    ...config.invitation,
+    design: scrubForeignChromeFromDesign(config.invitation.design, chromeLocale),
+  }
+  config.saveTheDate = {
+    ...config.saveTheDate,
+    design: scrubForeignChromeFromDesign(config.saveTheDate.design, chromeLocale),
+  }
+  return config
 }
 
 export function normalizeEvent(event: PlatformEvent): PlatformEvent {
@@ -232,13 +249,19 @@ export function normalizeEvent(event: PlatformEvent): PlatformEvent {
       ] as string[]
     ).includes(step),
   )
+  const config = normalizeConfig(event.config)
   return {
     ...event,
     previewToken: event.previewToken || uid(),
     approvalToken: event.approvalToken || uid(),
     orgId: event.orgId || DEFAULT_ORG_ID,
-    config: normalizeConfig(event.config),
-    guests: (event.guests || []).map((guest) => normalizeGuest(guest)),
+    config,
+    guests: (event.guests || []).map((guest) =>
+      coerceGuestInviteLocale(
+        normalizeGuest(guest, { inviteLocale: primaryEventLocale(config) }),
+        config,
+      ),
+    ),
     wizard: {
       currentStep: event.wizard?.currentStep || 'basics',
       completedSteps: completed as PlatformEvent['wizard']['completedSteps'],

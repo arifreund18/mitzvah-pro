@@ -115,7 +115,8 @@ export async function POST(request: Request, ctx: Ctx) {
   const from = eventSendFrom(event.config)
   const replyTo = eventHostReplyTo(event.config)
   const configurationSetName = eventMailConfigurationSet(event.config)
-  const locale = updated.guest.inviteLocale || event.config.locales.default
+  const { resolveGuestLocale } = await import('@/lib/platform/guest-locale')
+  const locale = resolveGuestLocale(updated.guest, event.config)
   const { rsvpConfirmationText } = await import('@/lib/platform/guest-ui')
   const confirmBody = rsvpConfirmationText(
     locale,

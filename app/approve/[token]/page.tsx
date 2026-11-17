@@ -1,7 +1,8 @@
 import { notFound } from 'next/navigation'
 import { EventSite } from '@/components/template/EventSite'
-import { getEventByApprovalToken } from '@/lib/platform/store'
 import { ApproveButton } from '@/components/dashboard/ApproveButton'
+import { primaryEventLocale } from '@/lib/platform/guest-locale'
+import { getEventByApprovalToken } from '@/lib/platform/store'
 
 export const dynamic = 'force-dynamic'
 
@@ -14,6 +15,7 @@ export default async function ApprovePage({
   const event = await getEventByApprovalToken(token)
   if (!event || event.status === 'archived') notFound()
   const already = event.status === 'approved' || event.status === 'published'
+  const locale = primaryEventLocale(event.config)
 
   return (
     <div className="bg-[#0b1020] text-white">
@@ -34,7 +36,7 @@ export default async function ApprovePage({
       <EventSite
         config={event.config}
         mode="preview"
-        displayLocale={event.config.locales.default}
+        displayLocale={locale}
         slug={event.slug}
       />
     </div>

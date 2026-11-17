@@ -1,3 +1,4 @@
+import { scrubForeignChromeFromDesign } from './guest-locale.ts'
 import type { CardDesign, EventConfig, EventLocale, FaqItem, Hotel, LocalPlace, ScheduleItem } from './types'
 
 export type StoryI18nFields = {
@@ -119,7 +120,8 @@ export function getLocalizedCardDesign(
     kind === 'std'
       ? config.contentI18n?.[locale]?.stdCard
       : config.contentI18n?.[locale]?.card
-  return { ...base, ...overlay }
+  // Drop leftover stock CTAs from other languages (e.g. PT chrome on an EN event).
+  return scrubForeignChromeFromDesign({ ...base, ...overlay }, locale)
 }
 
 export function emptyContentI18n(): ContentI18n {

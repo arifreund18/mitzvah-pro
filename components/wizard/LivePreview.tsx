@@ -9,6 +9,7 @@ import {
 } from '@/components/template/EventEmails'
 import { EnvelopeClient } from '@/lib/event-cards'
 import { wizardUi } from '@/lib/platform/copy'
+import { localizedOpenLabel, primaryEventLocale } from '@/lib/platform/guest-locale'
 import { openEnvelopeLabel } from '@/lib/platform/guest-ui'
 import { mailHtml } from '@/lib/platform/mail'
 import { normalizeGuest } from '@/lib/platform/normalize-guest'
@@ -29,9 +30,9 @@ export function LivePreview({
   const scroller = useRef<HTMLDivElement>(null)
   const [previewHost, setPreviewHost] = useState('localhost:3000')
   const [inviteTab, setInviteTab] = useState<InvitePreviewTab>('email')
-  const ui = wizardUi(config.locales.default)
-  const mail = templateUi(config.locales.default)
-  const locale = config.locales.default
+  const locale = primaryEventLocale(config)
+  const ui = wizardUi(locale)
+  const mail = templateUi(locale)
   const target =
     wizardSteps(locale, config).find((item) => item.id === step)?.previewTarget ??
     'hero'
@@ -155,7 +156,12 @@ export function LivePreview({
               ...inviteDesign,
               sealUrl,
               sealLabel: inviteDesign.sealLabel || config.invitation.sealLabel,
-              openLabel: openEnvelopeLabel('invite', locale, inviteDesign.openLabel),
+              openLabel: localizedOpenLabel(
+                config,
+                locale,
+                'invite',
+                openEnvelopeLabel('invite', locale),
+              ),
             }}
           >
             <InvitationCard
