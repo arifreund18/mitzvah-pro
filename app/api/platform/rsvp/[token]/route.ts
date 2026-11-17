@@ -2,8 +2,12 @@ import { NextResponse } from 'next/server'
 import { z } from 'zod'
 import { consumeRateLimit } from '@/lib/platform/rate-limit'
 import { getFamilyByToken, updateGuest, appendEmailLog } from '@/lib/platform/store'
-import { getResend } from '@/lib/email/send'
-import { eventSendFrom } from '@/lib/platform/mail-domain'
+import { isEmailConfigured, sendEmail } from '@/lib/email/send'
+import {
+  eventHostReplyTo,
+  eventMailConfigurationSet,
+  eventSendFrom,
+} from '@/lib/platform/mail-domain'
 import { uid } from '@/lib/platform/ids'
 import type { GuestPerson } from '@/lib/platform/types'
 
@@ -104,8 +108,10 @@ export async function POST(request: Request, ctx: Ctx) {
   })
   if (!updated) return NextResponse.json({ error: 'Falha ao guardar' }, { status: 500 })
 
-  const resend = getResend()
+  const emailReady = isEmailConfigured()
   const from = eventSendFrom(event.config)
+  const replyTo = eventHostReplyTo(event.config)
+  const configurationSetName = eventMailConfigurationSet(event.config)
   const locale = updated.guest.inviteLocale || event.config.locales.default
   const { rsvpConfirmationText } = await import('@/lib/platform/guest-ui')
   const confirmBody = rsvpConfirmationText(
@@ -117,21 +123,23 @@ export async function POST(request: Request, ctx: Ctx) {
 
   for (const to of emails) {
     let status = 'skipped'
-    let resendId: string | null = null
+    let messageId: string | null = null
     let error = ''
-    if (resend && from) {
-      const result = await resend.emails.send({
+    if (emailReady && from) {
+      const result = await sendEmail({
         from,
         to,
+        replyTo,
+        configurationSetName,
         subject: `RSVP — ${event.config.basics.honoreeName || event.slug}`,
         html: `<p dir="${dir}">${confirmBody.replace(/</g, '&lt;')}</p>`,
       })
-      if (result.error) {
-        status = 'failed'
-        error = result.error.message
+      if (!result.ok) {
+        status = result.retryable ? 'deferred' : 'failed'
+        error = result.error || 'send_failed'
       } else {
         status = 'sent'
-        resendId = result.data?.id || null
+        messageId = result.messageId
       }
     }
     await appendEmailLog({
@@ -139,7 +147,7 @@ export async function POST(request: Request, ctx: Ctx) {
       familyId: guest.id,
       type: 'rsvp_confirmation',
       status,
-      resendId,
+      messageId,
       toEmail: to,
       error,
     })
@@ -149,16 +157,16 @@ export async function POST(request: Request, ctx: Ctx) {
     event.config.rsvp.notifyMode === 'instant'
       ? event.config.rsvp.notifyEmails.filter(Boolean)
       : []
-  if (resend && from) {
+  if (emailReady && from) {
     for (const to of notify) {
-      await resend.emails
-        .send({
-          from,
-          to,
-          subject: `Novo RSVP — ${updated.guest.familyName}`,
-          html: `<p>Família ${updated.guest.familyName} atualizou o RSVP.</p>`,
-        })
-        .catch(() => null)
+      await sendEmail({
+        from,
+        to,
+        replyTo,
+        configurationSetName,
+        subject: `Novo RSVP — ${updated.guest.familyName}`,
+        html: `<p>Família ${updated.guest.familyName} atualizou o RSVP.</p>`,
+      }).catch(() => null)
     }
   }
 

@@ -201,7 +201,7 @@ export function EventAdmin({
     setMessageTone(data?.local ? 'err' : 'ok')
     setMessage(
       data?.local
-        ? data.warning || `Teste ${kind} marcado localmente (sem Resend)`
+        ? data.warning || `Teste ${kind} marcado localmente (sem provedor de email)`
         : `Teste ${kind} enviado para ${data?.to || to}`,
     )
   }
@@ -226,8 +226,8 @@ export function EventAdmin({
       data?.mail?.status === 'verified'
         ? `Domínio isolado verificado · ${data.mail.fromEmail}`
         : data?.mail?.status === 'pending'
-          ? `DNS criado; verificação Resend pendente · ${data.mail.fromEmail}`
-          : 'Domínio de email atualizado',
+          ? `DNS/DKIM pendente · ${data.mail.fromEmail}`
+          : 'Configuração de email atualizada',
     )
     router.refresh()
   }
@@ -389,8 +389,8 @@ export function EventAdmin({
         Convidados
       </h2>
       <p className="mt-2 text-sm text-white/50">
-        Envie Save the Date e convite por email. Sem Resend no localhost, o status é marcado mesmo assim.
-        Com Vercel DNS + Resend, cada evento usa o remetente isolado do slug.
+        Envie Save the Date e convite por email. Sem provedor no localhost, o status é marcado mesmo assim.
+        Com SES + Vercel DNS, cada evento usa convites@mail.{'{slug}'}.mitzvah.pro (reputação isolada).
       </p>
       <div className="mt-4 space-y-4">
         <GuestManualAdd eventId={event.id} />
@@ -488,10 +488,10 @@ function MailDomainStatus({
     mail.status === 'verified'
       ? `Email isolado · ${from}`
       : mail.status === 'pending'
-        ? `Email DNS pendente · ${from}`
+        ? `Email DNS/DKIM pendente · ${from}`
         : mail.status === 'failed'
           ? `Email: falha no domínio · ${from}`
-          : `Email compartilhado (configure VERCEL_TOKEN + Resend para isolar ${domain})`
+          : `Email compartilhado (configure AWS + VERCEL_TOKEN para isolar ${domain})`
   const needsRetry = mail.status === 'failed' || mail.status === 'pending' || mail.status === 'skipped'
   return (
     <div className="mt-2 flex flex-wrap items-center gap-3 text-sm">
@@ -506,7 +506,7 @@ function MailDomainStatus({
           onClick={onRetry}
           className="rounded-full border border-white/20 px-3 py-1 text-xs text-white/80 hover:bg-white/10 disabled:opacity-40"
         >
-          {busy ? 'A provisionar…' : 'Reparar domínio de email'}
+          {busy ? 'A verificar…' : 'Verificar email'}
         </button>
       ) : null}
     </div>

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getResend } from '@/lib/email/send'
+import { isEmailConfigured, sendEmail, sharedFromEmail } from '@/lib/email/send'
 import {
   MITZVAH_CONTACT_EMAIL,
   MITZVAH_CONTACT_FORWARD_TO,
@@ -13,14 +13,14 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ ok: false, error: 'invalid' }, { status: 400 })
   }
 
-  const resend = getResend()
-  if (!resend) {
+  if (!isEmailConfigured()) {
     return NextResponse.json({ ok: false, error: 'email_unavailable' }, { status: 503 })
   }
 
+  const from = sharedFromEmail() ?? 'onboarding@resend.dev'
   const { name, email, message } = parsed.data
-  const { error } = await resend.emails.send({
-    from: process.env.RESEND_FROM_EMAIL ?? 'onboarding@resend.dev',
+  const result = await sendEmail({
+    from,
     to: MITZVAH_CONTACT_FORWARD_TO,
     replyTo: email,
     subject: `[Mitzvah.pro] ${name}`,
@@ -35,7 +35,7 @@ export async function POST(request: NextRequest) {
     `,
   })
 
-  if (error) {
+  if (!result.ok) {
     return NextResponse.json({ ok: false, error: 'send_failed' }, { status: 502 })
   }
 

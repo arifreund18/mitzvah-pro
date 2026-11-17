@@ -1,9 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getResend } from '@/lib/email/send'
+import { isEmailConfigured, sendEmail } from '@/lib/email/send'
 import { authorizeCron } from '@/lib/platform/cron-auth'
 import { daysUntilEventDate, eventTimeZone } from '@/lib/platform/event-tz'
 import { reminderCopy } from '@/lib/platform/guest-ui'
-import { eventSendFrom } from '@/lib/platform/mail-domain'
+import {
+  eventHostReplyTo,
+  eventMailConfigurationSet,
+  eventSendFrom,
+} from '@/lib/platform/mail-domain'
 import {
   appendEmailLog,
   listEmailLogs,
@@ -27,7 +31,7 @@ export async function GET(request: NextRequest) {
 
   const store = await loadPlatformStoreForCron()
   const existingLogs = await listEmailLogs()
-  const resend = getResend()
+  const emailReady = isEmailConfigured()
   const jobs: Array<{
     eventId: string
     guestId: string
@@ -68,7 +72,7 @@ export async function GET(request: NextRequest) {
         )
         if (already) continue
 
-        const sent = await sendReminder({ event, guest, to, days: hit.days, resend })
+        const sent = await sendReminder({ event, guest, to, days: hit.days, emailReady })
         jobs.push({
           eventId: event.id,
           guestId: guest.id,
@@ -82,7 +86,7 @@ export async function GET(request: NextRequest) {
           type,
           status: sent.status,
           toEmail: to,
-          resendId: sent.resendId,
+          messageId: sent.messageId,
           error: sent.error,
         })
       }
@@ -97,15 +101,19 @@ async function sendReminder({
   guest,
   to,
   days,
-  resend,
+  emailReady,
 }: {
   event: PlatformEvent
   guest: Guest
   to: string
   days: number
-  resend: ReturnType<typeof getResend>
-}): Promise<{ status: string; resendId: string | null; error: string }> {
-  const from = eventSendFrom(event.config) || process.env.RESEND_FROM_EMAIL
+  emailReady: boolean
+}): Promise<{ status: string; messageId: string | null; error: string }> {
+  const from =
+    eventSendFrom(event.config) ||
+    process.env.EMAIL_FROM_ADDRESS ||
+    process.env.SES_FROM_EMAIL ||
+    process.env.RESEND_FROM_EMAIL
   const name = event.config.basics.honoreeName || 'Mitzvah'
   const locale = guest.inviteLocale || event.config.locales.default
   const copy = reminderCopy(
@@ -116,24 +124,30 @@ async function sendReminder({
     event.config.reminders.message,
   )
   const dir = locale === 'he' ? 'rtl' : 'ltr'
-  if (!resend || !from) {
-    return { status: 'queued', resendId: null, error: 'email_unavailable' }
+  if (!emailReady || !from) {
+    return { status: 'queued', messageId: null, error: 'email_unavailable' }
   }
-  const result = await resend.emails.send({
+  const result = await sendEmail({
     from,
     to,
+    replyTo: eventHostReplyTo(event.config),
+    configurationSetName: eventMailConfigurationSet(event.config),
     subject: copy.subject,
     html: `<div dir="${dir}" style="font-family:Georgia,serif;line-height:1.5">
       <p>${copy.body.replace(/</g, '&lt;')}</p>
       <p style="color:#666;font-size:12px">Job ${uid()}</p>
     </div>`,
   })
-  if (result.error) {
-    return { status: 'failed', resendId: null, error: result.error.message }
+  if (!result.ok) {
+    return {
+      status: result.retryable ? 'deferred' : 'failed',
+      messageId: null,
+      error: result.error || 'send_failed',
+    }
   }
   return {
     status: 'sent',
-    resendId: (result.data as { id?: string } | null)?.id || null,
+    messageId: result.messageId,
     error: '',
   }
 }

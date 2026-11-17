@@ -406,6 +406,8 @@ export type EventMailDomain = {
   sendingDomain: string
   fromEmail: string
   resendDomainId: string
+  /** SES configuration set for this event (e.g. mitzvah-{slug}). */
+  configurationSetName?: string
   status: MailDomainStatus
   lastError: string
   verifiedAt: string | null
@@ -499,12 +501,16 @@ export type MailJob = {
   status: MailJobStatus
   guestIds: string[]
   pendingGuestIds: string[]
+  /** Guests held for later (throttle / unverified / daily cap) — not lost. */
+  deferredGuestIds?: string[]
   processed: number
   succeeded: number
   failed: number
+  deferred?: number
   errors: string[]
   host: string
   from: string
+  configurationSetName?: string
   createdAt: string
   updatedAt: string
   attempts: number
@@ -525,6 +531,12 @@ export type EmailLog = {
   familyId: string | null
   type: string
   status: string
+  /** Provider message id (SES MessageId or Resend id). */
+  messageId: string | null
+  /**
+   * @deprecated Alias of messageId — kept so older JSON/rows and dual-write keep working.
+   * Always equal to messageId when loaded from storage.
+   */
   resendId: string | null
   toEmail: string
   error: string

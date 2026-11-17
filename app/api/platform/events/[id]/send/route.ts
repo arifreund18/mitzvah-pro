@@ -1,10 +1,14 @@
 import { NextResponse } from 'next/server'
 import { getEvent, markMailSent, updateEvent, appendEmailLog } from '@/lib/platform/store'
 import { requireEventAccess } from '@/lib/platform/session'
-import { getResend } from '@/lib/email/send'
+import { isEmailConfigured, sendEmail } from '@/lib/email/send'
 import { provisionEventMailDomain, refreshEventMailDomain } from '@/lib/email/provision-domain'
 import { guestMailRecipients } from '@/lib/platform/family-emails'
-import { eventSendFrom } from '@/lib/platform/mail-domain'
+import {
+  eventHostReplyTo,
+  eventMailConfigurationSet,
+  eventSendFrom,
+} from '@/lib/platform/mail-domain'
 import { mailHtml, mailSubject } from '@/lib/platform/mail'
 import { createMailJob, MAIL_BATCH_SIZE } from '@/lib/platform/mail-queue'
 import type { EventConfig, Guest } from '@/lib/platform/types'
@@ -14,28 +18,58 @@ type Ctx = { params: Promise<{ id: string }> }
 export const maxDuration = 30
 
 async function sendOne(opts: {
-  resend: NonNullable<ReturnType<typeof getResend>>
   from: string
+  replyTo?: string
+  configurationSetName?: string
   kind: 'std' | 'invite'
   config: EventConfig
   host: string
   guest: Guest
-}): Promise<{ ok: boolean; resendId: string | null; error: string; recipients: string[] }> {
+}): Promise<{
+  ok: boolean
+  messageId: string | null
+  error: string
+  retryable: boolean
+  errorKind: string | null
+  recipients: string[]
+}> {
   const recipients = guestMailRecipients(opts.guest)
   if (recipients.length === 0) {
-    return { ok: false, resendId: null, error: 'sem email', recipients: [] }
+    return {
+      ok: false,
+      messageId: null,
+      error: 'sem email',
+      retryable: false,
+      errorKind: null,
+      recipients: [],
+    }
   }
-  const result = await opts.resend.emails.send({
+  const result = await sendEmail({
     from: opts.from,
     to: recipients,
+    replyTo: opts.replyTo,
+    configurationSetName: opts.configurationSetName,
     subject: mailSubject(opts.kind, opts.config, opts.guest),
     html: mailHtml(opts.kind, opts.config, opts.host, opts.guest),
   })
-  if (result.error) {
-    return { ok: false, resendId: null, error: result.error.message, recipients }
+  if (!result.ok) {
+    return {
+      ok: false,
+      messageId: null,
+      error: result.error || 'send_failed',
+      retryable: result.retryable,
+      errorKind: result.errorKind,
+      recipients,
+    }
   }
-  const data = result.data as { id?: string } | null
-  return { ok: true, resendId: data?.id || null, error: '', recipients }
+  return {
+    ok: true,
+    messageId: result.messageId,
+    error: '',
+    retryable: false,
+    errorKind: null,
+    recipients,
+  }
 }
 
 export async function POST(request: Request, ctx: Ctx) {
@@ -73,7 +107,7 @@ export async function POST(request: Request, ctx: Ctx) {
     return NextResponse.json({ error: 'Nenhum convidado com email na seleção' }, { status: 400 })
   }
 
-  const resend = getResend()
+  const emailReady = isEmailConfigured()
   let config = event.config
 
   if (config.domain.mail?.status === 'failed' || config.domain.mail?.status === 'skipped') {
@@ -82,7 +116,7 @@ export async function POST(request: Request, ctx: Ctx) {
       config: { ...config, domain: { ...config.domain, mail } },
     })
     if (updated) config = updated.config
-  } else if (config.domain.mail?.status === 'pending' && config.domain.mail.resendDomainId) {
+  } else if (config.domain.mail?.status === 'pending') {
     const mail = await refreshEventMailDomain(config.domain.mail)
     if (mail.status !== config.domain.mail.status || mail.lastError !== config.domain.mail.lastError) {
       const updated = await updateEvent(id, {
@@ -93,7 +127,9 @@ export async function POST(request: Request, ctx: Ctx) {
   }
 
   const from = eventSendFrom(config)
-  if (!resend) {
+  const replyTo = eventHostReplyTo(config)
+  const configurationSetName = eventMailConfigurationSet(config)
+  if (!emailReady) {
     const marked = await markMailSent(
       id,
       kind,
@@ -106,7 +142,7 @@ export async function POST(request: Request, ctx: Ctx) {
         type: kind,
         status: 'local',
         toEmail: guestMailRecipients(guest).join(', ') || guest.email,
-        error: 'RESEND_API_KEY ausente',
+        error: 'Provedor de email ausente (EMAIL_PROVIDER / SES / Resend)',
       })
     }
     return NextResponse.json({
@@ -114,7 +150,7 @@ export async function POST(request: Request, ctx: Ctx) {
       sent: marked?.sent || 0,
       delivered: 0,
       local: true,
-      warning: 'RESEND_API_KEY ausente — marcado localmente, sem envio real.',
+      warning: 'Provedor de email ausente — marcado localmente, sem envio real.',
     })
   }
 
@@ -123,14 +159,14 @@ export async function POST(request: Request, ctx: Ctx) {
       {
         error:
           config.domain.mail?.lastError ||
-          'Sem remetente: verifique o domínio isolado ou defina RESEND_FROM_EMAIL com domínio verificado no Resend.',
+          'Sem remetente: defina EMAIL_FROM_ADDRESS (ex. convites@mitzvah.pro) ou RESEND_FROM_EMAIL.',
         mail: config.domain.mail,
       },
       { status: 502 },
     )
   }
 
-  // Large sends: enqueue and kick background processor
+  // Large sends: enqueue and kick background processor (rate-limited in process).
   if (targets.length > MAIL_BATCH_SIZE) {
     const job = await createMailJob({
       eventId: id,
@@ -138,6 +174,7 @@ export async function POST(request: Request, ctx: Ctx) {
       guestIds: targets.map((guest) => guest.id),
       host,
       from,
+      configurationSetName,
     })
     const processUrl = new URL(`/api/platform/events/${id}/send/process`, request.url)
     const cookie = request.headers.get('cookie') || ''
@@ -160,9 +197,10 @@ export async function POST(request: Request, ctx: Ctx) {
   }
 
   const deliveredIds: string[] = []
+  const deferredIds: string[] = []
   const errors: string[] = []
   for (const guest of targets) {
-    const result = await sendOne({ resend, from, kind, config, host, guest })
+    const result = await sendOne({ from, replyTo, configurationSetName, kind, config, host, guest })
     const toEmail = result.recipients.join(', ') || guest.email
     if (result.ok) {
       deliveredIds.push(guest.id)
@@ -172,8 +210,19 @@ export async function POST(request: Request, ctx: Ctx) {
         type: kind,
         status: 'sent',
         toEmail,
-        resendId: result.resendId,
+        messageId: result.messageId,
       })
+    } else if (result.retryable) {
+      deferredIds.push(guest.id)
+      await appendEmailLog({
+        eventId: id,
+        familyId: guest.id,
+        type: kind,
+        status: 'deferred',
+        toEmail,
+        error: `${result.errorKind || 'retryable'}: ${result.error}`,
+      })
+      errors.push(`${toEmail || guest.id}: deferred (${result.errorKind})`)
     } else {
       errors.push(`${toEmail || guest.id}: ${result.error}`)
       await appendEmailLog({
@@ -187,10 +236,10 @@ export async function POST(request: Request, ctx: Ctx) {
     }
   }
 
-  if (deliveredIds.length === 0) {
+  if (deliveredIds.length === 0 && deferredIds.length === 0) {
     return NextResponse.json(
       {
-        error: errors[0] || 'Resend recusou o envio',
+        error: errors[0] || 'Provedor de email recusou o envio',
         errors,
         delivered: 0,
         from,
@@ -200,12 +249,25 @@ export async function POST(request: Request, ctx: Ctx) {
     )
   }
 
-  const marked = await markMailSent(id, kind, deliveredIds)
+  // Persist deferred guests in a job so they are not lost.
+  if (deferredIds.length) {
+    await createMailJob({
+      eventId: id,
+      kind,
+      guestIds: deferredIds,
+      host,
+      from,
+      configurationSetName,
+    })
+  }
+
+  const marked = deliveredIds.length ? await markMailSent(id, kind, deliveredIds) : null
   return NextResponse.json({
-    event: marked?.event,
+    event: marked?.event || event,
     sent: marked?.sent || 0,
     delivered: deliveredIds.length,
-    failed: errors.length,
+    deferred: deferredIds.length,
+    failed: errors.length - deferredIds.length,
     errors: errors.length ? errors : undefined,
     from,
     local: false,

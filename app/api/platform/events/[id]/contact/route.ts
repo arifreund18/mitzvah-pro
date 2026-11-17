@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getResend } from '@/lib/email/send'
-import { eventSendFrom } from '@/lib/platform/mail-domain'
+import { isEmailConfigured, sendEmail } from '@/lib/email/send'
+import { eventMailConfigurationSet, eventSendFrom } from '@/lib/platform/mail-domain'
 import { consumeRateLimit } from '@/lib/platform/rate-limit'
 import { getEvent } from '@/lib/platform/store'
 import { z } from 'zod'
@@ -52,18 +52,22 @@ export async function POST(request: NextRequest, ctx: Ctx) {
     return NextResponse.json({ error: 'no_recipients' }, { status: 503 })
   }
 
-  const resend = getResend()
-  const from = eventSendFrom(event.config) || process.env.RESEND_FROM_EMAIL
-  if (!resend || !from) {
+  const from =
+    eventSendFrom(event.config) ||
+    process.env.EMAIL_FROM_ADDRESS ||
+    process.env.SES_FROM_EMAIL ||
+    process.env.RESEND_FROM_EMAIL
+  if (!isEmailConfigured() || !from) {
     return NextResponse.json({ error: 'email_unavailable' }, { status: 503 })
   }
 
   const { name, email, message } = parsed.data
   const honoree = event.config.basics.honoreeName || event.slug
-  const { error } = await resend.emails.send({
+  const result = await sendEmail({
     from,
     to: recipients,
     replyTo: email,
+    configurationSetName: eventMailConfigurationSet(event.config),
     subject: `[${honoree}] Contact — ${name}`,
     html: `
       <p><strong>New message from the event site</strong></p>
@@ -74,7 +78,7 @@ export async function POST(request: NextRequest, ctx: Ctx) {
     `,
   })
 
-  if (error) {
+  if (!result.ok) {
     return NextResponse.json({ error: 'send_failed' }, { status: 502 })
   }
 

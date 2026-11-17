@@ -1,3 +1,4 @@
+import { eventConfigurationSetName } from '@/lib/email/ses-naming'
 import { SITE_HOST } from './site-url'
 import { formatFromAddress, sanitizeFromDisplayName } from './mail-from'
 import type { EventMailDomain, MailDomainStatus } from './types'
@@ -5,10 +6,23 @@ import type { EventMailDomain, MailDomainStatus } from './types'
 export {
   emailAddressOnly,
   eventFromDisplayName,
+  eventHostReplyTo,
   eventSendFrom,
   formatFromAddress,
   sanitizeFromDisplayName,
 } from './mail-from'
+
+export { eventConfigurationSetName }
+
+/** Configuration set stored on the event mail domain, or derived from slug. */
+export function eventMailConfigurationSet(config: {
+  domain: { slug: string; mail?: { configurationSetName?: string } | null }
+}): string {
+  return (
+    config.domain.mail?.configurationSetName ||
+    eventConfigurationSetName(config.domain.slug)
+  )
+}
 
 export const MAIL_FROM_LOCAL = process.env.MAIL_FROM_LOCAL || 'convites'
 export const MAIL_DOMAIN_PREFIX = process.env.MAIL_DOMAIN_PREFIX || 'mail'
@@ -20,6 +34,7 @@ export function emptyMailDomain(): EventMailDomain {
     sendingDomain: '',
     fromEmail: '',
     resendDomainId: '',
+    configurationSetName: '',
     status: 'skipped',
     lastError: '',
     verifiedAt: null,
@@ -36,6 +51,7 @@ export function normalizeMailDomain(raw: Partial<EventMailDomain> | null | undef
     sendingDomain: raw.sendingDomain || '',
     fromEmail: raw.fromEmail || '',
     resendDomainId: raw.resendDomainId || '',
+    configurationSetName: raw.configurationSetName || '',
     status,
     lastError: raw.lastError || '',
     verifiedAt: raw.verifiedAt ?? null,

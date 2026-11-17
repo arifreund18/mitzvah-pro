@@ -57,12 +57,15 @@ const ensureMailJobsTable = oncePerProcess(async () => {
 type MailJobPayload = {
   guestIds: string[]
   pendingGuestIds: string[]
+  deferredGuestIds?: string[]
   processed: number
   succeeded: number
   failed: number
+  deferred?: number
   errors: string[]
   host: string
   from: string
+  configurationSetName?: string
 }
 
 function jobFromRow(row: {
@@ -87,12 +90,15 @@ function jobFromRow(row: {
     status: (row.status as MailJobStatus) || 'pending',
     guestIds: Array.isArray(payload.guestIds) ? payload.guestIds : [],
     pendingGuestIds: Array.isArray(payload.pendingGuestIds) ? payload.pendingGuestIds : [],
+    deferredGuestIds: Array.isArray(payload.deferredGuestIds) ? payload.deferredGuestIds : [],
     processed: Number(payload.processed) || 0,
     succeeded: Number(payload.succeeded) || 0,
     failed: Number(payload.failed) || 0,
+    deferred: Number(payload.deferred) || 0,
     errors: Array.isArray(payload.errors) ? payload.errors : [],
     host: payload.host || '',
     from: payload.from || '',
+    configurationSetName: payload.configurationSetName || '',
     createdAt: new Date(row.created_at).toISOString(),
     updatedAt: new Date(row.updated_at).toISOString(),
     attempts: Number(row.attempts) || 0,
@@ -104,12 +110,15 @@ function payloadOf(job: MailJob): MailJobPayload {
   return {
     guestIds: job.guestIds,
     pendingGuestIds: job.pendingGuestIds,
+    deferredGuestIds: job.deferredGuestIds || [],
     processed: job.processed,
     succeeded: job.succeeded,
     failed: job.failed,
+    deferred: job.deferred || 0,
     errors: job.errors,
     host: job.host,
     from: job.from,
+    configurationSetName: job.configurationSetName || '',
   }
 }
 
@@ -119,6 +128,7 @@ export async function createMailJob(input: {
   guestIds: string[]
   host: string
   from: string
+  configurationSetName?: string
 }): Promise<MailJob> {
   const now = new Date().toISOString()
   const job: MailJob = {
@@ -128,12 +138,15 @@ export async function createMailJob(input: {
     status: 'pending',
     guestIds: [...input.guestIds],
     pendingGuestIds: [...input.guestIds],
+    deferredGuestIds: [],
     processed: 0,
     succeeded: 0,
     failed: 0,
+    deferred: 0,
     errors: [],
     host: input.host,
     from: input.from,
+    configurationSetName: input.configurationSetName || '',
     createdAt: now,
     updatedAt: now,
     attempts: 0,

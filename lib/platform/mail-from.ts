@@ -27,13 +27,43 @@ export function eventFromDisplayName(config: EventConfig): string {
   )
 }
 
-/** Resolve Resend `from` with Host line as the inbox display name. */
+/** Shared From: EMAIL_FROM_ADDRESS (SES) or RESEND_FROM_EMAIL (Resend fallback). */
+function sharedMailFrom(): string | null {
+  const provider = (process.env.EMAIL_PROVIDER || '').trim().toLowerCase()
+  if (provider === 'resend') {
+    return process.env.RESEND_FROM_EMAIL || null
+  }
+  return (
+    process.env.EMAIL_FROM_ADDRESS ||
+    process.env.SES_FROM_EMAIL ||
+    (provider === 'ses' || process.env.AWS_ACCESS_KEY_ID
+      ? 'convites@mitzvah.pro'
+      : process.env.RESEND_FROM_EMAIL) ||
+    null
+  )
+}
+
+/** Resolve provider `from` with Host line as the inbox display name. */
 export function eventSendFrom(config: EventConfig): string | null {
   const mail = config.domain.mail
   const raw =
     mail?.status === 'verified' && mail.fromEmail
       ? mail.fromEmail
-      : process.env.RESEND_FROM_EMAIL || null
+      : sharedMailFrom()
   if (!raw) return null
   return formatFromAddress(eventFromDisplayName(config), raw)
+}
+
+/** Reply-To do anfitrião (contato do evento / notify), para domínio SES compartilhado. */
+export function eventHostReplyTo(config: EventConfig): string | undefined {
+  const candidates = [
+    config.contact?.email,
+    ...(config.contact?.people || []).map((p) => p.email),
+    ...(config.rsvp?.notifyEmails || []),
+  ]
+  for (const value of candidates) {
+    const email = (value || '').trim()
+    if (email && email.includes('@')) return email
+  }
+  return undefined
 }

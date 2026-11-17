@@ -1,9 +1,22 @@
-import { getResend } from '@/lib/email/send'
+import { getResend, resolveEmailProvider, sharedFromEmail } from '@/lib/email/send'
+import {
+  attachConfigurationSetToIdentity,
+  ensureEventConfigurationSet,
+  eventConfigurationSetName,
+} from '@/lib/email/ses-config-set'
+import {
+  ensureSesDomainIdentity,
+  getSesIdentityStatus,
+  sesDnsToUpserts,
+} from '@/lib/email/ses-identity'
 import { upsertVercelRecord, vercelDnsConfigured, type DnsUpsert } from '@/lib/email/vercel-dns'
 import {
   emptyMailDomain,
   eventFromAddress,
+  eventFromDisplayName,
   eventMailDomainName,
+  formatFromAddress,
+  MAIL_FROM_LOCAL,
 } from '@/lib/platform/mail-domain'
 import type { EventConfig, EventMailDomain } from '@/lib/platform/types'
 
@@ -84,10 +97,135 @@ async function ensureResendDomain(name: string): Promise<{
   }
 }
 
-export async function provisionEventMailDomain(config: EventConfig): Promise<EventMailDomain> {
+/**
+ * SES per-event isolation: identity + DKIM for mail.{slug}.mitzvah.pro,
+ * DNS via Vercel (same pattern as the old Resend flow). Reputation stays per event.
+ * Falls back to EMAIL_FROM_ADDRESS while pending / if DNS ou AWS incompletos.
+ */
+async function provisionSesIsolatedMail(config: EventConfig): Promise<EventMailDomain> {
   const slug = config.domain.slug
   const sendingDomain = eventMailDomainName(slug)
-  const fromEmail = eventFromAddress(slug, config.basics.honoreeName)
+  const display = eventFromDisplayName(config)
+  const fromEmail = formatFromAddress(display, `${MAIL_FROM_LOCAL}@${sendingDomain}`)
+  const previous = config.domain.mail
+  const sharedFallback = sharedFromEmail()
+
+  if (!process.env.AWS_ACCESS_KEY_ID || !process.env.AWS_SECRET_ACCESS_KEY) {
+    return {
+      ...emptyMailDomain(),
+      sendingDomain,
+      fromEmail: sharedFallback
+        ? formatFromAddress(display, sharedFallback)
+        : fromEmail,
+      status: 'skipped',
+      lastError:
+        'AWS credentials ausentes — envio usa EMAIL_FROM_ADDRESS compartilhado até provisionar.',
+    }
+  }
+
+  if (!vercelDnsConfigured()) {
+    return {
+      ...emptyMailDomain(),
+      sendingDomain,
+      fromEmail: sharedFallback
+        ? formatFromAddress(display, sharedFallback)
+        : fromEmail,
+      status: 'skipped',
+      lastError:
+        'VERCEL_TOKEN ausente — sem DNS para mail.{slug}; envio usa remetente compartilhado.',
+    }
+  }
+
+  if (
+    previous?.status === 'verified' &&
+    previous.sendingDomain === sendingDomain &&
+    previous.fromEmail
+  ) {
+    const current = await getSesIdentityStatus(sendingDomain)
+    if (current.verified) {
+      const configSet = await ensureEventConfigurationSet(slug)
+      if (configSet.exists) {
+        try {
+          await attachConfigurationSetToIdentity(sendingDomain, configSet.name)
+        } catch {
+          // Identity already verified; SendEmail still passes ConfigurationSetName.
+        }
+      }
+      return {
+        ...previous,
+        fromEmail,
+        configurationSetName:
+          (configSet.exists && configSet.name) ||
+          previous.configurationSetName ||
+          eventConfigurationSetName(slug),
+        status: 'verified',
+        lastError: configSet.exists
+          ? ''
+          : configSet.error || previous.lastError || '',
+      }
+    }
+  }
+
+  try {
+    const configSet = await ensureEventConfigurationSet(slug)
+    if (!configSet.exists) {
+      throw new Error(configSet.error || `Falha ao criar configuration set ${configSet.name}`)
+    }
+
+    const identity = await ensureSesDomainIdentity(sendingDomain, {
+      configurationSetName: configSet.name,
+    })
+    if (identity.error && identity.verificationStatus === 'FAILED') {
+      throw new Error(identity.error)
+    }
+
+    try {
+      await attachConfigurationSetToIdentity(sendingDomain, configSet.name)
+    } catch {
+      // Identity may still be propagating; SendEmail also passes ConfigurationSetName.
+    }
+
+    const comment = `mitzvah-pro:ses:${slug}`
+    for (const upsert of sesDnsToUpserts(identity.dnsRecords)) {
+      await upsertVercelRecord(upsert, comment)
+    }
+
+    // Re-check after DNS write (propagation may still be pending).
+    await new Promise((resolve) => setTimeout(resolve, 1500))
+    const verified = await getSesIdentityStatus(sendingDomain)
+    const ok = verified.verified
+
+    return {
+      sendingDomain,
+      fromEmail,
+      resendDomainId: sendingDomain,
+      configurationSetName: configSet.name,
+      status: ok ? 'verified' : 'pending',
+      lastError: ok
+        ? ''
+        : verified.error ||
+          `DNS DKIM gravado para ${sendingDomain}; verificação SES ainda pendente.`,
+      verifiedAt: ok ? new Date().toISOString() : null,
+    }
+  } catch (error) {
+    return {
+      sendingDomain,
+      fromEmail: sharedFallback
+        ? formatFromAddress(display, sharedFallback)
+        : fromEmail,
+      resendDomainId: previous?.resendDomainId || '',
+      configurationSetName: previous?.configurationSetName || eventConfigurationSetName(slug),
+      status: 'failed',
+      lastError: error instanceof Error ? error.message : 'Falha ao provisionar identidade SES',
+      verifiedAt: null,
+    }
+  }
+}
+
+async function provisionResendIsolatedMail(config: EventConfig): Promise<EventMailDomain> {
+  const slug = config.domain.slug
+  const sendingDomain = eventMailDomainName(slug)
+  const fromEmail = eventFromAddress(slug, eventFromDisplayName(config))
   const previous = config.domain.mail
 
   if (!getResend() || !vercelDnsConfigured()) {
@@ -153,7 +291,60 @@ export async function provisionEventMailDomain(config: EventConfig): Promise<Eve
   }
 }
 
+export async function provisionEventMailDomain(config: EventConfig): Promise<EventMailDomain> {
+  const provider = resolveEmailProvider()
+  if (provider === 'ses') return provisionSesIsolatedMail(config)
+  if (provider === 'resend') return provisionResendIsolatedMail(config)
+  return {
+    ...emptyMailDomain(),
+    status: 'skipped',
+    lastError: 'Nenhum provedor de email configurado (EMAIL_PROVIDER=ses|resend).',
+  }
+}
+
 export async function refreshEventMailDomain(mail: EventMailDomain): Promise<EventMailDomain> {
+  const provider = resolveEmailProvider()
+
+  if (provider === 'ses') {
+    const identity = mail.sendingDomain || mail.resendDomainId
+    if (!identity) return mail
+    const slugFromDomain =
+      identity.match(/^mail\.([^.]+)\./)?.[1] ||
+      mail.sendingDomain.match(/^mail\.([^.]+)\./)?.[1] ||
+      'event'
+    const configurationSetName =
+      mail.configurationSetName || eventConfigurationSetName(slugFromDomain)
+    try {
+      const status = await getSesIdentityStatus(identity)
+      if (status.verified) {
+        return {
+          ...mail,
+          sendingDomain: identity,
+          configurationSetName,
+          status: 'verified',
+          lastError: '',
+          verifiedAt: mail.verifiedAt || new Date().toISOString(),
+        }
+      }
+      return {
+        ...mail,
+        sendingDomain: identity,
+        configurationSetName,
+        status: 'pending',
+        lastError:
+          status.error ||
+          `Aguardando verificação DNS/DKIM no SES (${identity}).`,
+      }
+    } catch (error) {
+      return {
+        ...mail,
+        configurationSetName,
+        status: mail.status === 'verified' ? 'verified' : 'pending',
+        lastError: error instanceof Error ? error.message : mail.lastError,
+      }
+    }
+  }
+
   if (!mail.resendDomainId || !getResend()) return mail
   const resend = getResend()
   if (!resend) return mail
