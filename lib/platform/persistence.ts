@@ -7,9 +7,19 @@ import { DEFAULT_ORG_ID, isProductionEnv } from './auth'
 import { hashPassword } from './password'
 import { normalizeEvent } from './normalize'
 import { oncePerProcess } from './once'
-import { loadStoreFromRelational, syncStoreToRelational } from './relational'
+import {
+  loadEventByApprovalToken,
+  loadEventByCustomHost,
+  loadEventById,
+  loadEventByPreviewToken,
+  loadEventBySlug,
+  loadFamilyByToken,
+  loadStoreFromRelational,
+  syncStoreToRelational,
+  upsertFamilyToRelational,
+} from './relational'
 import { createStoreReadCache } from './store-read-cache'
-import type { Organization, PlatformStore, PlatformUser } from './types'
+import type { Guest, Organization, PlatformEvent, PlatformStore, PlatformUser } from './types'
 
 export type StorageDriver = 'postgres' | 'blob' | 'file'
 
@@ -326,4 +336,79 @@ export async function savePlatformStore(store: PlatformStore): Promise<void> {
     // Always drop stale public cache after a write attempt on this instance.
     invalidatePlatformStoreCache()
   }
+}
+
+export { eventScopedReadsEnabled } from './feature-flags'
+
+export async function loadScopedEventBySlug(slug: string): Promise<PlatformEvent | null> {
+  await ensurePostgresTable()
+  return loadEventBySlug(sql(), slug)
+}
+
+export async function loadScopedEventById(id: string): Promise<PlatformEvent | null> {
+  await ensurePostgresTable()
+  return loadEventById(sql(), id)
+}
+
+export async function loadScopedEventByCustomHost(host: string): Promise<PlatformEvent | null> {
+  await ensurePostgresTable()
+  return loadEventByCustomHost(sql(), host)
+}
+
+export async function loadScopedEventByPreviewToken(
+  token: string,
+): Promise<PlatformEvent | null> {
+  await ensurePostgresTable()
+  return loadEventByPreviewToken(sql(), token)
+}
+
+export async function loadScopedEventByApprovalToken(
+  token: string,
+): Promise<PlatformEvent | null> {
+  await ensurePostgresTable()
+  return loadEventByApprovalToken(sql(), token)
+}
+
+export async function loadScopedFamilyByToken(
+  token: string,
+): Promise<{ event: PlatformEvent; guest: Guest } | null> {
+  await ensurePostgresTable()
+  return loadFamilyByToken(sql(), token)
+}
+
+/**
+ * RSVP / open-tracking write: upsert one family in relational tables and patch
+ * the JSON backup row without delete+reinsert of all families.
+ */
+export async function saveScopedFamilyUpdate(
+  eventId: string,
+  guest: Guest,
+): Promise<void> {
+  assertDurableStorage()
+  if (storageDriver() !== 'postgres') {
+    throw new Error('saveScopedFamilyUpdate requer Postgres')
+  }
+  await ensurePostgresTable()
+  const db = sql()
+  await upsertFamilyToRelational(db, eventId, guest)
+
+  const rows = (await db`
+    SELECT data FROM platform_store WHERE id = ${PG_ROW_ID} LIMIT 1
+  `) as unknown as { data: PlatformStore }[]
+  if (rows[0]?.data) {
+    const store = parseStore(rows[0].data)
+    const event = store.events.find((item) => item.id === eventId)
+    if (event) {
+      const index = event.guests.findIndex((item) => item.id === guest.id)
+      if (index >= 0) event.guests[index] = guest
+      else event.guests.push(guest)
+      event.updatedAt = new Date().toISOString()
+      await db`
+        INSERT INTO platform_store (id, data, updated_at)
+        VALUES (${PG_ROW_ID}, ${db.json(store as never)}, now())
+        ON CONFLICT (id) DO UPDATE SET data = EXCLUDED.data, updated_at = now()
+      `
+    }
+  }
+  invalidatePlatformStoreCache()
 }

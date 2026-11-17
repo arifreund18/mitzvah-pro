@@ -2,7 +2,19 @@ import { createDefaultConfig } from './defaults'
 import { DEFAULT_ORG_ID } from './auth'
 import { slugify, uid } from './ids'
 import { hashPassword } from './password'
-import { loadPlatformStore, savePlatformStore } from './persistence'
+import {
+  eventScopedReadsEnabled,
+  loadPlatformStore,
+  loadScopedEventByApprovalToken,
+  loadScopedEventByCustomHost,
+  loadScopedEventByPreviewToken,
+  loadScopedEventBySlug,
+  loadScopedFamilyByToken,
+  savePlatformStore,
+  saveScopedFamilyUpdate,
+  storageDriver,
+} from './persistence'
+import { configHasDataUrl, externalizeConfigDataUrls } from './media-blob'
 import { isReservedSlug } from './site-url'
 import { coerceGuestInviteLocale, primaryEventLocale } from './guest-locale'
 import { normalizeConfig, normalizeGuest } from './normalize'
@@ -203,6 +215,14 @@ export async function getEvent(id: string): Promise<PlatformEvent | null> {
 }
 
 export async function getEventBySlug(slug: string): Promise<PlatformEvent | null> {
+  if (eventScopedReadsEnabled()) {
+    try {
+      const scoped = await loadScopedEventBySlug(slug)
+      if (scoped) return scoped
+    } catch {
+      // fall through to full store
+    }
+  }
   const store = await loadStorePublic()
   return store.events.find((event) => event.slug === slug) ?? null
 }
@@ -210,6 +230,14 @@ export async function getEventBySlug(slug: string): Promise<PlatformEvent | null
 export async function getEventByCustomHost(host: string): Promise<PlatformEvent | null> {
   const needle = host.split(':')[0].toLowerCase().replace(/^www\./, '')
   if (!needle) return null
+  if (eventScopedReadsEnabled()) {
+    try {
+      const scoped = await loadScopedEventByCustomHost(needle)
+      if (scoped) return scoped
+    } catch {
+      // fall through
+    }
+  }
   const store = await loadStorePublic()
   return (
     store.events.find((event) => {
@@ -221,12 +249,28 @@ export async function getEventByCustomHost(host: string): Promise<PlatformEvent 
 
 export async function getEventByPreviewToken(token: string): Promise<PlatformEvent | null> {
   if (!token) return null
+  if (eventScopedReadsEnabled()) {
+    try {
+      const scoped = await loadScopedEventByPreviewToken(token)
+      if (scoped) return scoped
+    } catch {
+      // fall through
+    }
+  }
   const store = await loadStorePublic()
   return store.events.find((event) => event.previewToken === token) ?? null
 }
 
 export async function getEventByApprovalToken(token: string): Promise<PlatformEvent | null> {
   if (!token) return null
+  if (eventScopedReadsEnabled()) {
+    try {
+      const scoped = await loadScopedEventByApprovalToken(token)
+      if (scoped) return scoped
+    } catch {
+      // fall through
+    }
+  }
   const store = await loadStorePublic()
   return store.events.find((event) => event.approvalToken === token) ?? null
 }
@@ -248,6 +292,10 @@ export async function updateGuest(
     )
     event.guests[index] = guest
     event.updatedAt = new Date().toISOString()
+    if (eventScopedReadsEnabled() && storageDriver() === 'postgres') {
+      await saveScopedFamilyUpdate(eventId, guest)
+      return { event, guest }
+    }
     await saveStore(store)
     return { event, guest }
   })
@@ -348,7 +396,19 @@ export async function updateEvent(
     const store = await loadStore()
     const event = store.events.find((item) => item.id === id)
     if (!event) return null
-    if (patch.config) event.config = normalizeConfig(patch.config)
+    if (patch.config) {
+      let nextConfig = normalizeConfig(patch.config)
+      // Phase 2: move any remaining data: uploads to public Blob before persisting.
+      if (configHasDataUrl(nextConfig)) {
+        try {
+          const migrated = await externalizeConfigDataUrls(nextConfig, event.id)
+          nextConfig = normalizeConfig(migrated.config)
+        } catch {
+          // Keep original config if Blob is unavailable; upload API still enforces Blob for new files.
+        }
+      }
+      event.config = nextConfig
+    }
     if (patch.wizard) {
       event.wizard = {
         currentStep: (patch.wizard.currentStep ?? event.wizard.currentStep) as WizardStepId,
@@ -649,13 +709,19 @@ export async function markGuestOpened(
     const event = store.events.find((item) => item.id === eventId)
     if (!event) return
     const now = new Date().toISOString()
-    event.guests = event.guests.map((guest) => {
-      if (guest.id !== guestId) return guest
-      return kind === 'std'
-        ? { ...guest, stdOpenedAt: guest.stdOpenedAt || now }
-        : { ...guest, invitationOpenedAt: guest.invitationOpenedAt || now }
-    })
+    const index = event.guests.findIndex((guest) => guest.id === guestId)
+    if (index < 0) return
+    const current = event.guests[index]!
+    const next =
+      kind === 'std'
+        ? { ...current, stdOpenedAt: current.stdOpenedAt || now }
+        : { ...current, invitationOpenedAt: current.invitationOpenedAt || now }
+    event.guests[index] = next
     event.updatedAt = now
+    if (eventScopedReadsEnabled() && storageDriver() === 'postgres') {
+      await saveScopedFamilyUpdate(eventId, next)
+      return
+    }
     await saveStore(store)
   })
 }
@@ -710,6 +776,14 @@ export async function getFamilyByToken(
 ): Promise<{ event: PlatformEvent; guest: Guest } | null> {
   const needle = token?.trim()
   if (!needle) return null
+  if (eventScopedReadsEnabled()) {
+    try {
+      const scoped = await loadScopedFamilyByToken(needle)
+      if (scoped) return scoped
+    } catch {
+      // fall through
+    }
+  }
   const store = await loadStorePublic()
   for (const event of store.events) {
     const guest = event.guests.find((item) => item.token === needle)
@@ -758,6 +832,10 @@ export async function updateGuestRsvp(
     })
     event.guests[index] = next
     event.updatedAt = new Date().toISOString()
+    if (eventScopedReadsEnabled() && storageDriver() === 'postgres') {
+      await saveScopedFamilyUpdate(eventId, next)
+      return next
+    }
     await saveStore(store)
     return next
   })

@@ -74,7 +74,7 @@ export async function GET(request: Request, ctx: Ctx) {
       status: 200,
       headers: {
         'Content-Type': parsed.contentType,
-        'Cache-Control': 'public, max-age=300',
+        'Cache-Control': 'public, max-age=86400',
       },
     })
   }

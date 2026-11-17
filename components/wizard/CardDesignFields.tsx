@@ -1,6 +1,7 @@
 'use client'
 
 import { Field, TextArea, TextInput } from '@/components/wizard/fields'
+import { uploadStudioImageFile } from '@/lib/platform/studio-image-upload'
 import type { CardDesign } from '@/lib/platform/types'
 
 const COLOR_FIELDS: { key: keyof CardDesign; label: string }[] = [
@@ -54,21 +55,6 @@ const IMAGE_FIELDS: { key: keyof CardDesign; label: string; placeholder?: string
   { key: 'panelPhotoUrl', label: 'Foto do painel', placeholder: 'https://…' },
 ]
 
-const MAX_IMAGE_BYTES = 1_500_000
-
-function readFileAsDataUrl(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    if (file.size > MAX_IMAGE_BYTES) {
-      reject(new Error('Imagem maior que 1.5 MB'))
-      return
-    }
-    const reader = new FileReader()
-    reader.onload = () => resolve(String(reader.result))
-    reader.onerror = () => reject(new Error('Falha no upload'))
-    reader.readAsDataURL(file)
-  })
-}
-
 function parseFocal(value: string | undefined): { x: number; y: number } {
   const raw = (value || 'center').trim().toLowerCase()
   if (!raw || raw === 'center') return { x: 50, y: 50 }
@@ -95,11 +81,15 @@ function ImageUrlField({
   placeholder,
   value,
   onChange,
+  eventId,
+  kind,
 }: {
   label: string
   placeholder?: string
   value: string
   onChange: (next: string) => void
+  eventId?: string
+  kind?: string
 }) {
   return (
     <Field label={label}>
@@ -135,8 +125,12 @@ function ImageUrlField({
             const file = e.target.files?.[0]
             e.target.value = ''
             if (!file) return
+            if (!eventId) {
+              alert('Salve o evento antes de importar imagens.')
+              return
+            }
             try {
-              onChange(await readFileAsDataUrl(file))
+              onChange(await uploadStudioImageFile({ eventId, file, kind }))
             } catch (err) {
               alert(err instanceof Error ? err.message : 'Falha no upload')
             }
@@ -211,9 +205,11 @@ function PositionSliders({
 export function CardDesignFields({
   design,
   onChange,
+  eventId,
 }: {
   design: CardDesign
   onChange: (next: CardDesign) => void
+  eventId?: string
 }) {
   const patch = (partial: Partial<CardDesign>) => onChange({ ...design, ...partial })
 
@@ -250,6 +246,8 @@ export function CardDesignFields({
               placeholder={placeholder}
               value={String(design[key] || '')}
               onChange={(next) => patch({ [key]: next })}
+              eventId={eventId}
+              kind={String(key)}
             />
           ))}
         </div>

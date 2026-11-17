@@ -382,3 +382,232 @@ export async function loadStoreFromRelational(db: Sql): Promise<PlatformStore | 
     emailLogs,
   }
 }
+
+function mapEventRow(
+  row: Record<string, unknown>,
+  guests: Guest[],
+): PlatformEvent {
+  return normalizeEvent({
+    id: String(row.id),
+    orgId: String(row.org_id),
+    slug: String(row.slug),
+    status: row.status as PlatformEvent['status'],
+    templateId: 'barbeni',
+    config: row.config as PlatformEvent['config'],
+    wizard: row.wizard as PlatformEvent['wizard'],
+    previewToken: String(row.preview_token),
+    approvalToken: String(row.approval_token),
+    publishedAt: (row.published_at as string) || null,
+    createdAt: String(row.created_at),
+    updatedAt: String(row.updated_at),
+    guests,
+  })
+}
+
+async function loadFamiliesForEvent(db: Sql, eventId: string): Promise<Guest[]> {
+  const familyRows = (await db`
+    SELECT * FROM families WHERE event_id = ${eventId} ORDER BY created_at ASC
+  `) as unknown as Record<string, unknown>[]
+  const guestRows = (await db`
+    SELECT id, family_id, event_id, name, type, meal_choice, dietary_restrictions,
+           rsvp_status, sort_order
+    FROM guests WHERE event_id = ${eventId} ORDER BY sort_order ASC
+  `) as unknown as Record<string, unknown>[]
+
+  const peopleByFamily = new Map<string, Guest['people']>()
+  for (const row of guestRows) {
+    const familyId = String(row.family_id)
+    const list = peopleByFamily.get(familyId) || []
+    list.push({
+      id: String(row.id),
+      name: String(row.name || ''),
+      type: row.type === 'child' ? 'child' : 'adult',
+      status: (row.rsvp_status as Guest['status']) || 'pending',
+      meal: String(row.meal_choice || ''),
+      dietary: String(row.dietary_restrictions || ''),
+    })
+    peopleByFamily.set(familyId, list)
+  }
+
+  return familyRows.map((row) => {
+    const familyId = String(row.id)
+    const peopleFromTable = peopleByFamily.get(familyId)
+    return normalizeGuest({
+      id: familyId,
+      familyName: String(row.family_name || ''),
+      emails: (row.emails as string[]) || [],
+      email: ((row.emails as string[]) || [])[0] || '',
+      inviteLocale: row.invite_locale as Guest['inviteLocale'],
+      scheduleInviteMode: row.schedule_invite_mode as Guest['scheduleInviteMode'],
+      scheduleItemIds: (row.schedule_item_ids as string[]) || [],
+      openRsvp: Boolean(row.open_rsvp),
+      notes: String(row.notes || ''),
+      message: String(row.message || ''),
+      token: String(row.token),
+      people: peopleFromTable?.length ? peopleFromTable : (row.people as Guest['people']) || [],
+      partySize: Number(row.party_size) || 1,
+      status: row.status as Guest['status'],
+      meal: String(row.meal || ''),
+      dietary: String(row.dietary || ''),
+      stdSentAt: (row.std_sent_at as string) || null,
+      inviteSentAt: (row.invite_sent_at as string) || null,
+      stdOpenedAt: (row.std_opened_at as string) || null,
+      invitationOpenedAt: (row.invitation_opened_at as string) || null,
+      createdAt: String(row.created_at),
+    })
+  })
+}
+
+async function loadEventFromRow(
+  db: Sql,
+  row: Record<string, unknown> | undefined,
+): Promise<PlatformEvent | null> {
+  if (!row) return null
+  const guests = await loadFamiliesForEvent(db, String(row.id))
+  return mapEventRow(row, guests)
+}
+
+/** Public/hot-path: one event by slug (+ its families/guests only). */
+export async function loadEventBySlug(db: Sql, slug: string): Promise<PlatformEvent | null> {
+  await ensureRelationalSchema(db)
+  const needle = slug.trim()
+  if (!needle) return null
+  const rows = (await db`
+    SELECT * FROM events WHERE slug = ${needle} LIMIT 1
+  `) as unknown as Record<string, unknown>[]
+  return loadEventFromRow(db, rows[0])
+}
+
+export async function loadEventById(db: Sql, id: string): Promise<PlatformEvent | null> {
+  await ensureRelationalSchema(db)
+  if (!id) return null
+  const rows = (await db`
+    SELECT * FROM events WHERE id = ${id} LIMIT 1
+  `) as unknown as Record<string, unknown>[]
+  return loadEventFromRow(db, rows[0])
+}
+
+export async function loadEventByPreviewToken(
+  db: Sql,
+  token: string,
+): Promise<PlatformEvent | null> {
+  await ensureRelationalSchema(db)
+  if (!token) return null
+  const rows = (await db`
+    SELECT * FROM events WHERE preview_token = ${token} LIMIT 1
+  `) as unknown as Record<string, unknown>[]
+  return loadEventFromRow(db, rows[0])
+}
+
+export async function loadEventByApprovalToken(
+  db: Sql,
+  token: string,
+): Promise<PlatformEvent | null> {
+  await ensureRelationalSchema(db)
+  if (!token) return null
+  const rows = (await db`
+    SELECT * FROM events WHERE approval_token = ${token} LIMIT 1
+  `) as unknown as Record<string, unknown>[]
+  return loadEventFromRow(db, rows[0])
+}
+
+/** Verified custom host lookup via JSONB path (no full store). */
+export async function loadEventByCustomHost(
+  db: Sql,
+  host: string,
+): Promise<PlatformEvent | null> {
+  await ensureRelationalSchema(db)
+  const needle = host.split(':')[0].toLowerCase().replace(/^www\./, '')
+  if (!needle) return null
+  const rows = (await db`
+    SELECT * FROM events
+    WHERE lower(regexp_replace(coalesce(config->'domain'->>'customHost', ''), '^www\\.', '')) = ${needle}
+      AND coalesce(config->'domain'->>'customHostStatus', '') = 'verified'
+    LIMIT 1
+  `) as unknown as Record<string, unknown>[]
+  return loadEventFromRow(db, rows[0])
+}
+
+export async function loadFamilyByToken(
+  db: Sql,
+  token: string,
+): Promise<{ event: PlatformEvent; guest: Guest } | null> {
+  await ensureRelationalSchema(db)
+  const needle = token?.trim()
+  if (!needle) return null
+  const familyRows = (await db`
+    SELECT * FROM families WHERE token = ${needle} LIMIT 1
+  `) as unknown as Record<string, unknown>[]
+  const family = familyRows[0]
+  if (!family) return null
+  const event = await loadEventById(db, String(family.event_id))
+  if (!event) return null
+  const guest = event.guests.find((item) => item.id === String(family.id))
+  if (!guest) return null
+  return { event, guest }
+}
+
+/** Upsert one family (+ people) without deleting other families. */
+export async function upsertFamilyToRelational(
+  db: Sql,
+  eventId: string,
+  guest: Guest,
+): Promise<void> {
+  await ensureRelationalSchema(db)
+  await db`
+    INSERT INTO families (
+      id, event_id, family_name, emails, invite_locale, schedule_invite_mode,
+      schedule_item_ids, open_rsvp, notes, message, token, people, party_size,
+      status, meal, dietary, std_sent_at, invite_sent_at, std_opened_at,
+      invitation_opened_at, created_at
+    ) VALUES (
+      ${guest.id}, ${eventId}, ${guest.familyName}, ${guest.emails},
+      ${guest.inviteLocale}, ${guest.scheduleInviteMode}, ${guest.scheduleItemIds},
+      ${guest.openRsvp}, ${guest.notes}, ${guest.message}, ${guest.token},
+      ${db.json(guest.people as never)}, ${guest.partySize}, ${guest.status},
+      ${guest.meal}, ${guest.dietary}, ${guest.stdSentAt}, ${guest.inviteSentAt},
+      ${guest.stdOpenedAt}, ${guest.invitationOpenedAt}, ${guest.createdAt}
+    )
+    ON CONFLICT (id) DO UPDATE SET
+      family_name = EXCLUDED.family_name,
+      emails = EXCLUDED.emails,
+      invite_locale = EXCLUDED.invite_locale,
+      schedule_invite_mode = EXCLUDED.schedule_invite_mode,
+      schedule_item_ids = EXCLUDED.schedule_item_ids,
+      open_rsvp = EXCLUDED.open_rsvp,
+      notes = EXCLUDED.notes,
+      message = EXCLUDED.message,
+      token = EXCLUDED.token,
+      people = EXCLUDED.people,
+      party_size = EXCLUDED.party_size,
+      status = EXCLUDED.status,
+      meal = EXCLUDED.meal,
+      dietary = EXCLUDED.dietary,
+      std_sent_at = EXCLUDED.std_sent_at,
+      invite_sent_at = EXCLUDED.invite_sent_at,
+      std_opened_at = EXCLUDED.std_opened_at,
+      invitation_opened_at = EXCLUDED.invitation_opened_at
+  `
+  await db`DELETE FROM guests WHERE family_id = ${guest.id}`
+  for (let i = 0; i < guest.people.length; i += 1) {
+    const person = guest.people[i]
+    const personId = person.id || `${guest.id}-p${i}`
+    await db`
+      INSERT INTO guests (
+        id, family_id, event_id, name, type, meal_choice, dietary_restrictions,
+        rsvp_status, sort_order
+      ) VALUES (
+        ${personId}, ${guest.id}, ${eventId}, ${person.name}, ${person.type},
+        ${person.meal || ''}, ${person.dietary || ''}, ${person.status || 'pending'}, ${i}
+      )
+      ON CONFLICT (id) DO UPDATE SET
+        name = EXCLUDED.name,
+        type = EXCLUDED.type,
+        meal_choice = EXCLUDED.meal_choice,
+        dietary_restrictions = EXCLUDED.dietary_restrictions,
+        rsvp_status = EXCLUDED.rsvp_status,
+        sort_order = EXCLUDED.sort_order
+    `
+  }
+  await db`UPDATE events SET updated_at = ${new Date().toISOString()} WHERE id = ${eventId}`
+}
