@@ -5,7 +5,17 @@ export function guestDisplayLocale(guest: Guest | null | undefined, config: Even
   return guest?.inviteLocale || config.locales.default || 'pt'
 }
 
-type ChromeCtaKey = 'ctaView' | 'ctaCalendar' | 'ctaMap' | 'ctaRsvp' | 'rsvpLabel'
+type InviteChromeCtaKey = 'ctaView' | 'ctaCalendar' | 'ctaMap' | 'ctaRsvp' | 'rsvpLabel' | 'openLabel'
+type StdChromeCtaKey = 'ctaView' | 'ctaCalendar' | 'ctaMap' | 'openLabel'
+type ChromeCtaKey = InviteChromeCtaKey | StdChromeCtaKey
+
+function overlayValue(
+  overlay: Partial<Record<string, string>> | undefined,
+  key: string,
+): string {
+  const value = overlay?.[key]
+  return typeof value === 'string' ? value.trim() : ''
+}
 
 /**
  * Resolve invite/STD chrome CTA copy for a locale.
@@ -23,13 +33,13 @@ export function chromeCtaText(
     kind === 'std'
       ? config.contentI18n?.[locale]?.stdCard
       : config.contentI18n?.[locale]?.card
-  const fromOverlay = overlay?.[key]?.trim()
+  const fromOverlay = overlayValue(overlay as Partial<Record<string, string>> | undefined, key)
   if (fromOverlay) return fromOverlay
 
   if (locale === config.locales.default) {
     const base = kind === 'std' ? config.saveTheDate.design : config.invitation.design
-    const fromBase = base[key]?.trim()
-    if (fromBase) return fromBase
+    const fromBase = (base as Record<string, unknown>)[key]
+    if (typeof fromBase === 'string' && fromBase.trim()) return fromBase.trim()
   }
 
   return fallback
@@ -47,4 +57,14 @@ export function inviteRsvpLabel(
     chromeCtaText(config, locale, 'invite', 'ctaRsvp', '') ||
     fallback
   )
+}
+
+/** Envelope open label: locale-safe (no PT custom openLabel on EN guests). */
+export function localizedOpenLabel(
+  config: EventConfig,
+  locale: EventLocale,
+  kind: 'std' | 'invite',
+  fallback: string,
+): string {
+  return chromeCtaText(config, locale, kind, 'openLabel', fallback)
 }

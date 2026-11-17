@@ -17,7 +17,7 @@ function sampleDesign(partial: Partial<CardDesign> = {}): CardDesign {
     sealUrl: '',
     sealBg: '#22d3ee',
     sealLabel: '',
-    openLabel: '',
+    openLabel: 'Abrir convite',
     forLabel: '',
     fontKey: 'georgia',
     cardColor: '#1a2033',
@@ -103,18 +103,22 @@ describe('guest locale chrome CTAs', () => {
   it('does not leak PT base CTAs onto EN guests', () => {
     const config = configWithPtBase()
     assert.equal(chromeCtaText(config, 'en', 'invite', 'ctaView', 'VIEW THE INVITATION'), 'VIEW THE INVITATION')
+    assert.equal(chromeCtaText(config, 'en', 'invite', 'ctaCalendar', 'Add to calendar'), 'Add to calendar')
+    assert.equal(chromeCtaText(config, 'en', 'invite', 'ctaMap', 'View map'), 'View map')
+    assert.equal(chromeCtaText(config, 'en', 'invite', 'openLabel', 'Open invitation'), 'Open invitation')
     assert.equal(inviteRsvpLabel(config, 'en', config.invitation.design, 'Confirm attendance'), 'Confirm attendance')
   })
 
   it('keeps base CTAs for the event default locale', () => {
     const config = configWithPtBase()
     assert.equal(chromeCtaText(config, 'pt', 'invite', 'ctaView', 'VER O CONVITE'), 'VER O CONVITE')
+    assert.equal(chromeCtaText(config, 'pt', 'invite', 'ctaCalendar', 'Adicionar ao calendário'), 'Adicionar ao calendário')
     assert.equal(inviteRsvpLabel(config, 'pt', config.invitation.design, 'Confirmar presença'), 'Confirmar presença')
   })
 })
 
 describe('mailHtml invite locale + links', () => {
-  it('renders EN chrome and points every CTA to the invitation card', () => {
+  it('uses EN chrome, keeps calendar/map real, and sends view/RSVP to the card', () => {
     const guest = normalizeGuest({
       familyName: 'Teste1',
       email: 'guest@example.com',
@@ -125,12 +129,15 @@ describe('mailHtml invite locale + links', () => {
 
     assert.match(html, /VIEW THE INVITATION/)
     assert.match(html, /Confirm attendance/)
+    assert.match(html, /Add to calendar/)
+    assert.match(html, /View map/)
     assert.doesNotMatch(html, /VER O CONVITE/)
     assert.doesNotMatch(html, /Confirmar presença/)
+    assert.doesNotMatch(html, /Adicionar ao calendário/)
+    assert.doesNotMatch(html, /Ver mapa/)
     assert.doesNotMatch(html, /\/rsvp\//)
-    assert.doesNotMatch(html, /maps\.example/)
-    assert.doesNotMatch(html, /calendar\.google/)
-    const cardLinks = html.match(/href="[^"]*\/card\/j7WFnpzq5ctV"/g) || []
-    assert.ok(cardLinks.length >= 4)
+    assert.match(html, /maps\.example\/venue/)
+    assert.match(html, /calendar\.google|\/api\/platform\/calendar\//)
+    assert.match(html, /\/card\/j7WFnpzq5ctV/)
   })
 })

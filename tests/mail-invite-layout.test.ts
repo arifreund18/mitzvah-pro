@@ -134,6 +134,8 @@ describe('mailHtml invite (Bar-Beni layout)', () => {
     assert.match(html, /background-color:#1a2033/)
     assert.match(html, /\/card\/tok123/)
     assert.doesNotMatch(html, /\/rsvp\//)
+    assert.match(html, /maps\.example\/venue/)
+    assert.match(html, /calendar\.google|\/api\/platform\/calendar\//)
     assert.match(
       html,
       /700\+Mount\+Vernon\+Hwy\+NE|700%20Mount%20Vernon%20Hwy%20NE|700 Mount Vernon Hwy NE/,

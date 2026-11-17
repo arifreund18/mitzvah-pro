@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation'
 import { InvitationCard } from '@/components/template/EventEmails'
 import { EnvelopeClient } from '@/lib/event-cards'
+import { localizedOpenLabel } from '@/lib/platform/guest-locale'
 import { openEnvelopeLabel } from '@/lib/platform/guest-ui'
 import { getLocalizedCardDesign } from '@/lib/platform/i18n-content'
 import { getEventBySlug, markGuestOpened } from '@/lib/platform/store'
@@ -34,7 +35,12 @@ export default async function InvitationCardTokenPage({
         ...design,
         sealUrl,
         sealLabel: design.sealLabel || event.config.invitation.sealLabel,
-        openLabel: openEnvelopeLabel('invite', locale, design.openLabel),
+        openLabel: localizedOpenLabel(
+          event.config,
+          locale,
+          'invite',
+          openEnvelopeLabel('invite', locale),
+        ),
       }}
     >
       <InvitationCard

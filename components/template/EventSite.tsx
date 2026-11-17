@@ -119,7 +119,11 @@ export function EventSite({
       : ''
 
   const statusLabel =
-    guest?.status === 'yes' ? 'Confirmed' : guest?.status === 'no' ? 'Declined' : 'Pending RSVP'
+    guest?.status === 'yes'
+      ? ui.guestConfirmed
+      : guest?.status === 'no'
+        ? ui.guestDeclined
+        : ui.guestPending
   const rsvpAnchor =
     guest || guestToken || config.rsvp.publicFormEnabled || config.rsvp.openRsvpDefault
       ? '#rsvp-form'
@@ -131,7 +135,7 @@ export function EventSite({
     { href: '#schedule', label: ui.schedule, show: scheduleItems.length > 0 },
     { href: '#faq', label: ui.faq, show: publishedFaq.length > 0 },
     { href: '#hotels', label: ui.hotels, show: hotels.length > 0 },
-    { href: '#travel', label: 'Travel', show: Boolean(config.travel?.enabled) },
+    { href: '#travel', label: ui.travel, show: Boolean(config.travel?.enabled) },
     { href: '#places', label: ui.thingsToDo, show: places.length > 0 },
     { href: '#gallery', label: ui.gallery, show: galleryItems.length > 0 },
     { href: rsvpAnchor, label: 'RSVP', show: true },
@@ -439,7 +443,7 @@ export function EventSite({
       {config.travel?.enabled ? (
         <section id="travel" className="px-6 py-16">
           <div className="mx-auto max-w-3xl">
-            <h2 className="font-display text-center text-3xl">Travel</h2>
+            <h2 className="font-display text-center text-3xl">{ui.travel}</h2>
             <div className="mt-8 space-y-4 text-sm" style={{ color: theme.muted }}>
               {config.travel.airports ? (
                 <p>

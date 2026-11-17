@@ -1,3 +1,4 @@
+import { google } from './calendar.ts'
 import {
   designAssetPublicUrl,
   isEmailSafeImageUrl,
@@ -162,7 +163,7 @@ export function mailHtml(
   const font = fontFamily(design.fontKey || 'georgia', locale)
   const token = guest.token
   const cardPath = kind === 'std' ? `/std/${token}` : `/card/${token}`
-  // All guest-facing links in the email open the invitation / STD card.
+  // View-card + RSVP open the invitation; calendar/map keep their real destinations.
   const href = eventApexPathUrl(config.domain.slug, cardPath, { host })
   const apex = apexHost(host)
   const pixelPath =
@@ -170,6 +171,8 @@ export function mailHtml(
       ? `/api/platform/std/open/${encodeURIComponent(token)}`
       : `/api/platform/invite/open/${encodeURIComponent(token)}`
   const pixelUrl = `${protocolFor(apex)}://${apex}${pixelPath}`
+  const icsHref = `${protocolFor(apex)}://${apex}/api/platform/calendar/${encodeURIComponent(token)}`
+  const googleHref = google(config, kind) || `${icsHref}?to=google`
   const mapHref = mapUrlOf(kind, config, locale)
   const sealRaw = sealUrl(kind, config, locale)
   const seal = sealRaw ? mailImageSrc(kind, config, host, sealRaw, 'sealUrl') : ''
@@ -216,17 +219,21 @@ export function mailHtml(
         }
         ${
           address1
-            ? `<p style="margin:4px 0 0;font-family:${font};font-size:14px;line-height:1.5;"><a href="${escapeHtml(href)}" style="color:${escapeHtml(titleColor)};text-decoration:underline;">${escapeHtml(address1)}</a></p>`
+            ? mapHref
+              ? `<p style="margin:4px 0 0;font-family:${font};font-size:14px;line-height:1.5;"><a href="${escapeHtml(mapHref)}" style="color:${escapeHtml(titleColor)};text-decoration:underline;">${escapeHtml(address1)}</a></p>`
+              : `<p style="margin:4px 0 0;font-family:${font};font-size:14px;color:${escapeHtml(mutedColor)};line-height:1.5;">${escapeHtml(address1)}</p>`
             : ''
         }
         ${
           address2
-            ? `<p style="margin:0;font-family:${font};font-size:14px;"><a href="${escapeHtml(href)}" style="color:${escapeHtml(titleColor)};text-decoration:underline;">${escapeHtml(address2)}</a></p>`
+            ? mapHref
+              ? `<p style="margin:0;font-family:${font};font-size:14px;"><a href="${escapeHtml(mapHref)}" style="color:${escapeHtml(titleColor)};text-decoration:underline;">${escapeHtml(address2)}</a></p>`
+              : `<p style="margin:0;font-family:${font};font-size:14px;color:${escapeHtml(mutedColor)};">${escapeHtml(address2)}</p>`
             : ''
         }
         ${
-          mapHref || venue || address1 || address2
-            ? `<p style="margin:12px 0 0;"><a href="${escapeHtml(href)}" style="font-family:${font};font-size:13px;color:${escapeHtml(textColor)};text-decoration:underline;">${escapeHtml(mapLabel)}</a></p>`
+          mapHref
+            ? `<p style="margin:12px 0 0;"><a href="${escapeHtml(mapHref)}" style="font-family:${font};font-size:13px;color:${escapeHtml(textColor)};text-decoration:underline;">${escapeHtml(mapLabel)}</a></p>`
             : ''
         }`
       : ''
@@ -266,7 +273,11 @@ export function mailHtml(
               <p style="margin:0;font-family:${font};font-size:22px;color:${escapeHtml(titleColor)};line-height:1.35;">${escapeHtml(title)}</p>
               ${dateLine ? `<p style="margin:16px 0 0;font-family:${font};font-size:15px;color:${escapeHtml(mutedColor)};">${escapeHtml(dateLine)}</p>` : ''}
               ${timeLine ? `<p style="margin:4px 0 0;font-family:${font};font-size:15px;color:${escapeHtml(mutedColor)};">${escapeHtml(timeLine)}</p>` : ''}
-              <p style="margin:16px 0 0;"><a href="${escapeHtml(href)}" style="font-family:${font};font-size:13px;color:${escapeHtml(textColor)};text-decoration:underline;">${escapeHtml(calendarLabel)}</a></p>
+              ${
+                googleHref
+                  ? `<p style="margin:16px 0 0;"><a href="${escapeHtml(googleHref)}" style="font-family:${font};font-size:13px;color:${escapeHtml(textColor)};text-decoration:underline;">${escapeHtml(calendarLabel)}</a></p>`
+                  : ''
+              }
               ${mapsBlock}
             </td>
           </tr>

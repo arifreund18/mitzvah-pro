@@ -15,6 +15,7 @@ export type TemplateUi = {
   website: string
   map: string
   thingsToDo: string
+  travel: string
   gallery: string
   contact: string
   phone: string
@@ -36,6 +37,9 @@ export type TemplateUi = {
   openEnvelope: string
   viewWebsite: string
   confirmRsvp: string
+  guestConfirmed: string
+  guestDeclined: string
+  guestPending: string
   categories: Record<string, string>
 }
 
@@ -55,6 +59,7 @@ const PACKS: Record<EventLocale, TemplateUi> = {
     website: 'Site',
     map: 'Mapa',
     thingsToDo: 'O que fazer',
+    travel: 'Viagem',
     gallery: 'Galeria',
     contact: 'Contato',
     phone: 'Telefone',
@@ -76,6 +81,9 @@ const PACKS: Record<EventLocale, TemplateUi> = {
     openEnvelope: 'Abrir envelope',
     viewWebsite: 'Ver o site do evento',
     confirmRsvp: 'Confirmar presença',
+    guestConfirmed: 'Confirmado',
+    guestDeclined: 'Não vai',
+    guestPending: 'RSVP pendente',
     categories: {
       restaurant: 'Restaurantes',
       shopping: 'Compras',
@@ -101,6 +109,7 @@ const PACKS: Record<EventLocale, TemplateUi> = {
     website: 'Website',
     map: 'Map',
     thingsToDo: 'Things to do',
+    travel: 'Travel',
     gallery: 'Gallery',
     contact: 'Contact',
     phone: 'Phone',
@@ -122,6 +131,9 @@ const PACKS: Record<EventLocale, TemplateUi> = {
     openEnvelope: 'Open envelope',
     viewWebsite: 'View the event website',
     confirmRsvp: 'Confirm attendance',
+    guestConfirmed: 'Confirmed',
+    guestDeclined: 'Declined',
+    guestPending: 'Pending RSVP',
     categories: {
       restaurant: 'Restaurants',
       shopping: 'Shopping',
@@ -147,6 +159,7 @@ const PACKS: Record<EventLocale, TemplateUi> = {
     website: 'Sitio',
     map: 'Mapa',
     thingsToDo: 'Qué hacer',
+    travel: 'Viaje',
     gallery: 'Galería',
     contact: 'Contacto',
     phone: 'Teléfono',
@@ -168,6 +181,9 @@ const PACKS: Record<EventLocale, TemplateUi> = {
     openEnvelope: 'Abrir sobre',
     viewWebsite: 'Ver el sitio del evento',
     confirmRsvp: 'Confirmar asistencia',
+    guestConfirmed: 'Confirmado',
+    guestDeclined: 'No asistirá',
+    guestPending: 'RSVP pendiente',
     categories: {
       restaurant: 'Restaurantes',
       shopping: 'Compras',
@@ -193,6 +209,7 @@ const PACKS: Record<EventLocale, TemplateUi> = {
     website: 'אתר',
     map: 'מפה',
     thingsToDo: 'מה לעשות',
+    travel: 'נסיעות',
     gallery: 'גלריה',
     contact: 'יצירת קשר',
     phone: 'טלפון',
@@ -214,6 +231,9 @@ const PACKS: Record<EventLocale, TemplateUi> = {
     openEnvelope: 'פתיחת מעטפה',
     viewWebsite: 'לאתר האירוע',
     confirmRsvp: 'אישור הגעה',
+    guestConfirmed: 'אושר',
+    guestDeclined: 'לא מגיע/ה',
+    guestPending: 'ממתין לאישור',
     categories: {
       restaurant: 'מסעדות',
       shopping: 'קניות',

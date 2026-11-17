@@ -2,6 +2,7 @@ import { headers } from 'next/headers'
 import { notFound } from 'next/navigation'
 import { SaveTheDateCard } from '@/components/template/EventEmails'
 import { EnvelopeClient } from '@/lib/event-cards'
+import { localizedOpenLabel } from '@/lib/platform/guest-locale'
 import { openEnvelopeLabel } from '@/lib/platform/guest-ui'
 import { getLocalizedCardDesign } from '@/lib/platform/i18n-content'
 import { hostFromHeaders, eventPublicUrl } from '@/lib/platform/site-url'
@@ -32,10 +33,11 @@ export default async function SaveTheDateTokenPage({
         ...design,
         sealUrl: design.sealUrl || event.config.invitation.sealImageUrl,
         sealLabel: design.sealLabel || event.config.invitation.sealLabel,
-        openLabel: openEnvelopeLabel(
-          'std',
+        openLabel: localizedOpenLabel(
+          event.config,
           locale,
-          design.openLabel || event.config.saveTheDate.envelopeLabel,
+          'std',
+          openEnvelopeLabel('std', locale),
         ),
       }}
     >
