@@ -2,8 +2,9 @@ import { headers } from 'next/headers'
 import { notFound } from 'next/navigation'
 import { EventSite } from '@/components/template/EventSite'
 import { EventRsvpForm } from '@/components/template/EventRsvpForm'
-import { getEventByCustomHost } from '@/lib/platform/store'
+import { resolveGuestLocale } from '@/lib/platform/guest-locale'
 import { isEventLocale } from '@/lib/platform/locales'
+import { getEventByCustomHost } from '@/lib/platform/store'
 
 export const dynamic = 'force-dynamic'
 
@@ -16,9 +17,8 @@ export default async function CustomHostEventPage({
   const event = await getEventByCustomHost(host)
   if (!event || event.status !== 'published') notFound()
   const { lang } = await searchParams
-  const enabled = event.config.locales.enabled
-  const displayLocale =
-    lang && isEventLocale(lang) && enabled.includes(lang) ? lang : event.config.locales.default
+  const explicit = lang && isEventLocale(lang) ? lang : null
+  const displayLocale = resolveGuestLocale(null, event.config, explicit)
   return (
     <div className="bg-[#0b1020] text-white">
       <EventSite config={event.config} mode="live" displayLocale={displayLocale} slug={event.slug} />

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { isEmailConfigured, sendEmail } from '@/lib/email/send'
 import { authorizeCron } from '@/lib/platform/cron-auth'
 import { daysUntilEventDate, eventTimeZone } from '@/lib/platform/event-tz'
+import { resolveGuestLocale } from '@/lib/platform/guest-locale'
 import { reminderCopy } from '@/lib/platform/guest-ui'
 import {
   eventHostReplyTo,
@@ -115,7 +116,7 @@ async function sendReminder({
     process.env.SES_FROM_EMAIL ||
     process.env.RESEND_FROM_EMAIL
   const name = event.config.basics.honoreeName || 'Mitzvah'
-  const locale = guest.inviteLocale || event.config.locales.default
+  const locale = resolveGuestLocale(guest, event.config)
   const copy = reminderCopy(
     locale,
     name,

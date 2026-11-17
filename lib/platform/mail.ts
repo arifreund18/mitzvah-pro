@@ -5,7 +5,7 @@ import {
   pageBackgroundCss,
 } from './card-background.ts'
 import { formatEventDate, typeLabel } from './copy.ts'
-import { chromeCtaText, guestDisplayLocale, inviteRsvpLabel } from './guest-locale.ts'
+import { chromeCtaText, inviteRsvpLabel, resolveGuestLocale } from './guest-locale.ts'
 import { getLocalizedCardDesign } from './i18n-content.ts'
 import { apexHost, eventApexPathUrl, protocolFor } from './site-url.ts'
 import type { CardDesign, EventConfig, EventLocale, Guest } from './types.ts'
@@ -78,7 +78,7 @@ const FONT_STACK: Record<string, string> = {
 }
 
 function localeOf(guest: Guest, config: EventConfig): EventLocale {
-  return guestDisplayLocale(guest, config)
+  return resolveGuestLocale(guest, config)
 }
 
 function designOf(kind: 'std' | 'invite', config: EventConfig, locale: EventLocale): CardDesign {
