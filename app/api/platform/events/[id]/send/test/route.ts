@@ -72,7 +72,14 @@ export async function POST(request: Request, ctx: Ctx) {
     new URL(request.url).host
 
   let config: EventConfig = event.config
-  if (config.domain.mail?.status === 'failed' || config.domain.mail?.status === 'skipped') {
+  // Always (re)provision when mail is missing/skipped/failed, or when the
+  // verified/pending domain has no configuration set yet (SES reputation set).
+  const mailNeedsProvision =
+    !config.domain.mail ||
+    config.domain.mail.status === 'failed' ||
+    config.domain.mail.status === 'skipped' ||
+    !config.domain.mail.configurationSetName
+  if (mailNeedsProvision) {
     const mail = await provisionEventMailDomain(config)
     const updated = await updateEvent(id, {
       config: { ...config, domain: { ...config.domain, mail } },

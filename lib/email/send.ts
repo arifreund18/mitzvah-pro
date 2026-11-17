@@ -132,6 +132,30 @@ function fail(
   return { ok: false, messageId: null, error, provider, retryable, errorKind: kind }
 }
 
+function configurationSetMissing(message: string): boolean {
+  return /configuration set .+ does not exist/i.test(message)
+}
+
+/**
+ * Create the per-event configuration set if needed (lazy).
+ * If IAM cannot create it, return undefined so SendEmail still works.
+ */
+async function resolveSesConfigurationSet(
+  configurationSetName: string | undefined,
+): Promise<string | undefined> {
+  const name = (configurationSetName || '').trim()
+  if (!name) return undefined
+  try {
+    // Dynamic import avoids circular dependency with ses-config-set → send.
+    const { ensureEventConfigurationSet } = await import('@/lib/email/ses-config-set')
+    const slug = name.replace(/^mitzvah-/i, '') || 'event'
+    const ensured = await ensureEventConfigurationSet(slug)
+    return ensured.exists ? ensured.name : undefined
+  } catch {
+    return undefined
+  }
+}
+
 async function sendWithSes(input: SendEmailInput): Promise<SendEmailResult> {
   const client = getSesClient()
   if (!client) {
@@ -145,13 +169,15 @@ async function sendWithSes(input: SendEmailInput): Promise<SendEmailResult> {
 
   const to = asList(input.to)
   const replyTo = asList(input.replyTo)
-  try {
-    const out = await client.send(
+  let configurationSetName = await resolveSesConfigurationSet(input.configurationSetName)
+
+  const sendOnce = async (configSet: string | undefined) =>
+    client.send(
       new SendEmailCommand({
         FromEmailAddress: input.from,
         Destination: { ToAddresses: to },
         ReplyToAddresses: replyTo.length ? replyTo : undefined,
-        ConfigurationSetName: input.configurationSetName || undefined,
+        ConfigurationSetName: configSet || undefined,
         Content: {
           Simple: {
             Subject: { Data: input.subject, Charset: 'UTF-8' },
@@ -165,6 +191,9 @@ async function sendWithSes(input: SendEmailInput): Promise<SendEmailResult> {
         },
       }),
     )
+
+  try {
+    const out = await sendOnce(configurationSetName)
     noteSuccessfulSend()
     return {
       ok: true,
@@ -176,6 +205,24 @@ async function sendWithSes(input: SendEmailInput): Promise<SendEmailResult> {
     }
   } catch (error) {
     const classified = classifySendError(error)
+    // Race / stale name: drop ConfigurationSetName and retry once.
+    if (configurationSetName && configurationSetMissing(classified.message)) {
+      try {
+        const out = await sendOnce(undefined)
+        noteSuccessfulSend()
+        return {
+          ok: true,
+          messageId: out.MessageId || null,
+          error: null,
+          provider: 'ses',
+          retryable: false,
+          errorKind: null,
+        }
+      } catch (retryError) {
+        const retryClassified = classifySendError(retryError)
+        return fail('ses', retryClassified.message, retryClassified.kind, retryClassified.retryable)
+      }
+    }
     return fail('ses', classified.message, classified.kind, classified.retryable)
   }
 }
