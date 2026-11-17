@@ -24,10 +24,12 @@ Contas novas ficam em **sandbox**: só enviam para endereços verificados.
 
 1. Console AWS → SES → região `us-east-2`
 2. Account dashboard → **Request production access**
-3. Descreva o caso de uso (convites de eventos, confirmações RSVP, lembretes)
+3. Use o rascunho revisado (não enviado) — ver secção [Pedido de produção](#pedido-de-produção-rascunho) abaixo
 4. Aguarde aprovação
 
 Até lá, teste só com destinatários verificados.
+
+**Não envie o pedido** afirmando opt-out link ou webhook SNS de bounce enquanto isso não existir no app (hoje não existe).
 
 ### 2. Verificar o domínio (identidade)
 
@@ -76,12 +78,23 @@ Sem isto, a reputação do domínio cai e o SES pode pausar o envio.
 
 O campo `email_logs.resend_id` guarda o **message id** genérico (SES `MessageId` ou id Resend).
 
+## Pedido de produção (rascunho)
+
+**Não enviado.** Formulário: Mail type **Transactional**, Website **https://mitzvah.pro**, language **English**.
+
+Preencher antes: contato adicional, volume esperado, DKIM Verified.
+
+**Use case (colar):** destinatários só da lista do anfitrião; STD/convite/RSVP/lembretes/contato; domínio `mitzvah.pro`; volume bursty. **Não** afirmar link de opt-out — ainda não existe nos templates.
+
+**Bounces:** até haver SNS + webhook no app, diga que usa account-level suppression + monitorização no dashboard + logs, e que SNS/webhook está planejado. Depois de implementar, pode afirmar publicação SNS e supressão no app.
+
 ## Pendências operacionais
 
-- [ ] Pedir produção (sair do sandbox)
 - [ ] Criar/verificar identidade de domínio no SES `us-east-2`
 - [ ] Publicar SPF/DKIM/DMARC no DNS (revisão humana)
-- [ ] Ligar SNS para bounces/complaints + processo de supressão
+- [ ] Pedir produção (sair do sandbox) — só após DKIM Verified + texto honesto
+- [ ] Ligar SNS para bounces/complaints + webhook de supressão no app
+- [ ] Link de descadastro nos e-mails (se for mencionado no pedido)
 - [ ] Preencher secrets na Vercel e validar `/api/platform/email-setup`
 - [ ] Enviar email de teste real após produção
 
