@@ -1,5 +1,10 @@
 import { getResend, resolveEmailProvider, sharedFromEmail } from '@/lib/email/send'
 import {
+  attachConfigurationSetToIdentity,
+  ensureEventConfigurationSet,
+  eventConfigurationSetName,
+} from '@/lib/email/ses-config-set'
+import {
   ensureSesDomainIdentity,
   getSesIdentityStatus,
   sesDnsToUpserts,
@@ -138,19 +143,46 @@ async function provisionSesIsolatedMail(config: EventConfig): Promise<EventMailD
   ) {
     const current = await getSesIdentityStatus(sendingDomain)
     if (current.verified) {
+      const configSet = await ensureEventConfigurationSet(slug)
+      if (configSet.exists) {
+        try {
+          await attachConfigurationSetToIdentity(sendingDomain, configSet.name)
+        } catch {
+          // Identity already verified; SendEmail still passes ConfigurationSetName.
+        }
+      }
       return {
         ...previous,
         fromEmail,
+        configurationSetName:
+          (configSet.exists && configSet.name) ||
+          previous.configurationSetName ||
+          eventConfigurationSetName(slug),
         status: 'verified',
-        lastError: '',
+        lastError: configSet.exists
+          ? ''
+          : configSet.error || previous.lastError || '',
       }
     }
   }
 
   try {
-    const identity = await ensureSesDomainIdentity(sendingDomain)
+    const configSet = await ensureEventConfigurationSet(slug)
+    if (!configSet.exists) {
+      throw new Error(configSet.error || `Falha ao criar configuration set ${configSet.name}`)
+    }
+
+    const identity = await ensureSesDomainIdentity(sendingDomain, {
+      configurationSetName: configSet.name,
+    })
     if (identity.error && identity.verificationStatus === 'FAILED') {
       throw new Error(identity.error)
+    }
+
+    try {
+      await attachConfigurationSetToIdentity(sendingDomain, configSet.name)
+    } catch {
+      // Identity may still be propagating; SendEmail also passes ConfigurationSetName.
     }
 
     const comment = `mitzvah-pro:ses:${slug}`
@@ -167,11 +199,12 @@ async function provisionSesIsolatedMail(config: EventConfig): Promise<EventMailD
       sendingDomain,
       fromEmail,
       resendDomainId: sendingDomain,
+      configurationSetName: configSet.name,
       status: ok ? 'verified' : 'pending',
       lastError: ok
         ? ''
         : verified.error ||
-          `DNS DKIM/SPF gravado para ${sendingDomain}; verificação SES ainda pendente.`,
+          `DNS DKIM gravado para ${sendingDomain}; verificação SES ainda pendente.`,
       verifiedAt: ok ? new Date().toISOString() : null,
     }
   } catch (error) {
@@ -181,6 +214,7 @@ async function provisionSesIsolatedMail(config: EventConfig): Promise<EventMailD
         ? formatFromAddress(display, sharedFallback)
         : fromEmail,
       resendDomainId: previous?.resendDomainId || '',
+      configurationSetName: previous?.configurationSetName || eventConfigurationSetName(slug),
       status: 'failed',
       lastError: error instanceof Error ? error.message : 'Falha ao provisionar identidade SES',
       verifiedAt: null,
@@ -274,12 +308,19 @@ export async function refreshEventMailDomain(mail: EventMailDomain): Promise<Eve
   if (provider === 'ses') {
     const identity = mail.sendingDomain || mail.resendDomainId
     if (!identity) return mail
+    const slugFromDomain =
+      identity.match(/^mail\.([^.]+)\./)?.[1] ||
+      mail.sendingDomain.match(/^mail\.([^.]+)\./)?.[1] ||
+      'event'
+    const configurationSetName =
+      mail.configurationSetName || eventConfigurationSetName(slugFromDomain)
     try {
       const status = await getSesIdentityStatus(identity)
       if (status.verified) {
         return {
           ...mail,
           sendingDomain: identity,
+          configurationSetName,
           status: 'verified',
           lastError: '',
           verifiedAt: mail.verifiedAt || new Date().toISOString(),
@@ -288,6 +329,7 @@ export async function refreshEventMailDomain(mail: EventMailDomain): Promise<Eve
       return {
         ...mail,
         sendingDomain: identity,
+        configurationSetName,
         status: 'pending',
         lastError:
           status.error ||
@@ -296,6 +338,7 @@ export async function refreshEventMailDomain(mail: EventMailDomain): Promise<Eve
     } catch (error) {
       return {
         ...mail,
+        configurationSetName,
         status: mail.status === 'verified' ? 'verified' : 'pending',
         lastError: error instanceof Error ? error.message : mail.lastError,
       }

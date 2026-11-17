@@ -3,7 +3,7 @@ import { getEvent, markMailSent, appendEmailLog } from '@/lib/platform/store'
 import { requireEventAccess } from '@/lib/platform/session'
 import { isEmailConfigured, sendEmail } from '@/lib/email/send'
 import { guestMailRecipients } from '@/lib/platform/family-emails'
-import { eventHostReplyTo } from '@/lib/platform/mail-domain'
+import { eventHostReplyTo, eventMailConfigurationSet } from '@/lib/platform/mail-domain'
 import { mailHtml, mailSubject } from '@/lib/platform/mail'
 import {
   getLatestMailJobForEvent,
@@ -65,6 +65,8 @@ export async function POST(request: Request, ctx: Ctx) {
   const deliveredIds: string[] = []
   const guestById = new Map(event.guests.map((guest) => [guest.id, guest]))
   const replyTo = eventHostReplyTo(event.config)
+  const configurationSetName =
+    job.configurationSetName || eventMailConfigurationSet(event.config)
   let stopEarly = false
 
   for (const guestId of batch) {
@@ -85,6 +87,7 @@ export async function POST(request: Request, ctx: Ctx) {
       from: job.from,
       to: recipients,
       replyTo,
+      configurationSetName,
       subject: mailSubject(job.kind, event.config, guest),
       html: mailHtml(job.kind, event.config, job.host, guest),
     })

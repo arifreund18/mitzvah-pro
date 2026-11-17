@@ -4,6 +4,7 @@ import {
   classifySendError,
   noteSuccessfulSend,
   sesDailyCap,
+  sesEventMaxPerSecond,
   sesMinIntervalMs,
   sesSandboxMode,
   sentInLast24h,
@@ -13,11 +14,15 @@ describe('ses-limits', () => {
   const prevProd = process.env.EMAIL_SES_PRODUCTION
   const prevCap = process.env.EMAIL_SES_DAILY_CAP
   const prevInterval = process.env.EMAIL_SES_MIN_INTERVAL_MS
+  const prevRate = process.env.EMAIL_SES_EVENT_MAX_PER_SECOND
+  const prevProvider = process.env.EMAIL_PROVIDER
 
   beforeEach(() => {
     delete process.env.EMAIL_SES_PRODUCTION
     delete process.env.EMAIL_SES_DAILY_CAP
     delete process.env.EMAIL_SES_MIN_INTERVAL_MS
+    delete process.env.EMAIL_SES_EVENT_MAX_PER_SECOND
+    delete process.env.EMAIL_PROVIDER
   })
 
   afterEach(() => {
@@ -27,18 +32,39 @@ describe('ses-limits', () => {
     else process.env.EMAIL_SES_DAILY_CAP = prevCap
     if (prevInterval === undefined) delete process.env.EMAIL_SES_MIN_INTERVAL_MS
     else process.env.EMAIL_SES_MIN_INTERVAL_MS = prevInterval
+    if (prevRate === undefined) delete process.env.EMAIL_SES_EVENT_MAX_PER_SECOND
+    else process.env.EMAIL_SES_EVENT_MAX_PER_SECOND = prevRate
+    if (prevProvider === undefined) delete process.env.EMAIL_PROVIDER
+    else process.env.EMAIL_PROVIDER = prevProvider
   })
 
   it('defaults to sandbox limits', () => {
     assert.equal(sesSandboxMode(), true)
     assert.equal(sesMinIntervalMs(), 1000)
     assert.equal(sesDailyCap(), 200)
+    assert.equal(sesEventMaxPerSecond(), 1)
   })
 
-  it('disables sandbox when EMAIL_SES_PRODUCTION=true', () => {
+  it('keeps a conservative per-event pace when EMAIL_SES_PRODUCTION=true', () => {
     process.env.EMAIL_SES_PRODUCTION = 'true'
     assert.equal(sesSandboxMode(), false)
-    assert.equal(sesMinIntervalMs(), 0)
+    assert.equal(sesDailyCap(), Number.POSITIVE_INFINITY)
+    // Default 2/s — well below account max (~14/s)
+    assert.equal(sesMinIntervalMs(), 500)
+    assert.equal(sesEventMaxPerSecond(), 2)
+  })
+
+  it('honors EMAIL_SES_EVENT_MAX_PER_SECOND in production', () => {
+    process.env.EMAIL_SES_PRODUCTION = 'true'
+    process.env.EMAIL_SES_EVENT_MAX_PER_SECOND = '1'
+    assert.equal(sesMinIntervalMs(), 1000)
+    assert.equal(sesEventMaxPerSecond(), 1)
+  })
+
+  it('EMAIL_SES_MIN_INTERVAL_MS overrides rate helpers', () => {
+    process.env.EMAIL_SES_PRODUCTION = 'true'
+    process.env.EMAIL_SES_MIN_INTERVAL_MS = '250'
+    assert.equal(sesMinIntervalMs(), 250)
   })
 
   it('classifies throttling and unverified as retryable', () => {

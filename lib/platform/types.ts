@@ -406,6 +406,8 @@ export type EventMailDomain = {
   sendingDomain: string
   fromEmail: string
   resendDomainId: string
+  /** SES configuration set for this event (e.g. mitzvah-{slug}). */
+  configurationSetName?: string
   status: MailDomainStatus
   lastError: string
   verifiedAt: string | null
@@ -508,6 +510,7 @@ export type MailJob = {
   errors: string[]
   host: string
   from: string
+  configurationSetName?: string
   createdAt: string
   updatedAt: string
   attempts: number

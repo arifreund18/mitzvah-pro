@@ -3,7 +3,11 @@ import { isEmailConfigured, sendEmail } from '@/lib/email/send'
 import { authorizeCron } from '@/lib/platform/cron-auth'
 import { daysUntilEventDate, eventTimeZone } from '@/lib/platform/event-tz'
 import { reminderCopy } from '@/lib/platform/guest-ui'
-import { eventHostReplyTo, eventSendFrom } from '@/lib/platform/mail-domain'
+import {
+  eventHostReplyTo,
+  eventMailConfigurationSet,
+  eventSendFrom,
+} from '@/lib/platform/mail-domain'
 import {
   appendEmailLog,
   listEmailLogs,
@@ -127,6 +131,7 @@ async function sendReminder({
     from,
     to,
     replyTo: eventHostReplyTo(event.config),
+    configurationSetName: eventMailConfigurationSet(event.config),
     subject: copy.subject,
     html: `<div dir="${dir}" style="font-family:Georgia,serif;line-height:1.5">
       <p>${copy.body.replace(/</g, '&lt;')}</p>

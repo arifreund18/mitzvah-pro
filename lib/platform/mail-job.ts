@@ -1,6 +1,9 @@
 import type { MailJob } from './types.ts'
 
-/** Small batches + 1/s spacing in process route respect SES sandbox (~1 msg/s, 200/24h). */
+/**
+ * Small batches; pacing lives in lib/email/ses-limits.ts
+ * (sandbox ~1/s + 200/24h; production ~2/s per process by default).
+ */
 export const MAIL_BATCH_SIZE = 10
 
 export function mailJobProgress(job: MailJob) {

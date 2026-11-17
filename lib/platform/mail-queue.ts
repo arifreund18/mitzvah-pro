@@ -65,6 +65,7 @@ type MailJobPayload = {
   errors: string[]
   host: string
   from: string
+  configurationSetName?: string
 }
 
 function jobFromRow(row: {
@@ -97,6 +98,7 @@ function jobFromRow(row: {
     errors: Array.isArray(payload.errors) ? payload.errors : [],
     host: payload.host || '',
     from: payload.from || '',
+    configurationSetName: payload.configurationSetName || '',
     createdAt: new Date(row.created_at).toISOString(),
     updatedAt: new Date(row.updated_at).toISOString(),
     attempts: Number(row.attempts) || 0,
@@ -116,6 +118,7 @@ function payloadOf(job: MailJob): MailJobPayload {
     errors: job.errors,
     host: job.host,
     from: job.from,
+    configurationSetName: job.configurationSetName || '',
   }
 }
 
@@ -125,6 +128,7 @@ export async function createMailJob(input: {
   guestIds: string[]
   host: string
   from: string
+  configurationSetName?: string
 }): Promise<MailJob> {
   const now = new Date().toISOString()
   const job: MailJob = {
@@ -142,6 +146,7 @@ export async function createMailJob(input: {
     errors: [],
     host: input.host,
     from: input.from,
+    configurationSetName: input.configurationSetName || '',
     createdAt: now,
     updatedAt: now,
     attempts: 0,

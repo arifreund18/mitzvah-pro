@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { isEmailConfigured, sendEmail } from '@/lib/email/send'
-import { eventSendFrom } from '@/lib/platform/mail-domain'
+import { eventMailConfigurationSet, eventSendFrom } from '@/lib/platform/mail-domain'
 import { consumeRateLimit } from '@/lib/platform/rate-limit'
 import { getEvent } from '@/lib/platform/store'
 import { z } from 'zod'
@@ -67,6 +67,7 @@ export async function POST(request: NextRequest, ctx: Ctx) {
     from,
     to: recipients,
     replyTo: email,
+    configurationSetName: eventMailConfigurationSet(event.config),
     subject: `[${honoree}] Contact — ${name}`,
     html: `
       <p><strong>New message from the event site</strong></p>

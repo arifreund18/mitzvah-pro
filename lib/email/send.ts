@@ -19,6 +19,8 @@ export type SendEmailInput = {
   html: string
   replyTo?: string | string[]
   text?: string
+  /** SES configuration set (per-event reputation / pause control). */
+  configurationSetName?: string
 }
 
 export type SendEmailResult = {
@@ -149,6 +151,7 @@ async function sendWithSes(input: SendEmailInput): Promise<SendEmailResult> {
         FromEmailAddress: input.from,
         Destination: { ToAddresses: to },
         ReplyToAddresses: replyTo.length ? replyTo : undefined,
+        ConfigurationSetName: input.configurationSetName || undefined,
         Content: {
           Simple: {
             Subject: { Data: input.subject, Charset: 'UTF-8' },

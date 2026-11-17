@@ -8,7 +8,11 @@ import {
   isoWeekKeyInTz,
   yearMonthInTz,
 } from '@/lib/platform/event-tz'
-import { eventHostReplyTo, eventSendFrom } from '@/lib/platform/mail-domain'
+import {
+  eventHostReplyTo,
+  eventMailConfigurationSet,
+  eventSendFrom,
+} from '@/lib/platform/mail-domain'
 import {
   appendEmailLog,
   listEmailLogs,
@@ -173,13 +177,14 @@ export async function GET(request: NextRequest) {
     const metaJson = JSON.stringify(meta)
     const subject = `Digest RSVP (${mode}) — ${event.config.basics.honoreeName || event.slug}`
     const replyTo = eventHostReplyTo(event.config)
+    const configurationSetName = eventMailConfigurationSet(event.config)
 
     for (const to of recipients) {
       let status = 'queued'
       let messageId: string | null = null
       let error = metaJson
       if (emailReady && from) {
-        const result = await sendEmail({ from, to, subject, html, replyTo })
+        const result = await sendEmail({ from, to, subject, html, replyTo, configurationSetName })
         if (!result.ok) {
           status = result.retryable ? 'deferred' : 'failed'
           error = result.error || 'send_failed'

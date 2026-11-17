@@ -3,7 +3,11 @@ import { addGuest, appendEmailLog, getEvent, updateEvent } from '@/lib/platform/
 import { requireEventAccess } from '@/lib/platform/session'
 import { isEmailConfigured, sendEmail } from '@/lib/email/send'
 import { provisionEventMailDomain, refreshEventMailDomain } from '@/lib/email/provision-domain'
-import { eventHostReplyTo, eventSendFrom } from '@/lib/platform/mail-domain'
+import {
+  eventHostReplyTo,
+  eventMailConfigurationSet,
+  eventSendFrom,
+} from '@/lib/platform/mail-domain'
 import { mailHtml, mailSubject } from '@/lib/platform/mail'
 import { normalizeGuest } from '@/lib/platform/normalize-guest'
 import type { EventConfig, Guest } from '@/lib/platform/types'
@@ -138,6 +142,7 @@ export async function POST(request: Request, ctx: Ctx) {
     from,
     to,
     replyTo,
+    configurationSetName: eventMailConfigurationSet(config),
     subject: `[TESTE] ${mailSubject(kind, config, sample)}`,
     html: mailHtml(kind, config, host, sample),
   })

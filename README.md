@@ -52,7 +52,10 @@ No DNS/Vercel, aponte o wildcard `*.mitzvah.pro` para **este** projeto. `/e/{slu
 | `AWS_ACCESS_KEY_ID` | Sim (SES) | Credencial IAM de envio (não commitar) |
 | `AWS_SECRET_ACCESS_KEY` | Sim (SES) | Credencial IAM (não commitar) |
 | `EMAIL_FROM_ADDRESS` | Sim (SES) | Fallback apex (ex. `convites@mitzvah.pro`) enquanto o domínio do evento não verifica |
-| `EMAIL_SES_PRODUCTION` | Não | `true` após sair do sandbox (senão 1/s e 200/24h) |
+| `DMARC_REPORT_EMAIL` | Não | `rua=` no TXT `_dmarc.mail.{slug}` (ex. `dmarc@mitzvah.pro`) |
+| `EMAIL_SES_PRODUCTION` | Sim (prod SES) | `true` — sem isto a fila fica em 1/s e 200/24h mesmo com a conta AWS em produção |
+| `EMAIL_SES_EVENT_MAX_PER_SECOND` | Não | Teto por processo em produção (default `2`; conta SES pode ser ~14/s) |
+| `DMARC_REPORT_EMAIL` | Recomendado | `rua=` nos TXT `_dmarc.mail.{slug}` (ex. `dmarc@mitzvah.pro`) |
 | `RESEND_API_KEY` | Fallback | Só se `EMAIL_PROVIDER=resend` |
 | `RESEND_FROM_EMAIL` | Fallback | Remetente Resend |
 | `VERCEL_TOKEN` | Sim (isolamento email + site) | DNS `{slug}` e `mail.{slug}` |
@@ -87,9 +90,9 @@ Atalhos antigos `/en/invite` e `/pt/invite` (etc.) ainda redirecionam para `/Bar
 
 ## Email (Amazon SES + fallback Resend)
 
-Padrão: **Amazon SES** (`us-east-2`) com **domínio isolado por evento** `mail.{slug}.mitzvah.pro` (DKIM + DNS Vercel) para não misturar reputação. Display name + Reply-To do anfitrião. Ver [`docs/SES.md`](docs/SES.md).
+Padrão: **Amazon SES** (`us-east-2`) com **domínio isolado por evento** `mail.{slug}.mitzvah.pro` + configuration set `mitzvah-{slug}` (DKIM/DMARC + DNS Vercel) para não misturar reputação. Display name + Reply-To do anfitrião. Ver [`docs/SES.md`](docs/SES.md).
 
-Enquanto o domínio do evento está `pending`, usa-se `EMAIL_FROM_ADDRESS`. Em sandbox: ~1/s e 200/24h; falhas retryable ficam `deferred`.
+Enquanto o domínio do evento está `pending`, usa-se `EMAIL_FROM_ADDRESS`. Sem `EMAIL_SES_PRODUCTION=true`: ~1/s e 200/24h. Com produção: teto conservador ~2/s por processo (warm-up de `mail.{slug}`). Falhas retryable ficam `deferred`.
 
 Fallback: `EMAIL_PROVIDER=resend` restaura o fluxo Resend + `mail.{slug}`.
 
@@ -98,4 +101,4 @@ Fallback: `EMAIL_PROVIDER=resend` restaura o fluxo Resend + `mail.{slug}`.
 1. Projeto **mitzvah-pro** (este repo): domínio `mitzvah.pro` e wildcard `*.mitzvah.pro`
 2. Projeto **bar-beni** (outro repo): URL interna; este app aponta `BAR_BENI_ORIGIN` para ela
 3. `NEXT_PUBLIC_SITE_HOST=mitzvah.pro`
-4. Credenciais SES (envio + Create/Get identity) + `EMAIL_FROM_ADDRESS` + `VERCEL_TOKEN` (site e `mail.{slug}`)
+4. Credenciais SES (envio + identity + configuration set; ver `docs/SES.md`) + `EMAIL_FROM_ADDRESS` + `VERCEL_TOKEN` (site e `mail.{slug}`)

@@ -1,17 +1,13 @@
 import {
   CreateEmailIdentityCommand,
   GetEmailIdentityCommand,
-  type DkimAttributes,
 } from '@aws-sdk/client-sesv2'
 import { awsRegion, getSesClient } from '@/lib/email/send'
+import { recommendedDns, type SesDnsRecord } from '@/lib/email/ses-dns-records'
 import type { DnsUpsert } from '@/lib/email/vercel-dns'
 
-export type SesDnsRecord = {
-  type: 'CNAME' | 'TXT' | 'MX'
-  name: string
-  value: string
-  purpose: 'dkim' | 'spf' | 'dmarc' | 'other'
-}
+export type { SesDnsRecord } from '@/lib/email/ses-dns-records'
+export { recommendedDns } from '@/lib/email/ses-dns-records'
 
 export type SesIdentityStatus = {
   identity: string
@@ -30,33 +26,6 @@ export function emailIdentityFromAddress(from: string): string {
   const at = bare.lastIndexOf('@')
   if (at === -1) return bare
   return bare.slice(at + 1)
-}
-
-function dkimCnames(identity: string, tokens: string[]): SesDnsRecord[] {
-  return tokens.map((token) => ({
-    type: 'CNAME' as const,
-    name: `${token}._domainkey.${identity}`,
-    value: `${token}.dkim.amazonses.com`,
-    purpose: 'dkim' as const,
-  }))
-}
-
-export function recommendedDns(identity: string, dkim: DkimAttributes | undefined): SesDnsRecord[] {
-  const tokens = dkim?.Tokens || []
-  const records: SesDnsRecord[] = [...dkimCnames(identity, tokens)]
-  records.push({
-    type: 'TXT',
-    name: identity,
-    value: 'v=spf1 include:amazonses.com ~all',
-    purpose: 'spf',
-  })
-  records.push({
-    type: 'TXT',
-    name: `_dmarc.${identity}`,
-    value: `v=DMARC1; p=none; rua=mailto:dmarc@${identity}`,
-    purpose: 'dmarc',
-  })
-  return records
 }
 
 export function sesDnsToUpserts(records: SesDnsRecord[]): DnsUpsert[] {
@@ -107,9 +76,12 @@ export async function getSesIdentityStatus(identity: string): Promise<SesIdentit
 
 /**
  * Ensure a domain identity exists (Easy DKIM). Creates if missing.
- * Requires IAM: ses:CreateEmailIdentity, ses:GetEmailIdentity.
+ * Requires IAM: ses:CreateEmailIdentity, ses:GetEmailIdentity, ses:TagResource.
  */
-export async function ensureSesDomainIdentity(domain: string): Promise<SesIdentityStatus> {
+export async function ensureSesDomainIdentity(
+  domain: string,
+  opts?: { configurationSetName?: string },
+): Promise<SesIdentityStatus> {
   const client = getSesClient()
   if (!client) {
     return {
@@ -137,6 +109,7 @@ export async function ensureSesDomainIdentity(domain: string): Promise<SesIdenti
     const created = await client.send(
       new CreateEmailIdentityCommand({
         EmailIdentity: domain,
+        ConfigurationSetName: opts?.configurationSetName,
         Tags: [
           { Key: 'app', Value: 'mitzvah-pro' },
           { Key: 'purpose', Value: 'event-mail-isolation' },

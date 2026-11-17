@@ -4,7 +4,11 @@ import { requireEventAccess } from '@/lib/platform/session'
 import { isEmailConfigured, sendEmail } from '@/lib/email/send'
 import { provisionEventMailDomain, refreshEventMailDomain } from '@/lib/email/provision-domain'
 import { guestMailRecipients } from '@/lib/platform/family-emails'
-import { eventHostReplyTo, eventSendFrom } from '@/lib/platform/mail-domain'
+import {
+  eventHostReplyTo,
+  eventMailConfigurationSet,
+  eventSendFrom,
+} from '@/lib/platform/mail-domain'
 import { mailHtml, mailSubject } from '@/lib/platform/mail'
 import { createMailJob, MAIL_BATCH_SIZE } from '@/lib/platform/mail-queue'
 import type { EventConfig, Guest } from '@/lib/platform/types'
@@ -16,6 +20,7 @@ export const maxDuration = 30
 async function sendOne(opts: {
   from: string
   replyTo?: string
+  configurationSetName?: string
   kind: 'std' | 'invite'
   config: EventConfig
   host: string
@@ -43,6 +48,7 @@ async function sendOne(opts: {
     from: opts.from,
     to: recipients,
     replyTo: opts.replyTo,
+    configurationSetName: opts.configurationSetName,
     subject: mailSubject(opts.kind, opts.config, opts.guest),
     html: mailHtml(opts.kind, opts.config, opts.host, opts.guest),
   })
@@ -122,6 +128,7 @@ export async function POST(request: Request, ctx: Ctx) {
 
   const from = eventSendFrom(config)
   const replyTo = eventHostReplyTo(config)
+  const configurationSetName = eventMailConfigurationSet(config)
   if (!emailReady) {
     const marked = await markMailSent(
       id,
@@ -167,6 +174,7 @@ export async function POST(request: Request, ctx: Ctx) {
       guestIds: targets.map((guest) => guest.id),
       host,
       from,
+      configurationSetName,
     })
     const processUrl = new URL(`/api/platform/events/${id}/send/process`, request.url)
     const cookie = request.headers.get('cookie') || ''
@@ -192,7 +200,7 @@ export async function POST(request: Request, ctx: Ctx) {
   const deferredIds: string[] = []
   const errors: string[] = []
   for (const guest of targets) {
-    const result = await sendOne({ from, replyTo, kind, config, host, guest })
+    const result = await sendOne({ from, replyTo, configurationSetName, kind, config, host, guest })
     const toEmail = result.recipients.join(', ') || guest.email
     if (result.ok) {
       deliveredIds.push(guest.id)
@@ -249,6 +257,7 @@ export async function POST(request: Request, ctx: Ctx) {
       guestIds: deferredIds,
       host,
       from,
+      configurationSetName,
     })
   }
 

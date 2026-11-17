@@ -3,7 +3,11 @@ import { z } from 'zod'
 import { consumeRateLimit } from '@/lib/platform/rate-limit'
 import { getFamilyByToken, updateGuest, appendEmailLog } from '@/lib/platform/store'
 import { isEmailConfigured, sendEmail } from '@/lib/email/send'
-import { eventHostReplyTo, eventSendFrom } from '@/lib/platform/mail-domain'
+import {
+  eventHostReplyTo,
+  eventMailConfigurationSet,
+  eventSendFrom,
+} from '@/lib/platform/mail-domain'
 import { uid } from '@/lib/platform/ids'
 import type { GuestPerson } from '@/lib/platform/types'
 
@@ -107,6 +111,7 @@ export async function POST(request: Request, ctx: Ctx) {
   const emailReady = isEmailConfigured()
   const from = eventSendFrom(event.config)
   const replyTo = eventHostReplyTo(event.config)
+  const configurationSetName = eventMailConfigurationSet(event.config)
   const locale = updated.guest.inviteLocale || event.config.locales.default
   const { rsvpConfirmationText } = await import('@/lib/platform/guest-ui')
   const confirmBody = rsvpConfirmationText(
@@ -125,6 +130,7 @@ export async function POST(request: Request, ctx: Ctx) {
         from,
         to,
         replyTo,
+        configurationSetName,
         subject: `RSVP — ${event.config.basics.honoreeName || event.slug}`,
         html: `<p dir="${dir}">${confirmBody.replace(/</g, '&lt;')}</p>`,
       })
@@ -157,6 +163,7 @@ export async function POST(request: Request, ctx: Ctx) {
         from,
         to,
         replyTo,
+        configurationSetName,
         subject: `Novo RSVP — ${updated.guest.familyName}`,
         html: `<p>Família ${updated.guest.familyName} atualizou o RSVP.</p>`,
       }).catch(() => null)
