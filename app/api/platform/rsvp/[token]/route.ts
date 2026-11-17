@@ -115,15 +115,23 @@ export async function POST(request: Request, ctx: Ctx) {
   const from = eventSendFrom(event.config)
   const replyTo = eventHostReplyTo(event.config)
   const configurationSetName = eventMailConfigurationSet(event.config)
+  const host =
+    request.headers.get('x-forwarded-host') ||
+    request.headers.get('host') ||
+    new URL(request.url).host
   const { resolveGuestLocale } = await import('@/lib/platform/guest-locale')
   const locale = resolveGuestLocale(updated.guest, event.config)
   const { rsvpConfirmationText } = await import('@/lib/platform/guest-ui')
+  const { mailRsvpConfirmationHtml, mailRsvpConfirmationSubject } = await import(
+    '@/lib/platform/mail'
+  )
   const confirmBody = rsvpConfirmationText(
     locale,
     updated.guest.familyName,
     event.config.rsvp.confirmationMessage,
   )
-  const dir = locale === 'he' ? 'rtl' : 'ltr'
+  const confirmHtml = mailRsvpConfirmationHtml(event.config, host, updated.guest)
+  const confirmSubject = mailRsvpConfirmationSubject(event.config, updated.guest)
 
   for (const to of emails) {
     let status = 'skipped'
@@ -135,8 +143,8 @@ export async function POST(request: Request, ctx: Ctx) {
         to,
         replyTo,
         configurationSetName,
-        subject: `RSVP — ${event.config.basics.honoreeName || event.slug}`,
-        html: `<p dir="${dir}">${confirmBody.replace(/</g, '&lt;')}</p>`,
+        subject: confirmSubject,
+        html: confirmHtml,
       })
       if (!result.ok) {
         status = result.retryable ? 'deferred' : 'failed'

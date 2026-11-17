@@ -294,3 +294,290 @@ export function mailHtml(
 </body>
 </html>`
 }
+
+const RSVP_CONFIRM: Record<
+  EventLocale,
+  {
+    attending: string
+    notAttending: string
+    going: string
+    notGoing: string
+    editResponse: string
+    calendar: string
+    map: string
+    viewCard: string
+    subject: string
+  }
+> = {
+  en: {
+    attending: "You're attending.",
+    notAttending: "You're not attending.",
+    going: 'Going',
+    notGoing: 'Not going',
+    editResponse: 'EDIT RESPONSE',
+    calendar: 'ADD TO CALENDAR',
+    map: 'VIEW LOCATION',
+    viewCard: 'VIEW CARD',
+    subject: 'RSVP confirmed',
+  },
+  pt: {
+    attending: 'Você confirmou presença.',
+    notAttending: 'Você não vai comparecer.',
+    going: 'Vai',
+    notGoing: 'Não vai',
+    editResponse: 'EDITAR RESPOSTA',
+    calendar: 'ADICIONAR AO CALENDÁRIO',
+    map: 'VER LOCAL',
+    viewCard: 'VER O CONVITE',
+    subject: 'RSVP confirmado',
+  },
+  es: {
+    attending: 'Confirmaste tu asistencia.',
+    notAttending: 'No vas a asistir.',
+    going: 'Asiste',
+    notGoing: 'No asiste',
+    editResponse: 'EDITAR RESPUESTA',
+    calendar: 'AÑADIR AL CALENDARIO',
+    map: 'VER UBICACIÓN',
+    viewCard: 'VER LA INVITACIÓN',
+    subject: 'RSVP confirmado',
+  },
+  he: {
+    attending: 'אישרתם הגעה.',
+    notAttending: 'לא תגיעו.',
+    going: 'מגיעים',
+    notGoing: 'לא מגיעים',
+    editResponse: 'עריכת תשובה',
+    calendar: 'הוספה ליומן',
+    map: 'צפייה במקום',
+    viewCard: 'לצפייה בכרטיס',
+    subject: 'RSVP אושר',
+  },
+}
+
+/** True when at least one person in the family RSVP'd yes. */
+export function guestHasYesRsvp(guest: Guest): boolean {
+  if (guest.people?.length) return guest.people.some((person) => person.status === 'yes')
+  return guest.status === 'yes'
+}
+
+export function mailRsvpConfirmationSubject(config: EventConfig, guest: Guest): string {
+  const locale = localeOf(guest, config)
+  const labels = RSVP_CONFIRM[locale] || RSVP_CONFIRM.pt
+  const name = config.basics.honoreeName || config.domain.slug || 'Mitzvah.pro'
+  return `${labels.subject} — ${name}`
+}
+
+/**
+ * RSVP confirmation email: status header, same invite card visual, hosts/body,
+ * detail rows (edit / calendar / map), view-card CTA. Token links only.
+ */
+export function mailRsvpConfirmationHtml(
+  config: EventConfig,
+  host: string,
+  guest: Guest,
+): string {
+  const locale = localeOf(guest, config)
+  const labels = RSVP_CONFIRM[locale] || RSVP_CONFIRM.pt
+  const design = designOf('invite', config, locale)
+  const dir = locale === 'he' ? 'rtl' : 'ltr'
+  const font = fontFamily(design.fontKey || 'georgia', locale)
+  const token = guest.token
+  const attending = guestHasYesRsvp(guest)
+
+  const cardHref = eventApexPathUrl(config.domain.slug, `/card/${token}`, { host })
+  const rsvpHref = eventApexPathUrl(config.domain.slug, `/rsvp/${token}`, { host })
+  const apex = apexHost(host)
+  const icsHref = `${protocolFor(apex)}://${apex}/api/platform/calendar/${encodeURIComponent(token)}`
+  const googleHref = google(config, 'invite') || `${icsHref}?to=google`
+  const mapHref = mapUrlOf('invite', config, locale)
+
+  const sealRaw = sealUrl('invite', config, locale)
+  const seal = sealRaw ? mailImageSrc('invite', config, host, sealRaw, 'sealUrl') : ''
+  const pageTextureRaw = design.pageTexture?.trim() || ''
+  const pageTextureForMail = pageTextureRaw
+    ? mailImageSrc('invite', config, host, pageTextureRaw, 'pageTexture')
+    : ''
+
+  const cardColor = design.cardColor || config.branding.primaryColor || '#1a2033'
+  const cardTextColor = design.cardTextColor || '#ffffff'
+  const viewCardTextColor = design.ctaRsvpColor || '#ffffff'
+  const textColor = design.bodyColor || design.headingColor || '#111111'
+  const mutedColor = textColor === '#FFFFFF' || textColor === '#ffffff' ? '#EEEEEE' : '#666666'
+  const titleColor = design.headingColor || design.nameColor || textColor
+  const pageBgCss = pageBackgroundCss(design, escapeHtml, pageTextureForMail)
+  const linkMuted = mutedColor
+  const actionColor = '#888888'
+
+  const viewCard = chromeCtaText(config, locale, 'invite', 'ctaView', labels.viewCard)
+  const calendarLabel = chromeCtaText(
+    config,
+    locale,
+    'invite',
+    'ctaCalendar',
+    labels.calendar,
+  ).toUpperCase()
+  const mapLabel = chromeCtaText(config, locale, 'invite', 'ctaMap', labels.map).toUpperCase()
+
+  const title = eventTitle('invite', config, locale)
+  const dateLine = eventDateLine('invite', config, locale)
+  const timeLine = eventTimeLine('invite', config, locale)
+  const venue = design.placeLabel?.trim() || ''
+  const address1 = design.address1?.trim() || ''
+  const address2 = design.address2?.trim() || ''
+  const familyName = guest.familyName || 'Guest'
+  const hostLine = (design.hosts?.trim() || config.invitation.hostLine || '').trim()
+  const bodyText = (design.message?.trim() || config.invitation.body || '').trim()
+  const statusHeadline = attending ? labels.attending : labels.notAttending
+  const statusLabel = attending ? labels.going : labels.notGoing
+
+  const sealCell = seal
+    ? `<td align="right" valign="top" style="padding:16px 16px 0 0;line-height:0;font-size:0;">
+        <img src="${escapeHtml(seal)}" alt="" width="72" height="72" style="display:block;border:0;width:72px;height:72px;object-fit:contain;" />
+      </td>`
+    : `<td width="72" style="padding:16px 16px 0 0;"></td>`
+
+  const iconGoing = attending
+    ? `<span style="display:inline-block;width:22px;height:22px;border:1.5px solid ${escapeHtml(textColor)};border-radius:50%;text-align:center;line-height:20px;font-size:12px;color:${escapeHtml(textColor)};">&#10003;</span>`
+    : `<span style="display:inline-block;width:22px;height:22px;border:1.5px solid ${escapeHtml(mutedColor)};border-radius:50%;text-align:center;line-height:20px;font-size:12px;color:${escapeHtml(mutedColor)};">&#10005;</span>`
+  const iconClock = `<span style="display:inline-block;width:22px;height:22px;border:1.5px solid ${escapeHtml(mutedColor)};border-radius:50%;text-align:center;line-height:20px;font-size:11px;color:${escapeHtml(mutedColor)};">&#9200;</span>`
+  const iconPin = `<span style="display:inline-block;width:22px;height:22px;border:1.5px solid ${escapeHtml(mutedColor)};border-radius:50%;text-align:center;line-height:20px;font-size:12px;color:${escapeHtml(mutedColor)};">&#9679;</span>`
+
+  const actionLink = (href: string, label: string) =>
+    `<a href="${escapeHtml(href)}" style="font-family:${font};font-size:11px;letter-spacing:0.08em;color:${escapeHtml(actionColor)};text-decoration:none;white-space:nowrap;">${escapeHtml(label)}</a>`
+
+  const detailRow = (opts: {
+    icon: string
+    primary: string
+    secondary?: string
+    secondaryHref?: string
+    actionHref?: string
+    actionLabel?: string
+  }) => {
+    const secondaryHtml = opts.secondary
+      ? opts.secondaryHref
+        ? `<div style="margin:2px 0 0;font-family:${font};font-size:13px;line-height:1.4;"><a href="${escapeHtml(opts.secondaryHref)}" style="color:#2563eb;text-decoration:underline;">${escapeHtml(opts.secondary)}</a></div>`
+        : `<div style="margin:2px 0 0;font-family:${font};font-size:13px;color:${escapeHtml(mutedColor)};line-height:1.4;">${escapeHtml(opts.secondary)}</div>`
+      : ''
+    const actionCell =
+      opts.actionHref && opts.actionLabel
+        ? `<td align="right" valign="middle" style="padding:16px 0 16px 12px;white-space:nowrap;">${actionLink(opts.actionHref, opts.actionLabel)}</td>`
+        : ''
+    return `<tr>
+      <td valign="top" style="padding:16px 10px 16px 0;width:28px;">${opts.icon}</td>
+      <td valign="middle" style="padding:16px 0;">
+        <div style="font-family:${font};font-size:15px;font-weight:bold;color:${escapeHtml(textColor)};line-height:1.35;">${escapeHtml(opts.primary)}</div>
+        ${secondaryHtml}
+      </td>
+      ${actionCell}
+    </tr>`
+  }
+
+  const addressLine = [address1, address2].filter(Boolean).join(', ')
+  const locationPrimary = venue || addressLine
+  const locationSecondary = venue && addressLine ? addressLine : ''
+
+  const rows: string[] = []
+  rows.push(
+    detailRow({
+      icon: iconGoing,
+      primary: statusLabel,
+      actionHref: rsvpHref,
+      actionLabel: labels.editResponse,
+    }),
+  )
+  if (dateLine || timeLine) {
+    rows.push(
+      detailRow({
+        icon: iconClock,
+        primary: dateLine || timeLine,
+        secondary: dateLine ? timeLine : '',
+        actionHref: googleHref || undefined,
+        actionLabel: googleHref ? calendarLabel : undefined,
+      }),
+    )
+  }
+  if (locationPrimary) {
+    rows.push(
+      detailRow({
+        icon: iconPin,
+        primary: locationPrimary,
+        secondary: locationSecondary,
+        secondaryHref: mapHref || undefined,
+        actionHref: mapHref || undefined,
+        actionLabel: mapHref ? mapLabel : undefined,
+      }),
+    )
+  }
+
+  const divider = `<tr><td colspan="3" style="border-top:1px solid #e5e5e5;font-size:0;line-height:0;height:1px;">&nbsp;</td></tr>`
+  const detailsTable = rows.length
+    ? `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
+        ${divider}
+        ${rows.join(`\n${divider}\n`)}
+        ${divider}
+      </table>`
+    : ''
+
+  return `<!DOCTYPE html>
+<html lang="${escapeHtml(locale)}" dir="${dir}">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;${pageBgCss}font-family:${font};" dir="${dir}">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="${pageBgCss}">
+    <tr>
+      <td align="center" style="padding:32px 16px 48px;">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:480px;">
+          <tr>
+            <td align="center" style="padding-bottom:20px;">
+              <p style="margin:0;font-family:${font};font-size:15px;color:${escapeHtml(linkMuted)};">${escapeHtml(statusHeadline)}</p>
+            </td>
+          </tr>
+          <tr>
+            <td align="center">
+              <a href="${escapeHtml(cardHref)}" style="text-decoration:none;color:inherit;">
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:400px;background-color:${escapeHtml(cardColor)};border-radius:2px;">
+                  <tr>
+                    <td width="*" style="font-size:0;line-height:0;">&nbsp;</td>
+                    ${sealCell}
+                  </tr>
+                  <tr>
+                    <td colspan="2" align="center" style="padding:48px 24px 56px;font-family:${font};font-size:32px;font-weight:bold;color:${escapeHtml(cardTextColor)};line-height:1.2;">
+                      ${escapeHtml(familyName)}
+                    </td>
+                  </tr>
+                </table>
+              </a>
+            </td>
+          </tr>
+          <tr>
+            <td align="center" style="padding:28px 8px 0;">
+              <p style="margin:0;font-family:${font};font-size:22px;font-weight:bold;color:${escapeHtml(titleColor)};line-height:1.35;">${escapeHtml(title)}</p>
+              ${
+                hostLine
+                  ? `<p style="margin:10px 0 0;font-family:${font};font-size:14px;color:${escapeHtml(mutedColor)};">${escapeHtml(hostLine)}</p>`
+                  : ''
+              }
+              ${
+                bodyText
+                  ? `<p style="margin:14px 0 0;font-family:${font};font-size:15px;color:${escapeHtml(textColor)};line-height:1.5;">${escapeHtml(bodyText).replace(/\n/g, '<br>')}</p>`
+                  : ''
+              }
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:28px 0 0;">
+              ${detailsTable}
+            </td>
+          </tr>
+          <tr>
+            <td align="center" style="padding:28px 8px 0;">
+              <a href="${escapeHtml(cardHref)}" style="display:inline-block;font-family:${font};font-size:13px;font-weight:bold;letter-spacing:0.06em;color:${escapeHtml(viewCardTextColor)};background-color:${escapeHtml(cardColor)};text-decoration:none;padding:14px 36px;border-radius:999px;">${escapeHtml(viewCard)}</a>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`
+}
