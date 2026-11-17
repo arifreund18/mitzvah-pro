@@ -3,6 +3,7 @@ import { headers } from 'next/headers'
 import { notFound } from 'next/navigation'
 import { EventSite } from '@/components/template/EventSite'
 import { EventRsvpForm } from '@/components/template/EventRsvpForm'
+import { TokenRsvpForm } from '@/components/template/TokenRsvpForm'
 import { isEventLocale } from '@/lib/platform/locales'
 import { eventPublicUrl, hostFromHeaders } from '@/lib/platform/site-url'
 import { getEventBySlug } from '@/lib/platform/store'
@@ -44,8 +45,8 @@ export default async function PublicEventPage({
   const guest = guestToken
     ? event.guests.find((item) => item.token === guestToken) || null
     : null
-  const showPublicForm =
-    event.config.rsvp.publicFormEnabled || Boolean(guest?.openRsvp) || Boolean(guest)
+  const showPublicForm = !guest && event.config.rsvp.publicFormEnabled
+  const accent = event.config.branding.accentColor || '#22d3ee'
 
   return (
     <div className="bg-[#0b1020] text-white">
@@ -58,7 +59,17 @@ export default async function PublicEventPage({
         guestToken={guestToken}
         guest={guest}
       />
-      {showPublicForm ? (
+      {guest ? (
+        <section id="rsvp-form" className="mx-auto max-w-xl px-6 pb-24">
+          <TokenRsvpForm
+            token={guest.token}
+            guest={guest}
+            rsvp={event.config.rsvp}
+            locale={displayLocale}
+            accent={accent}
+          />
+        </section>
+      ) : showPublicForm ? (
         <section className="mx-auto max-w-xl px-6 pb-24">
           <EventRsvpForm event={event} locale={displayLocale} />
         </section>

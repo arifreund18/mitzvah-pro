@@ -8,21 +8,20 @@ import {
   eventMailConfigurationSet,
   eventSendFrom,
 } from '@/lib/platform/mail-domain'
-import { uid } from '@/lib/platform/ids'
-import type { GuestPerson } from '@/lib/platform/types'
+import { buildRsvpPeopleUpdate } from '@/lib/platform/rsvp-people'
 
 const personSchema = z.object({
   id: z.string().optional(),
-  name: z.string().min(1),
-  type: z.enum(['adult', 'child']).default('adult'),
+  name: z.string().optional(),
+  type: z.enum(['adult', 'child']).optional(),
   status: z.enum(['pending', 'yes', 'no']),
   meal: z.string().optional(),
   dietary: z.string().optional(),
 })
 
 const bodySchema = z.object({
-  people: z.array(personSchema).min(1),
-  message: z.string().optional(),
+  people: z.array(personSchema).min(1).max(20),
+  message: z.string().max(2000).optional(),
   contactEmail: z.string().email().optional().or(z.literal('')),
 })
 
@@ -76,21 +75,25 @@ export async function POST(request: Request, ctx: Ctx) {
     return NextResponse.json({ error: 'Dados inválidos', details: parsed.error.flatten() }, { status: 400 })
   }
 
-  const existingIds = new Set(guest.people.map((p) => p.id))
-  for (const p of parsed.data.people) {
-    if (p.id && !existingIds.has(p.id) && !guest.openRsvp && guest.people.length > 0) {
-      return NextResponse.json({ error: 'Seleção de convidados inválida.' }, { status: 400 })
+  const built = buildRsvpPeopleUpdate({
+    existing: guest.people,
+    submitted: parsed.data.people,
+    openRsvp: Boolean(guest.openRsvp),
+    allowPlusOne: Boolean(event.config.rsvp.allowPlusOne),
+    collectMeal: Boolean(event.config.rsvp.collectMeal),
+    collectDietary: Boolean(event.config.rsvp.collectDietary),
+  })
+  if (!built.ok) {
+    return NextResponse.json({ error: built.error }, { status: 400 })
+  }
+  const people = built.people
+
+  if (guest.openRsvp) {
+    const email = (parsed.data.contactEmail || '').trim()
+    if (!email) {
+      return NextResponse.json({ error: 'E-mail de contato obrigatório.' }, { status: 400 })
     }
   }
-
-  const people: GuestPerson[] = parsed.data.people.map((p) => ({
-    id: p.id && existingIds.has(p.id) ? p.id : uid(),
-    name: p.name.trim(),
-    type: p.type,
-    status: p.status,
-    meal: event.config.rsvp.collectMeal && p.status === 'yes' ? p.meal || '' : '',
-    dietary: event.config.rsvp.collectDietary ? p.dietary || '' : '',
-  }))
 
   const emails = guest.emails.length
     ? guest.emails
