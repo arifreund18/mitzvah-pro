@@ -45,7 +45,10 @@ export function normalizePerson(row: Partial<GuestPerson> & { name?: string }): 
   }
 }
 
-export function normalizeGuest(row: Partial<Guest> & { familyName?: string }): Guest {
+export function normalizeGuest(
+  row: Partial<Guest> & { familyName?: string },
+  defaults?: { inviteLocale?: EventLocale },
+): Guest {
   const emailsRaw = Array.isArray(row.emails) ? row.emails : []
   const emails = Array.from(
     new Set([
@@ -81,7 +84,7 @@ export function normalizeGuest(row: Partial<Guest> & { familyName?: string }): G
     message: row.message || '',
     createdAt: row.createdAt || new Date().toISOString(),
     token: row.token || familyToken(),
-    inviteLocale: asLocale(row.inviteLocale, 'pt'),
+    inviteLocale: asLocale(row.inviteLocale, defaults?.inviteLocale || 'pt'),
     scheduleInviteMode: asScheduleMode(row.scheduleInviteMode),
     scheduleItemIds: Array.isArray(row.scheduleItemIds) ? row.scheduleItemIds.map(String) : [],
     openRsvp: Boolean(row.openRsvp),

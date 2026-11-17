@@ -1,10 +1,11 @@
-import { google } from './calendar.ts'
 import {
   designAssetPublicUrl,
   isEmailSafeImageUrl,
   pageBackgroundCss,
 } from './card-background.ts'
 import { formatEventDate, typeLabel } from './copy.ts'
+import { chromeCtaText, guestDisplayLocale, inviteRsvpLabel } from './guest-locale.ts'
+import { getLocalizedCardDesign } from './i18n-content.ts'
 import { apexHost, eventApexPathUrl, protocolFor } from './site-url.ts'
 import type { CardDesign, EventConfig, EventLocale, Guest } from './types.ts'
 
@@ -31,8 +32,8 @@ const CTA: Record<
   en: {
     std: 'Open save the date',
     invite: 'Open invitation',
-    viewCard: 'VIEW THE CARD',
-    rsvp: 'RSVP',
+    viewCard: 'VIEW THE INVITATION',
+    rsvp: 'Confirm attendance',
     calendar: 'Add to calendar',
     map: 'View map',
     ics: 'Download .ics',
@@ -41,7 +42,7 @@ const CTA: Record<
     std: 'Abrir save the date',
     invite: 'Abrir convite',
     viewCard: 'VER O CONVITE',
-    rsvp: 'RSVP',
+    rsvp: 'Confirmar presença',
     calendar: 'Adicionar ao calendário',
     map: 'Ver mapa',
     ics: 'Baixar .ics',
@@ -50,7 +51,7 @@ const CTA: Record<
     std: 'Abrir save the date',
     invite: 'Abrir invitación',
     viewCard: 'VER LA INVITACIÓN',
-    rsvp: 'RSVP',
+    rsvp: 'Confirmar asistencia',
     calendar: 'Añadir al calendario',
     map: 'Ver mapa',
     ics: 'Descargar .ics',
@@ -58,8 +59,8 @@ const CTA: Record<
   he: {
     std: 'פתחו את Save the Date',
     invite: 'פתחו את ההזמנה',
-    viewCard: 'לצפייה בכרטיס',
-    rsvp: 'RSVP',
+    viewCard: 'לצפייה בהזמנה',
+    rsvp: 'אישור הגעה',
     calendar: 'הוסיפו ליומן',
     map: 'מפה',
     ics: 'הורדת ICS',
@@ -76,11 +77,11 @@ const FONT_STACK: Record<string, string> = {
 }
 
 function localeOf(guest: Guest, config: EventConfig): EventLocale {
-  return guest.inviteLocale || config.locales.default || 'pt'
+  return guestDisplayLocale(guest, config)
 }
 
-function designOf(kind: 'std' | 'invite', config: EventConfig): CardDesign {
-  return kind === 'std' ? config.saveTheDate.design : config.invitation.design
+function designOf(kind: 'std' | 'invite', config: EventConfig, locale: EventLocale): CardDesign {
+  return getLocalizedCardDesign(config, locale, kind)
 }
 
 function fontFamily(fontKey: string, locale: EventLocale): string {
@@ -88,13 +89,13 @@ function fontFamily(fontKey: string, locale: EventLocale): string {
   return FONT_STACK[fontKey] || FONT_STACK.georgia
 }
 
-function sealUrl(kind: 'std' | 'invite', config: EventConfig): string {
-  const design = designOf(kind, config)
+function sealUrl(kind: 'std' | 'invite', config: EventConfig, locale: EventLocale): string {
+  const design = designOf(kind, config, locale)
   return design.sealUrl || config.invitation.sealImageUrl || ''
 }
 
-function mapUrlOf(kind: 'std' | 'invite', config: EventConfig): string {
-  const design = designOf(kind, config)
+function mapUrlOf(kind: 'std' | 'invite', config: EventConfig, locale: EventLocale): string {
+  const design = designOf(kind, config, locale)
   return design.mapUrl || ''
 }
 
@@ -115,7 +116,7 @@ function mailImageSrc(
 }
 
 function eventTitle(kind: 'std' | 'invite', config: EventConfig, locale: EventLocale): string {
-  const design = designOf(kind, config)
+  const design = designOf(kind, config, locale)
   if (design.eventName?.trim()) return design.eventName.trim()
   if (design.title?.trim()) return design.title.trim()
   const honoree = config.basics.honoreeName || 'Mitzvah.pro'
@@ -123,13 +124,13 @@ function eventTitle(kind: 'std' | 'invite', config: EventConfig, locale: EventLo
 }
 
 function eventDateLine(kind: 'std' | 'invite', config: EventConfig, locale: EventLocale): string {
-  const design = designOf(kind, config)
+  const design = designOf(kind, config, locale)
   if (design.dateLabel?.trim()) return design.dateLabel.trim()
   return formatEventDate(config.basics.date, locale, '')
 }
 
-function eventTimeLine(kind: 'std' | 'invite', config: EventConfig): string {
-  const design = designOf(kind, config)
+function eventTimeLine(kind: 'std' | 'invite', config: EventConfig, locale: EventLocale): string {
+  const design = designOf(kind, config, locale)
   if (design.timeLabel?.trim()) return design.timeLabel.trim()
   return config.basics.startTime || ''
 }
@@ -138,11 +139,11 @@ export function mailSubject(kind: 'std' | 'invite', config: EventConfig, guest?:
   const name = config.basics.honoreeName || 'Mitzvah.pro'
   const locale = guest ? localeOf(guest, config) : config.locales.default
   if (kind === 'std') {
-    const custom = designOf('std', config).subject?.trim()
+    const custom = designOf('std', config, locale).subject?.trim()
     if (custom) return custom.includes('{name}') ? custom.replaceAll('{name}', name) : custom
     return `Save the Date — ${name}`
   }
-  const custom = designOf('invite', config).subject?.trim()
+  const custom = designOf('invite', config, locale).subject?.trim()
   if (custom) return custom.includes('{name}') ? custom.replaceAll('{name}', name) : custom
   return `${typeLabel(config.basics.type, locale)} — ${name}`
 }
@@ -156,23 +157,21 @@ export function mailHtml(
 ): string {
   const locale = localeOf(guest, config)
   const labels = CTA[locale] || CTA.pt
-  const design = designOf(kind, config)
+  const design = designOf(kind, config, locale)
   const dir = locale === 'he' ? 'rtl' : 'ltr'
   const font = fontFamily(design.fontKey || 'georgia', locale)
   const token = guest.token
   const cardPath = kind === 'std' ? `/std/${token}` : `/card/${token}`
+  // All guest-facing links in the email open the invitation / STD card.
   const href = eventApexPathUrl(config.domain.slug, cardPath, { host })
-  const rsvpHref = eventApexPathUrl(config.domain.slug, `/rsvp/${token}`, { host })
   const apex = apexHost(host)
   const pixelPath =
     kind === 'std'
       ? `/api/platform/std/open/${encodeURIComponent(token)}`
       : `/api/platform/invite/open/${encodeURIComponent(token)}`
   const pixelUrl = `${protocolFor(apex)}://${apex}${pixelPath}`
-  const icsHref = `${protocolFor(apex)}://${apex}/api/platform/calendar/${encodeURIComponent(token)}`
-  const googleHref = google(config, kind) || `${icsHref}?to=google`
-  const mapHref = mapUrlOf(kind, config)
-  const sealRaw = sealUrl(kind, config)
+  const mapHref = mapUrlOf(kind, config, locale)
+  const sealRaw = sealUrl(kind, config, locale)
   const seal = sealRaw ? mailImageSrc(kind, config, host, sealRaw, 'sealUrl') : ''
   const pageTextureRaw = design.pageTexture?.trim() || ''
   const pageTextureForMail = pageTextureRaw
@@ -187,13 +186,16 @@ export function mailHtml(
   const titleColor = design.headingColor || design.nameColor || textColor
   const pageBgCss = pageBackgroundCss(design, escapeHtml, pageTextureForMail)
 
-  const viewCard = design.ctaView || labels.viewCard
-  const calendarLabel = design.ctaCalendar || labels.calendar
-  const mapLabel = design.ctaMap || labels.map
-  const rsvpLabel = design.ctaRsvp || design.rsvpLabel || labels.rsvp
+  const viewCard = chromeCtaText(config, locale, kind, 'ctaView', labels.viewCard)
+  const calendarLabel = chromeCtaText(config, locale, kind, 'ctaCalendar', labels.calendar)
+  const mapLabel = chromeCtaText(config, locale, kind, 'ctaMap', labels.map)
+  const rsvpLabel =
+    kind === 'invite'
+      ? inviteRsvpLabel(config, locale, design, labels.rsvp)
+      : chromeCtaText(config, locale, kind, 'ctaRsvp', labels.rsvp)
   const title = eventTitle(kind, config, locale)
   const dateLine = eventDateLine(kind, config, locale)
-  const timeLine = eventTimeLine(kind, config)
+  const timeLine = eventTimeLine(kind, config, locale)
   const venue = design.placeLabel?.trim() || ''
   const address1 = design.address1?.trim() || ''
   const address2 = design.address2?.trim() || ''
@@ -214,21 +216,17 @@ export function mailHtml(
         }
         ${
           address1
-            ? mapHref
-              ? `<p style="margin:4px 0 0;font-family:${font};font-size:14px;line-height:1.5;"><a href="${escapeHtml(mapHref)}" style="color:${escapeHtml(titleColor)};text-decoration:underline;">${escapeHtml(address1)}</a></p>`
-              : `<p style="margin:4px 0 0;font-family:${font};font-size:14px;color:${escapeHtml(mutedColor)};line-height:1.5;">${escapeHtml(address1)}</p>`
+            ? `<p style="margin:4px 0 0;font-family:${font};font-size:14px;line-height:1.5;"><a href="${escapeHtml(href)}" style="color:${escapeHtml(titleColor)};text-decoration:underline;">${escapeHtml(address1)}</a></p>`
             : ''
         }
         ${
           address2
-            ? mapHref
-              ? `<p style="margin:0;font-family:${font};font-size:14px;"><a href="${escapeHtml(mapHref)}" style="color:${escapeHtml(titleColor)};text-decoration:underline;">${escapeHtml(address2)}</a></p>`
-              : `<p style="margin:0;font-family:${font};font-size:14px;color:${escapeHtml(mutedColor)};">${escapeHtml(address2)}</p>`
+            ? `<p style="margin:0;font-family:${font};font-size:14px;"><a href="${escapeHtml(href)}" style="color:${escapeHtml(titleColor)};text-decoration:underline;">${escapeHtml(address2)}</a></p>`
             : ''
         }
         ${
-          mapHref
-            ? `<p style="margin:12px 0 0;"><a href="${escapeHtml(mapHref)}" style="font-family:${font};font-size:13px;color:${escapeHtml(textColor)};text-decoration:underline;">${escapeHtml(mapLabel)}</a></p>`
+          mapHref || venue || address1 || address2
+            ? `<p style="margin:12px 0 0;"><a href="${escapeHtml(href)}" style="font-family:${font};font-size:13px;color:${escapeHtml(textColor)};text-decoration:underline;">${escapeHtml(mapLabel)}</a></p>`
             : ''
         }`
       : ''
@@ -268,17 +266,13 @@ export function mailHtml(
               <p style="margin:0;font-family:${font};font-size:22px;color:${escapeHtml(titleColor)};line-height:1.35;">${escapeHtml(title)}</p>
               ${dateLine ? `<p style="margin:16px 0 0;font-family:${font};font-size:15px;color:${escapeHtml(mutedColor)};">${escapeHtml(dateLine)}</p>` : ''}
               ${timeLine ? `<p style="margin:4px 0 0;font-family:${font};font-size:15px;color:${escapeHtml(mutedColor)};">${escapeHtml(timeLine)}</p>` : ''}
-              ${
-                googleHref
-                  ? `<p style="margin:16px 0 0;"><a href="${escapeHtml(googleHref)}" style="font-family:${font};font-size:13px;color:${escapeHtml(textColor)};text-decoration:underline;">${escapeHtml(calendarLabel)}</a></p>`
-                  : ''
-              }
+              <p style="margin:16px 0 0;"><a href="${escapeHtml(href)}" style="font-family:${font};font-size:13px;color:${escapeHtml(textColor)};text-decoration:underline;">${escapeHtml(calendarLabel)}</a></p>
               ${mapsBlock}
             </td>
           </tr>
           <tr>
             <td align="center" style="padding:32px 8px 0;">
-              <a href="${escapeHtml(rsvpHref)}" style="display:inline-block;font-family:${font};font-size:14px;font-weight:bold;color:${escapeHtml(rsvpTextColor)};background-color:${escapeHtml(cardColor)};text-decoration:none;padding:14px 28px;border-radius:999px;">${escapeHtml(rsvpLabel)}</a>
+              <a href="${escapeHtml(href)}" style="display:inline-block;font-family:${font};font-size:14px;font-weight:bold;color:${escapeHtml(rsvpTextColor)};background-color:${escapeHtml(cardColor)};text-decoration:none;padding:14px 28px;border-radius:999px;">${escapeHtml(rsvpLabel)}</a>
             </td>
           </tr>
         </table>

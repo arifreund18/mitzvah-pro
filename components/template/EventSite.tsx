@@ -127,12 +127,16 @@ export function EventSite({
     { href: '#travel', label: 'Travel', show: Boolean(config.travel?.enabled) },
     { href: '#places', label: ui.thingsToDo, show: places.length > 0 },
     { href: '#gallery', label: ui.gallery, show: galleryItems.length > 0 },
-    { href: '#rsvp', label: 'RSVP', show: true },
+    { href: rsvpAnchor, label: 'RSVP', show: true },
     { href: '#contact', label: ui.contact, show: hasContact },
   ].filter((item) => item.show)
 
   const statusLabel =
     guest?.status === 'yes' ? 'Confirmed' : guest?.status === 'no' ? 'Declined' : 'Pending RSVP'
+  const rsvpAnchor =
+    guest || guestToken || config.rsvp.publicFormEnabled || config.rsvp.openRsvpDefault
+      ? '#rsvp-form'
+      : '#rsvp'
 
   return (
     <div
@@ -232,7 +236,7 @@ export function EventSite({
         />
         <div className="relative mt-8 flex flex-wrap justify-center gap-3">
           <a
-            href="#rsvp"
+            href={rsvpAnchor}
             className="inline-block rounded-full px-8 py-3 font-semibold text-black"
             style={{ background: accent }}
           >

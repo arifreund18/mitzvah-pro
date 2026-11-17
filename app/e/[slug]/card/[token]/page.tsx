@@ -42,7 +42,11 @@ export default async function InvitationCardTokenPage({
         design={design}
         locale={locale}
         guestName={guest.familyName}
-        ctaHref={eventPublicUrl(event.slug, `?guest=${guest.token}#rsvp`, { host })}
+        ctaHref={eventPublicUrl(
+          event.slug,
+          `?guest=${guest.token}&lang=${locale}#rsvp-form`,
+          { host },
+        )}
       />
     </EnvelopeClient>
   )

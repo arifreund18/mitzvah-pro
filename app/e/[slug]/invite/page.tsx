@@ -20,7 +20,7 @@ export default async function InvitationMailPage({
     <EmailChrome kind="invite" config={event.config}>
       <InvitationCard
         config={event.config}
-        ctaHref={eventPublicUrl(event.slug, '#rsvp', { host })}
+        ctaHref={eventPublicUrl(event.slug, '#rsvp-form', { host })}
       />
     </EmailChrome>
   )

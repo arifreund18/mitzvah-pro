@@ -1,6 +1,7 @@
 import type { CSSProperties, ReactNode } from 'react'
 import { formatEventDate, typeLabel, wizardUi } from '@/lib/platform/copy'
 import { pageBackgroundStyle } from '@/lib/platform/card-background'
+import { chromeCtaText, inviteRsvpLabel } from '@/lib/platform/guest-locale'
 import { templateUi } from '@/lib/platform/template-copy'
 import { THEME_PRESETS } from '@/components/template/theme-presets'
 import type { CardDesign, EventConfig, EventLocale } from '@/lib/platform/types'
@@ -59,7 +60,7 @@ export function SaveTheDateCard({
     d.dateLabel || formatEventDate(config.basics.date, locale, wizardUi(locale).site.dateTbd)
   const place =
     d.cityLabel || [config.basics.city, config.basics.country].filter(Boolean).join(', ')
-  const cta = d.ctaView || ui.viewWebsite
+  const cta = chromeCtaText(config, locale, 'std', 'ctaView', ui.viewWebsite)
 
   return (
     <div
@@ -151,7 +152,7 @@ export function InvitationCard({
     /\{name\}/gi,
     guestName || '',
   )
-  const cta = d.ctaRsvp || d.ctaView || ui.confirmRsvp
+  const cta = inviteRsvpLabel(config, locale, d, ui.confirmRsvp)
 
   return (
     <div
@@ -225,7 +226,7 @@ export function InvitationCard({
           className="mt-8 inline-block rounded-full px-6 py-2 text-sm font-semibold text-black"
           style={{ background: accent }}
         >
-          {d.rsvpLabel || cta}
+          {cta}
         </a>
       ) : null}
     </div>

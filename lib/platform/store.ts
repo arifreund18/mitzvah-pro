@@ -440,11 +440,15 @@ export async function addGuest(
     const event = store.events.find((item) => item.id === eventId)
     if (!event) return null
     const now = new Date().toISOString()
-    const incoming = normalizeGuest({
-      ...guest,
-      id: uid(),
-      createdAt: now,
-    })
+    const incoming = normalizeGuest(
+      {
+        ...guest,
+        id: uid(),
+        createdAt: now,
+        inviteLocale: guest.inviteLocale || event.config.locales.default,
+      },
+      { inviteLocale: event.config.locales.default },
+    )
     const incomingEmails = Array.from(
       new Set([incoming.email, ...(incoming.emails || [])].map((item) => item.trim()).filter(Boolean)),
     )
@@ -534,7 +538,16 @@ export async function addGuests(
     const added: Guest[] = []
     for (const row of rows) {
       if (!row.familyName?.trim()) continue
-      const incoming = normalizeGuest({ ...row, id: uid(), createdAt: now })
+      const localeDefault = event.config.locales.default
+      const incoming = normalizeGuest(
+        {
+          ...row,
+          id: uid(),
+          createdAt: now,
+          inviteLocale: row.inviteLocale || localeDefault,
+        },
+        { inviteLocale: localeDefault },
+      )
       const incomingEmails = Array.from(
         new Set(
           [incoming.email, ...(incoming.emails || [])].map((item) => item.trim()).filter(Boolean),
@@ -548,17 +561,20 @@ export async function addGuests(
       if (index >= 0) {
         const current = event.guests[index]
         const people = mergePeople(current.people || [], incoming.people || [])
-        const merged = normalizeGuest({
-          ...current,
-          familyName: incoming.familyName || current.familyName,
-          email: current.email || incomingEmails[0] || '',
-          emails: Array.from(
-            new Set([...(current.emails || []), ...(incoming.emails || []), ...incomingEmails]),
-          ),
-          people,
-          partySize: people.length,
-          notes: incoming.notes || current.notes,
-        })
+        const merged = normalizeGuest(
+          {
+            ...current,
+            familyName: incoming.familyName || current.familyName,
+            email: current.email || incomingEmails[0] || '',
+            emails: Array.from(
+              new Set([...(current.emails || []), ...(incoming.emails || []), ...incomingEmails]),
+            ),
+            people,
+            partySize: people.length,
+            notes: incoming.notes || current.notes,
+          },
+          { inviteLocale: localeDefault },
+        )
         event.guests[index] = merged
         added.push(merged)
       } else {

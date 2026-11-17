@@ -45,6 +45,14 @@ export default async function PublicEventPage({
   const guest = guestToken
     ? event.guests.find((item) => item.token === guestToken) || null
     : null
+  const guestLocale =
+    guest?.inviteLocale && isEventLocale(guest.inviteLocale) && enabled.includes(guest.inviteLocale)
+      ? guest.inviteLocale
+      : null
+  const resolvedLocale =
+    lang && isEventLocale(lang) && enabled.includes(lang)
+      ? lang
+      : guestLocale || displayLocale
   const showPublicForm = !guest && event.config.rsvp.publicFormEnabled
   const accent = event.config.branding.accentColor || '#22d3ee'
 
@@ -53,7 +61,7 @@ export default async function PublicEventPage({
       <EventSite
         config={event.config}
         mode="live"
-        displayLocale={displayLocale}
+        displayLocale={resolvedLocale}
         slug={event.slug}
         eventId={event.id}
         guestToken={guestToken}
@@ -65,13 +73,13 @@ export default async function PublicEventPage({
             token={guest.token}
             guest={guest}
             rsvp={event.config.rsvp}
-            locale={displayLocale}
+            locale={resolvedLocale}
             accent={accent}
           />
         </section>
       ) : showPublicForm ? (
         <section className="mx-auto max-w-xl px-6 pb-24">
-          <EventRsvpForm event={event} locale={displayLocale} />
+          <EventRsvpForm event={event} locale={resolvedLocale} />
         </section>
       ) : null}
     </div>
