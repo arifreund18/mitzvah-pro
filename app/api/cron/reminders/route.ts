@@ -82,7 +82,7 @@ export async function GET(request: NextRequest) {
           type,
           status: sent.status,
           toEmail: to,
-          resendId: sent.resendId,
+          messageId: sent.messageId,
           error: sent.error,
         })
       }
@@ -104,9 +104,10 @@ async function sendReminder({
   to: string
   days: number
   emailReady: boolean
-}): Promise<{ status: string; resendId: string | null; error: string }> {
+}): Promise<{ status: string; messageId: string | null; error: string }> {
   const from =
     eventSendFrom(event.config) ||
+    process.env.EMAIL_FROM_ADDRESS ||
     process.env.SES_FROM_EMAIL ||
     process.env.RESEND_FROM_EMAIL
   const name = event.config.basics.honoreeName || 'Mitzvah'
@@ -120,7 +121,7 @@ async function sendReminder({
   )
   const dir = locale === 'he' ? 'rtl' : 'ltr'
   if (!emailReady || !from) {
-    return { status: 'queued', resendId: null, error: 'email_unavailable' }
+    return { status: 'queued', messageId: null, error: 'email_unavailable' }
   }
   const result = await sendEmail({
     from,
@@ -133,11 +134,15 @@ async function sendReminder({
     </div>`,
   })
   if (!result.ok) {
-    return { status: 'failed', resendId: null, error: result.error || 'send_failed' }
+    return {
+      status: result.retryable ? 'deferred' : 'failed',
+      messageId: null,
+      error: result.error || 'send_failed',
+    }
   }
   return {
     status: 'sent',
-    resendId: result.messageId,
+    messageId: result.messageId,
     error: '',
   }
 }

@@ -491,7 +491,7 @@ function MailDomainStatus({
         ? `Email pendente de verificação · ${from}`
         : mail.status === 'failed'
           ? `Email: falha · ${from}`
-          : `Email compartilhado (configure SES_FROM_EMAIL / AWS ou Resend — ${domain})`
+          : `Email compartilhado (configure EMAIL_FROM_ADDRESS=convites@mitzvah.pro + AWS — ${domain})`
   const needsRetry = mail.status === 'failed' || mail.status === 'pending' || mail.status === 'skipped'
   return (
     <div className="mt-2 flex flex-wrap items-center gap-3 text-sm">

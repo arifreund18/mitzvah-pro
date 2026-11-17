@@ -127,7 +127,7 @@ export async function POST(request: Request, ctx: Ctx) {
       {
         error:
           config.domain.mail?.lastError ||
-          'Sem remetente: verifique SES_FROM_EMAIL / domínio SES ou RESEND_FROM_EMAIL.',
+          'Sem remetente: defina EMAIL_FROM_ADDRESS (convites@mitzvah.pro) ou RESEND_FROM_EMAIL.',
         mail: config.domain.mail,
       },
       { status: 502 },
@@ -146,11 +146,18 @@ export async function POST(request: Request, ctx: Ctx) {
       eventId: id,
       familyId: sample.id,
       type: `test-${kind}`,
-      status: 'failed',
+      status: result.retryable ? 'deferred' : 'failed',
       toEmail: to,
       error: result.error || 'send_failed',
     })
-    return NextResponse.json({ error: result.error || 'send_failed' }, { status: 502 })
+    return NextResponse.json(
+      {
+        error: result.error || 'send_failed',
+        retryable: result.retryable,
+        errorKind: result.errorKind,
+      },
+      { status: 502 },
+    )
   }
 
   await appendEmailLog({
@@ -159,7 +166,7 @@ export async function POST(request: Request, ctx: Ctx) {
     type: `test-${kind}`,
     status: 'sent',
     toEmail: to,
-    resendId: result.messageId,
+    messageId: result.messageId,
   })
 
   return NextResponse.json({
@@ -169,7 +176,6 @@ export async function POST(request: Request, ctx: Ctx) {
     kind,
     from,
     cardToken: sample.token,
-    resendId: result.messageId,
     messageId: result.messageId,
     provider: result.provider,
   })

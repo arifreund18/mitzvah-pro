@@ -3,6 +3,12 @@ import {
   SendEmailCommand,
 } from '@aws-sdk/client-sesv2'
 import { Resend } from 'resend'
+import {
+  awaitSendSlot,
+  classifySendError,
+  noteSuccessfulSend,
+  type SendErrorKind,
+} from '@/lib/email/ses-limits'
 
 export type EmailProviderName = 'ses' | 'resend'
 
@@ -17,10 +23,12 @@ export type SendEmailInput = {
 
 export type SendEmailResult = {
   ok: boolean
-  /** Generic provider message id (stored as `resendId` in email_logs for compatibility). */
   messageId: string | null
   error: string | null
   provider: EmailProviderName | 'none'
+  /** When true, caller should keep the message in the queue and retry later. */
+  retryable: boolean
+  errorKind: SendErrorKind | null
 }
 
 let sesClient: SESv2Client | null = null
@@ -29,21 +37,36 @@ export function awsRegion(): string {
   return process.env.AWS_REGION || process.env.AWS_DEFAULT_REGION || 'us-east-2'
 }
 
+/** Shared From address. SES uses EMAIL_FROM_ADDRESS; Resend uses RESEND_FROM_EMAIL. */
+export function sharedFromEmail(): string | null {
+  const provider = resolveEmailProviderForced()
+  if (provider === 'resend') {
+    return process.env.RESEND_FROM_EMAIL || null
+  }
+  if (provider === 'ses' || sesConfigured()) {
+    return (
+      process.env.EMAIL_FROM_ADDRESS ||
+      process.env.SES_FROM_EMAIL ||
+      'convites@mitzvah.pro'
+    )
+  }
+  return process.env.RESEND_FROM_EMAIL || null
+}
+
+export function defaultFromAddress(): string {
+  return sharedFromEmail() || 'convites@mitzvah.pro'
+}
+
+function resolveEmailProviderForced(): string {
+  return (process.env.EMAIL_PROVIDER || '').trim().toLowerCase()
+}
+
 export function sesConfigured(): boolean {
-  return Boolean(
-    process.env.AWS_ACCESS_KEY_ID &&
-      process.env.AWS_SECRET_ACCESS_KEY &&
-      (process.env.SES_FROM_EMAIL || process.env.RESEND_FROM_EMAIL),
-  )
+  return Boolean(process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY)
 }
 
 export function resendConfigured(): boolean {
-  return Boolean(process.env.RESEND_API_KEY)
-}
-
-/** Shared verified From address (SES preferred, then Resend). */
-export function sharedFromEmail(): string | null {
-  return process.env.SES_FROM_EMAIL || process.env.RESEND_FROM_EMAIL || null
+  return Boolean(process.env.RESEND_API_KEY && process.env.RESEND_FROM_EMAIL)
 }
 
 export function getResend(): Resend | null {
@@ -70,7 +93,7 @@ export function getSesClient(): SESv2Client | null {
 
 /**
  * Selectable provider: EMAIL_PROVIDER=ses|resend.
- * When unset, prefers SES if credentials + from are present, else Resend.
+ * When unset, prefers SES if AWS credentials are present, else Resend.
  * If ses is forced but unavailable, falls back to Resend when configured.
  */
 export function resolveEmailProvider(): EmailProviderName | 'none' {
@@ -98,11 +121,26 @@ function asList(value: string | string[] | undefined): string[] {
   return list.map((item) => item.trim()).filter(Boolean)
 }
 
+function fail(
+  provider: EmailProviderName | 'none',
+  error: string,
+  kind: SendErrorKind | null = 'other',
+  retryable = false,
+): SendEmailResult {
+  return { ok: false, messageId: null, error, provider, retryable, errorKind: kind }
+}
+
 async function sendWithSes(input: SendEmailInput): Promise<SendEmailResult> {
   const client = getSesClient()
   if (!client) {
-    return { ok: false, messageId: null, error: 'AWS credentials ausentes', provider: 'none' }
+    return fail('none', 'AWS credentials ausentes', 'other', false)
   }
+
+  const slot = await awaitSendSlot()
+  if (!slot.ok) {
+    return fail('ses', slot.error || 'SES rate limited', slot.kind, true)
+  }
+
   const to = asList(input.to)
   const replyTo = asList(input.replyTo)
   try {
@@ -124,26 +162,25 @@ async function sendWithSes(input: SendEmailInput): Promise<SendEmailResult> {
         },
       }),
     )
+    noteSuccessfulSend()
     return {
       ok: true,
       messageId: out.MessageId || null,
       error: null,
       provider: 'ses',
+      retryable: false,
+      errorKind: null,
     }
   } catch (error) {
-    return {
-      ok: false,
-      messageId: null,
-      error: error instanceof Error ? error.message : 'Falha no envio SES',
-      provider: 'ses',
-    }
+    const classified = classifySendError(error)
+    return fail('ses', classified.message, classified.kind, classified.retryable)
   }
 }
 
 async function sendWithResend(input: SendEmailInput): Promise<SendEmailResult> {
   const resend = getResend()
   if (!resend) {
-    return { ok: false, messageId: null, error: 'RESEND_API_KEY ausente', provider: 'none' }
+    return fail('none', 'RESEND_API_KEY ausente', 'other', false)
   }
   const result = await resend.emails.send({
     from: input.from,
@@ -154,12 +191,8 @@ async function sendWithResend(input: SendEmailInput): Promise<SendEmailResult> {
     text: input.text,
   })
   if (result.error) {
-    return {
-      ok: false,
-      messageId: null,
-      error: result.error.message,
-      provider: 'resend',
-    }
+    const classified = classifySendError(result.error.message)
+    return fail('resend', result.error.message, classified.kind, classified.retryable)
   }
   const data = result.data as { id?: string } | null
   return {
@@ -167,18 +200,15 @@ async function sendWithResend(input: SendEmailInput): Promise<SendEmailResult> {
     messageId: data?.id || null,
     error: null,
     provider: 'resend',
+    retryable: false,
+    errorKind: null,
   }
 }
 
 export async function sendEmail(input: SendEmailInput): Promise<SendEmailResult> {
   const provider = resolveEmailProvider()
   if (provider === 'none') {
-    return {
-      ok: false,
-      messageId: null,
-      error: 'Nenhum provedor de email configurado',
-      provider: 'none',
-    }
+    return fail('none', 'Nenhum provedor de email configurado', 'other', false)
   }
   if (provider === 'ses') return sendWithSes(input)
   return sendWithResend(input)

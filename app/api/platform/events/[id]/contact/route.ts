@@ -54,6 +54,7 @@ export async function POST(request: NextRequest, ctx: Ctx) {
 
   const from =
     eventSendFrom(event.config) ||
+    process.env.EMAIL_FROM_ADDRESS ||
     process.env.SES_FROM_EMAIL ||
     process.env.RESEND_FROM_EMAIL
   if (!isEmailConfigured() || !from) {

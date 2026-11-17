@@ -20,10 +20,24 @@ async function sendOne(opts: {
   config: EventConfig
   host: string
   guest: Guest
-}): Promise<{ ok: boolean; resendId: string | null; error: string; recipients: string[] }> {
+}): Promise<{
+  ok: boolean
+  messageId: string | null
+  error: string
+  retryable: boolean
+  errorKind: string | null
+  recipients: string[]
+}> {
   const recipients = guestMailRecipients(opts.guest)
   if (recipients.length === 0) {
-    return { ok: false, resendId: null, error: 'sem email', recipients: [] }
+    return {
+      ok: false,
+      messageId: null,
+      error: 'sem email',
+      retryable: false,
+      errorKind: null,
+      recipients: [],
+    }
   }
   const result = await sendEmail({
     from: opts.from,
@@ -33,9 +47,23 @@ async function sendOne(opts: {
     html: mailHtml(opts.kind, opts.config, opts.host, opts.guest),
   })
   if (!result.ok) {
-    return { ok: false, resendId: null, error: result.error || 'send_failed', recipients }
+    return {
+      ok: false,
+      messageId: null,
+      error: result.error || 'send_failed',
+      retryable: result.retryable,
+      errorKind: result.errorKind,
+      recipients,
+    }
   }
-  return { ok: true, resendId: result.messageId, error: '', recipients }
+  return {
+    ok: true,
+    messageId: result.messageId,
+    error: '',
+    retryable: false,
+    errorKind: null,
+    recipients,
+  }
 }
 
 export async function POST(request: Request, ctx: Ctx) {
@@ -82,10 +110,7 @@ export async function POST(request: Request, ctx: Ctx) {
       config: { ...config, domain: { ...config.domain, mail } },
     })
     if (updated) config = updated.config
-  } else if (
-    config.domain.mail?.status === 'pending' &&
-    (config.domain.mail.resendDomainId || config.domain.mail.sendingDomain)
-  ) {
+  } else if (config.domain.mail?.status === 'pending') {
     const mail = await refreshEventMailDomain(config.domain.mail)
     if (mail.status !== config.domain.mail.status || mail.lastError !== config.domain.mail.lastError) {
       const updated = await updateEvent(id, {
@@ -127,14 +152,14 @@ export async function POST(request: Request, ctx: Ctx) {
       {
         error:
           config.domain.mail?.lastError ||
-          'Sem remetente: defina SES_FROM_EMAIL (domínio verificado no SES) ou RESEND_FROM_EMAIL.',
+          'Sem remetente: defina EMAIL_FROM_ADDRESS (ex. convites@mitzvah.pro) ou RESEND_FROM_EMAIL.',
         mail: config.domain.mail,
       },
       { status: 502 },
     )
   }
 
-  // Large sends: enqueue and kick background processor
+  // Large sends: enqueue and kick background processor (rate-limited in process).
   if (targets.length > MAIL_BATCH_SIZE) {
     const job = await createMailJob({
       eventId: id,
@@ -164,6 +189,7 @@ export async function POST(request: Request, ctx: Ctx) {
   }
 
   const deliveredIds: string[] = []
+  const deferredIds: string[] = []
   const errors: string[] = []
   for (const guest of targets) {
     const result = await sendOne({ from, replyTo, kind, config, host, guest })
@@ -176,8 +202,19 @@ export async function POST(request: Request, ctx: Ctx) {
         type: kind,
         status: 'sent',
         toEmail,
-        resendId: result.resendId,
+        messageId: result.messageId,
       })
+    } else if (result.retryable) {
+      deferredIds.push(guest.id)
+      await appendEmailLog({
+        eventId: id,
+        familyId: guest.id,
+        type: kind,
+        status: 'deferred',
+        toEmail,
+        error: `${result.errorKind || 'retryable'}: ${result.error}`,
+      })
+      errors.push(`${toEmail || guest.id}: deferred (${result.errorKind})`)
     } else {
       errors.push(`${toEmail || guest.id}: ${result.error}`)
       await appendEmailLog({
@@ -191,7 +228,7 @@ export async function POST(request: Request, ctx: Ctx) {
     }
   }
 
-  if (deliveredIds.length === 0) {
+  if (deliveredIds.length === 0 && deferredIds.length === 0) {
     return NextResponse.json(
       {
         error: errors[0] || 'Provedor de email recusou o envio',
@@ -204,12 +241,24 @@ export async function POST(request: Request, ctx: Ctx) {
     )
   }
 
-  const marked = await markMailSent(id, kind, deliveredIds)
+  // Persist deferred guests in a job so they are not lost.
+  if (deferredIds.length) {
+    await createMailJob({
+      eventId: id,
+      kind,
+      guestIds: deferredIds,
+      host,
+      from,
+    })
+  }
+
+  const marked = deliveredIds.length ? await markMailSent(id, kind, deliveredIds) : null
   return NextResponse.json({
-    event: marked?.event,
+    event: marked?.event || event,
     sent: marked?.sent || 0,
     delivered: deliveredIds.length,
-    failed: errors.length,
+    deferred: deferredIds.length,
+    failed: errors.length - deferredIds.length,
     errors: errors.length ? errors : undefined,
     from,
     local: false,

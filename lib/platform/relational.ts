@@ -239,7 +239,7 @@ export async function syncStoreToRelational(db: Sql, store: PlatformStore): Prom
       INSERT INTO email_logs (id, event_id, family_id, type, status, resend_id, to_email, error, sent_at)
       VALUES (
         ${log.id}, ${log.eventId}, ${log.familyId}, ${log.type}, ${log.status},
-        ${log.resendId}, ${log.toEmail}, ${log.error}, ${log.sentAt}
+        ${log.messageId ?? log.resendId}, ${log.toEmail}, ${log.error}, ${log.sentAt}
       )
       ON CONFLICT (id) DO NOTHING
     `
@@ -350,17 +350,21 @@ export async function loadStoreFromRelational(db: Sql): Promise<PlatformStore | 
     }),
   )
 
-  const emailLogs: EmailLog[] = logRows.map((row) => ({
-    id: String(row.id),
-    eventId: String(row.event_id),
-    familyId: row.family_id ? String(row.family_id) : null,
-    type: String(row.type),
-    status: String(row.status),
-    resendId: row.resend_id ? String(row.resend_id) : null,
-    toEmail: String(row.to_email || ''),
-    error: String(row.error || ''),
-    sentAt: String(row.sent_at),
-  }))
+  const emailLogs: EmailLog[] = logRows.map((row) => {
+    const messageId = row.resend_id ? String(row.resend_id) : null
+    return {
+      id: String(row.id),
+      eventId: String(row.event_id),
+      familyId: row.family_id ? String(row.family_id) : null,
+      type: String(row.type),
+      status: String(row.status),
+      messageId,
+      resendId: messageId,
+      toEmail: String(row.to_email || ''),
+      error: String(row.error || ''),
+      sentAt: String(row.sent_at),
+    }
+  })
 
   return {
     orgs: orgs.map((o) => ({ id: o.id, name: o.name, createdAt: String(o.created_at) })),

@@ -118,7 +118,7 @@ export async function POST(request: Request, ctx: Ctx) {
 
   for (const to of emails) {
     let status = 'skipped'
-    let resendId: string | null = null
+    let messageId: string | null = null
     let error = ''
     if (emailReady && from) {
       const result = await sendEmail({
@@ -129,11 +129,11 @@ export async function POST(request: Request, ctx: Ctx) {
         html: `<p dir="${dir}">${confirmBody.replace(/</g, '&lt;')}</p>`,
       })
       if (!result.ok) {
-        status = 'failed'
+        status = result.retryable ? 'deferred' : 'failed'
         error = result.error || 'send_failed'
       } else {
         status = 'sent'
-        resendId = result.messageId
+        messageId = result.messageId
       }
     }
     await appendEmailLog({
@@ -141,7 +141,7 @@ export async function POST(request: Request, ctx: Ctx) {
       familyId: guest.id,
       type: 'rsvp_confirmation',
       status,
-      resendId,
+      messageId,
       toEmail: to,
       error,
     })

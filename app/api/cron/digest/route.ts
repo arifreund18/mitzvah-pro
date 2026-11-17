@@ -166,6 +166,7 @@ export async function GET(request: NextRequest) {
 
     const from =
       eventSendFrom(event.config) ||
+      process.env.EMAIL_FROM_ADDRESS ||
       process.env.SES_FROM_EMAIL ||
       process.env.RESEND_FROM_EMAIL
     const html = digestHtml(event, changes)
@@ -175,16 +176,16 @@ export async function GET(request: NextRequest) {
 
     for (const to of recipients) {
       let status = 'queued'
-      let resendId: string | null = null
+      let messageId: string | null = null
       let error = metaJson
       if (emailReady && from) {
         const result = await sendEmail({ from, to, subject, html, replyTo })
         if (!result.ok) {
-          status = 'failed'
+          status = result.retryable ? 'deferred' : 'failed'
           error = result.error || 'send_failed'
         } else {
           status = 'sent'
-          resendId = result.messageId
+          messageId = result.messageId
         }
       }
       await appendEmailLog({
@@ -193,7 +194,7 @@ export async function GET(request: NextRequest) {
         type,
         status,
         toEmail: to,
-        resendId,
+        messageId,
         error,
       })
       sent.push({ eventId: event.id, mode, to, status, changes: changes.length })

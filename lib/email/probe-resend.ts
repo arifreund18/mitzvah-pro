@@ -8,9 +8,7 @@ export type ResendProbe = {
 }
 
 export async function probeResend(): Promise<ResendProbe> {
-  const fromEmailConfigured = Boolean(
-    process.env.RESEND_FROM_EMAIL || process.env.SES_FROM_EMAIL,
-  )
+  const fromEmailConfigured = Boolean(process.env.RESEND_FROM_EMAIL)
   const resend = getResend()
   if (!resend) {
     return {

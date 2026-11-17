@@ -1,5 +1,6 @@
 import { getSesIdentityStatus, emailIdentityFromAddress } from '@/lib/email/ses-identity'
 import { probeResend, type ResendProbe } from '@/lib/email/probe-resend'
+import { sesDailyCap, sesMinIntervalMs, sesSandboxMode, sentInLast24h } from '@/lib/email/ses-limits'
 import {
   awsRegion,
   resolveEmailProvider,
@@ -14,9 +15,14 @@ export type SesProbe = {
   error?: string
   region: string
   fromEmailConfigured: boolean
+  fromEmail?: string
   identity?: string
   verified?: boolean
   dkimStatus?: string
+  sandbox?: boolean
+  sentInLast24h?: number
+  dailyCap?: number
+  minIntervalMs?: number
   dnsRecords?: Array<{ type: string; name: string; value: string; purpose: string }>
 }
 
@@ -30,46 +36,39 @@ export async function probeSes(): Promise<SesProbe> {
   const from = sharedFromEmail()
   const fromEmailConfigured = Boolean(from)
   const region = awsRegion()
+  const sandbox = sesSandboxMode()
   if (!sesConfigured()) {
     return {
       configured: false,
       ok: false,
       error: !process.env.AWS_ACCESS_KEY_ID
         ? 'AWS_ACCESS_KEY_ID ausente'
-        : !process.env.AWS_SECRET_ACCESS_KEY
-          ? 'AWS_SECRET_ACCESS_KEY ausente'
-          : 'SES_FROM_EMAIL (ou RESEND_FROM_EMAIL) ausente',
+        : 'AWS_SECRET_ACCESS_KEY ausente',
       region,
       fromEmailConfigured,
+      fromEmail: from || undefined,
+      sandbox,
     }
   }
-  const identity = emailIdentityFromAddress(from!)
+  const identity = emailIdentityFromAddress(from || 'convites@mitzvah.pro')
   const status = await getSesIdentityStatus(identity)
-  if (status.error && status.verificationStatus === 'NOT_FOUND') {
-    return {
-      configured: true,
-      ok: false,
-      error: status.error,
-      region,
-      fromEmailConfigured,
-      identity,
-      verified: false,
-      dkimStatus: status.dkimStatus,
-      dnsRecords: status.dnsRecords,
-    }
-  }
   return {
     configured: true,
-    ok: status.verified,
+    ok: status.verified || !status.error,
     error: status.verified
       ? undefined
       : status.error ||
-        `Identidade SES "${identity}" ainda não verificada (DKIM: ${status.dkimStatus})`,
+        `Identidade SES "${identity}" — confira DKIM no console (envio usa ${from}).`,
     region,
     fromEmailConfigured,
+    fromEmail: from || undefined,
     identity,
     verified: status.verified,
     dkimStatus: status.dkimStatus,
+    sandbox,
+    sentInLast24h: sentInLast24h(),
+    dailyCap: sesDailyCap(),
+    minIntervalMs: sesMinIntervalMs(),
     dnsRecords: status.dnsRecords,
   }
 }

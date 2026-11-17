@@ -27,9 +27,20 @@ export function eventFromDisplayName(config: EventConfig): string {
   )
 }
 
-/** Shared verified From (SES preferred, then Resend). */
+/** Shared From: EMAIL_FROM_ADDRESS (SES) or RESEND_FROM_EMAIL (Resend fallback). */
 function sharedMailFrom(): string | null {
-  return process.env.SES_FROM_EMAIL || process.env.RESEND_FROM_EMAIL || null
+  const provider = (process.env.EMAIL_PROVIDER || '').trim().toLowerCase()
+  if (provider === 'resend') {
+    return process.env.RESEND_FROM_EMAIL || null
+  }
+  return (
+    process.env.EMAIL_FROM_ADDRESS ||
+    process.env.SES_FROM_EMAIL ||
+    (provider === 'ses' || process.env.AWS_ACCESS_KEY_ID
+      ? 'convites@mitzvah.pro'
+      : process.env.RESEND_FROM_EMAIL) ||
+    null
+  )
 }
 
 /** Resolve provider `from` with Host line as the inbox display name. */

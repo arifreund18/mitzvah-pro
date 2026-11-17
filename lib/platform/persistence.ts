@@ -86,7 +86,15 @@ function parseStore(raw: unknown): PlatformStore {
     orgs,
     users,
     events: parsed.events.map((event) => normalizeEvent(event)),
-    emailLogs: Array.isArray(parsed.emailLogs) ? parsed.emailLogs : [],
+    emailLogs: Array.isArray(parsed.emailLogs)
+      ? parsed.emailLogs.map((log) => {
+          const messageId =
+            (log as { messageId?: string | null }).messageId ??
+            (log as { resendId?: string | null }).resendId ??
+            null
+          return { ...log, messageId, resendId: messageId }
+        })
+      : [],
     mailJobs: Array.isArray(parsed.mailJobs) ? parsed.mailJobs : [],
   }
 }

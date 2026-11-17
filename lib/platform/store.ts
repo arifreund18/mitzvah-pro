@@ -640,11 +640,14 @@ export async function appendEmailLog(input: {
   type: string
   status: string
   toEmail: string
+  messageId?: string | null
+  /** @deprecated use messageId */
   resendId?: string | null
   error?: string
   id?: string
   sentAt?: string
 }): Promise<void> {
+  const messageId = input.messageId ?? input.resendId ?? null
   await withLock(async () => {
     const store = await loadStore()
     if (!store.emailLogs) store.emailLogs = []
@@ -654,7 +657,8 @@ export async function appendEmailLog(input: {
       familyId: input.familyId ?? null,
       type: input.type,
       status: input.status,
-      resendId: input.resendId ?? null,
+      messageId,
+      resendId: messageId,
       toEmail: input.toEmail,
       error: input.error || '',
       sentAt: input.sentAt || new Date().toISOString(),
