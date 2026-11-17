@@ -52,10 +52,9 @@ No DNS/Vercel, aponte o wildcard `*.mitzvah.pro` para **este** projeto. `/e/{slu
 | `AWS_ACCESS_KEY_ID` | Sim (SES) | Credencial IAM de envio (não commitar) |
 | `AWS_SECRET_ACCESS_KEY` | Sim (SES) | Credencial IAM (não commitar) |
 | `EMAIL_FROM_ADDRESS` | Sim (SES) | Fallback apex (ex. `convites@mitzvah.pro`) enquanto o domínio do evento não verifica |
-| `DMARC_REPORT_EMAIL` | Não | `rua=` no TXT `_dmarc.mail.{slug}` (ex. `dmarc@mitzvah.pro`) |
+| `DMARC_REPORT_EMAIL` | Recomendado | `rua=` no TXT `_dmarc.mail.{slug}` (ex. `dmarc@mitzvah.pro`) |
 | `EMAIL_SES_PRODUCTION` | Sim (prod SES) | `true` — sem isto a fila fica em 1/s e 200/24h mesmo com a conta AWS em produção |
 | `EMAIL_SES_EVENT_MAX_PER_SECOND` | Não | Teto por processo em produção (default `2`; conta SES pode ser ~14/s) |
-| `DMARC_REPORT_EMAIL` | Recomendado | `rua=` nos TXT `_dmarc.mail.{slug}` (ex. `dmarc@mitzvah.pro`) |
 | `RESEND_API_KEY` | Fallback | Só se `EMAIL_PROVIDER=resend` |
 | `RESEND_FROM_EMAIL` | Fallback | Remetente Resend |
 | `VERCEL_TOKEN` | Sim (isolamento email + site) | DNS `{slug}` e `mail.{slug}` |
