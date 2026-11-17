@@ -46,4 +46,13 @@ describe('normalizeGuest', () => {
     assert.equal(guest.stdOpenedAt, null)
     assert.deepEqual(guest.emails, ['a@x.com', 'b@x.com'])
   })
+
+  it('splits comma-separated email into emails[]', () => {
+    const guest = normalizeGuest({
+      familyName: 'Bar Beni',
+      email: 'jambra@gmail.com, carlasilvado@hotmail.com',
+    })
+    assert.equal(guest.email, 'jambra@gmail.com')
+    assert.deepEqual(guest.emails, ['jambra@gmail.com', 'carlasilvado@hotmail.com'])
+  })
 })

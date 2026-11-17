@@ -1,6 +1,7 @@
-import { normalizeGuest } from './normalize'
-import type { EventLocale, Guest, GuestRsvp, PersonType } from './types'
-import { EVENT_LOCALES } from './types'
+import { isValidEmail, parseEmailsInput } from './family-emails.ts'
+import { normalizeGuest } from './normalize-guest.ts'
+import type { EventLocale, Guest, GuestRsvp, PersonType } from './types.ts'
+import { EVENT_LOCALES } from './types.ts'
 
 const HEADER = ['familyName', 'email', 'partySize', 'status', 'meal', 'dietary', 'message'] as const
 
@@ -161,9 +162,11 @@ function detectIndexes(headers: string[]): Record<keyof GuestImportRow, number> 
 export function guestFromImportRow(row: GuestImportRow): Guest {
   const locale = asLocale(row.language)
   const guestName = row.guest_name || row.family_name
+  const emails = parseEmailsInput(row.email)
   return normalizeGuest({
     familyName: row.family_name,
-    email: row.email,
+    email: emails[0] || '',
+    emails,
     notes: row.notes,
     ...(locale ? { inviteLocale: locale } : {}),
     people: [
@@ -202,23 +205,63 @@ export function parseGuestImportRows(
       errors.push(`Linha ${line}: family_name obrigatório`)
       return
     }
-    if (row.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(row.email)) {
+    const emails = parseEmailsInput(row.email)
+    if (row.email && emails.length === 0) {
       errors.push(`Linha ${line}: email inválido (${row.email})`)
+    }
+    for (const email of emails) {
+      if (!isValidEmail(email)) {
+        errors.push(`Linha ${line}: email inválido (${email})`)
+      }
     }
     if (row.language && !asLocale(row.language)) {
       errors.push(`Linha ${line}: language inválido (${row.language})`)
     }
-    const key = `${row.email.toLowerCase()}|${row.family_name.toLowerCase()}`
-    if (row.email && seen.has(key)) {
-      duplicates.push(`Linha ${line}: duplicado ${row.email} / ${row.family_name}`)
-    } else if (row.email) {
+    // Same family email(s) can appear on several rows (one person each) — merge later.
+    const key = `${(emails[0] || '').toLowerCase()}|${row.family_name.toLowerCase()}|${row.guest_name.toLowerCase()}`
+    if (emails[0] && seen.has(key)) {
+      duplicates.push(`Linha ${line}: duplicado ${row.guest_name || row.family_name} / ${emails[0]}`)
+    } else if (emails[0]) {
       seen.add(key)
     }
     preview.push(row)
     guests.push(guestFromImportRow(row))
   })
 
-  return { preview, errors, duplicates, guests }
+  return { preview, errors, duplicates, guests: mergeImportedGuestsByEmail(guests) }
+}
+
+/** Collapse import rows that share an email into one family with multiple people. */
+export function mergeImportedGuestsByEmail(guests: Guest[]): Guest[] {
+  const byKey = new Map<string, Guest>()
+  const order: string[] = []
+  for (const guest of guests) {
+    const emails = parseEmailsInput([guest.email, ...(guest.emails || [])].filter(Boolean).join(','))
+    const key = emails[0] || `family:${guest.familyName.trim().toLowerCase()}`
+    const existing = byKey.get(key)
+    if (!existing) {
+      byKey.set(key, normalizeGuest({ ...guest, email: emails[0] || guest.email, emails }))
+      order.push(key)
+      continue
+    }
+    const people = [...(existing.people || [])]
+    for (const person of guest.people || []) {
+      const name = person.name.trim().toLowerCase()
+      if (name && people.some((item) => item.name.trim().toLowerCase() === name)) continue
+      people.push(person)
+    }
+    byKey.set(
+      key,
+      normalizeGuest({
+        ...existing,
+        familyName: existing.familyName || guest.familyName,
+        emails: Array.from(new Set([...(existing.emails || []), ...emails])),
+        email: existing.email || emails[0] || '',
+        people,
+      }),
+    )
+  }
+  return order.map((key) => byKey.get(key)!).filter(Boolean)
 }
 
 export function parseGuestCsv(text: string): Guest[] {

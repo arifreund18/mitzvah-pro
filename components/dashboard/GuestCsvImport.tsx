@@ -151,6 +151,8 @@ export function GuestCsvImport({
         <p className="text-white/50">
           CSV/XLSX:{' '}
           <code>family_name,email,guest_name,type,notes,language</code>
+          . Vários emails na mesma família: separe por vírgula (
+          <code>a@x.com, b@y.com</code>) — todos recebem o link e confirmam o RSVP.
         </p>
         <label className="mt-3 inline-flex cursor-pointer rounded-full bg-white/10 px-4 py-2 hover:bg-white/15">
           {busy ? 'A ler…' : 'Importar CSV/XLSX'}
