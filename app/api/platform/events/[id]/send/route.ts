@@ -110,7 +110,12 @@ export async function POST(request: Request, ctx: Ctx) {
   const emailReady = isEmailConfigured()
   let config = event.config
 
-  if (config.domain.mail?.status === 'failed' || config.domain.mail?.status === 'skipped') {
+  const mailNeedsProvision =
+    !config.domain.mail ||
+    config.domain.mail.status === 'failed' ||
+    config.domain.mail.status === 'skipped' ||
+    !config.domain.mail.configurationSetName
+  if (mailNeedsProvision) {
     const mail = await provisionEventMailDomain(config)
     const updated = await updateEvent(id, {
       config: { ...config, domain: { ...config.domain, mail } },
