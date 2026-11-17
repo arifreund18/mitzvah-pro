@@ -1,9 +1,12 @@
-import { getResend } from '@/lib/email/send'
+import { getResend, resolveEmailProvider, sharedFromEmail } from '@/lib/email/send'
+import { emailIdentityFromAddress, getSesIdentityStatus } from '@/lib/email/ses-identity'
 import { upsertVercelRecord, vercelDnsConfigured, type DnsUpsert } from '@/lib/email/vercel-dns'
 import {
   emptyMailDomain,
   eventFromAddress,
+  eventFromDisplayName,
   eventMailDomainName,
+  formatFromAddress,
 } from '@/lib/platform/mail-domain'
 import type { EventConfig, EventMailDomain } from '@/lib/platform/types'
 
@@ -84,7 +87,61 @@ async function ensureResendDomain(name: string): Promise<{
   }
 }
 
-export async function provisionEventMailDomain(config: EventConfig): Promise<EventMailDomain> {
+/**
+ * Shared SES domain mode: one verified identity (SES_FROM_EMAIL), display name per event.
+ * Does NOT create SES identities or write DNS — see docs/SES.md for manual steps.
+ */
+async function provisionSharedSesMail(config: EventConfig): Promise<EventMailDomain> {
+  const shared = sharedFromEmail()
+  const display = eventFromDisplayName(config)
+  if (!shared) {
+    return {
+      ...emptyMailDomain(),
+      status: 'skipped',
+      lastError:
+        'SES_FROM_EMAIL ausente — configure um remetente no domínio SES já verificado (docs/SES.md).',
+    }
+  }
+
+  const identity = emailIdentityFromAddress(shared)
+  const fromEmail = formatFromAddress(display, shared)
+  const previous = config.domain.mail
+
+  try {
+    const status = await getSesIdentityStatus(identity)
+    if (status.verified) {
+      return {
+        sendingDomain: identity,
+        fromEmail,
+        resendDomainId: previous?.resendDomainId || identity,
+        status: 'verified',
+        lastError: '',
+        verifiedAt: previous?.verifiedAt || new Date().toISOString(),
+      }
+    }
+    return {
+      sendingDomain: identity,
+      fromEmail,
+      resendDomainId: previous?.resendDomainId || identity,
+      status: 'pending',
+      lastError:
+        status.error ||
+        `Identidade SES "${identity}" ainda não verificada. Adicione SPF/DKIM/DMARC manualmente (docs/SES.md).`,
+      verifiedAt: null,
+    }
+  } catch (error) {
+    return {
+      sendingDomain: identity,
+      fromEmail,
+      resendDomainId: previous?.resendDomainId || '',
+      status: 'failed',
+      lastError: error instanceof Error ? error.message : 'Falha ao consultar identidade SES',
+      verifiedAt: null,
+    }
+  }
+}
+
+async function provisionResendIsolatedMail(config: EventConfig): Promise<EventMailDomain> {
   const slug = config.domain.slug
   const sendingDomain = eventMailDomainName(slug)
   const fromEmail = eventFromAddress(slug, config.basics.honoreeName)
@@ -153,7 +210,65 @@ export async function provisionEventMailDomain(config: EventConfig): Promise<Eve
   }
 }
 
+export async function provisionEventMailDomain(config: EventConfig): Promise<EventMailDomain> {
+  const provider = resolveEmailProvider()
+  if (provider === 'ses') {
+    return provisionSharedSesMail(config)
+  }
+  if (provider === 'resend') {
+    return provisionResendIsolatedMail(config)
+  }
+  const shared = sharedFromEmail()
+  if (shared) {
+    return {
+      ...emptyMailDomain(),
+      sendingDomain: emailIdentityFromAddress(shared),
+      fromEmail: formatFromAddress(eventFromDisplayName(config), shared),
+      status: 'skipped',
+      lastError: 'Provedor de email não configurado — envio local apenas.',
+    }
+  }
+  return {
+    ...emptyMailDomain(),
+    status: 'skipped',
+    lastError: 'Nenhum provedor de email configurado (EMAIL_PROVIDER=ses|resend).',
+  }
+}
+
 export async function refreshEventMailDomain(mail: EventMailDomain): Promise<EventMailDomain> {
+  const provider = resolveEmailProvider()
+
+  if (provider === 'ses') {
+    const identity = mail.sendingDomain || emailIdentityFromAddress(mail.fromEmail || sharedFromEmail() || '')
+    if (!identity) return mail
+    try {
+      const status = await getSesIdentityStatus(identity)
+      if (status.verified) {
+        return {
+          ...mail,
+          sendingDomain: identity,
+          status: 'verified',
+          lastError: '',
+          verifiedAt: mail.verifiedAt || new Date().toISOString(),
+        }
+      }
+      return {
+        ...mail,
+        sendingDomain: identity,
+        status: 'pending',
+        lastError:
+          status.error ||
+          `Aguardando verificação DNS no SES (${identity}). Ver docs/SES.md.`,
+      }
+    } catch (error) {
+      return {
+        ...mail,
+        status: mail.status === 'verified' ? 'verified' : 'pending',
+        lastError: error instanceof Error ? error.message : mail.lastError,
+      }
+    }
+  }
+
   if (!mail.resendDomainId || !getResend()) return mail
   const resend = getResend()
   if (!resend) return mail

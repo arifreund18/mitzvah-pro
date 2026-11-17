@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import {
   emailAddressOnly,
   eventFromDisplayName,
+  eventHostReplyTo,
   eventSendFrom,
   formatFromAddress,
   sanitizeFromDisplayName,
@@ -77,20 +78,31 @@ describe('mail from display name', () => {
 })
 
 describe('eventSendFrom', () => {
-  const prev = process.env.RESEND_FROM_EMAIL
+  const prevResend = process.env.RESEND_FROM_EMAIL
+  const prevSes = process.env.SES_FROM_EMAIL
 
   before(() => {
+    delete process.env.SES_FROM_EMAIL
     process.env.RESEND_FROM_EMAIL = 'noreply@mitzvah.pro'
   })
 
   after(() => {
-    if (prev === undefined) delete process.env.RESEND_FROM_EMAIL
-    else process.env.RESEND_FROM_EMAIL = prev
+    if (prevResend === undefined) delete process.env.RESEND_FROM_EMAIL
+    else process.env.RESEND_FROM_EMAIL = prevResend
+    if (prevSes === undefined) delete process.env.SES_FROM_EMAIL
+    else process.env.SES_FROM_EMAIL = prevSes
   })
 
   it('uses host line with shared RESEND_FROM_EMAIL', () => {
     const from = eventSendFrom(config({ hostLine: 'The Adissi family' }))
     assert.equal(from, 'The Adissi family <noreply@mitzvah.pro>')
+  })
+
+  it('prefers SES_FROM_EMAIL over RESEND_FROM_EMAIL', () => {
+    process.env.SES_FROM_EMAIL = 'convites@mitzvah.pro'
+    const from = eventSendFrom(config({ hostLine: 'The Adissi family' }))
+    assert.equal(from, 'The Adissi family <convites@mitzvah.pro>')
+    delete process.env.SES_FROM_EMAIL
   })
 
   it('rewrites verified fromEmail display name to host line', () => {
@@ -102,5 +114,17 @@ describe('eventSendFrom', () => {
       }),
     )
     assert.equal(from, 'Família Adissi <convites@mail.adissi.mitzvah.pro>')
+  })
+
+  it('resolves host Reply-To from contact email', () => {
+    const cfg = config({ hostLine: 'Família Adissi' })
+    cfg.contact = {
+      phone: '',
+      email: 'host@example.com',
+      whatsapp: '',
+      people: [],
+      formEnabled: true,
+    }
+    assert.equal(eventHostReplyTo(cfg), 'host@example.com')
   })
 })

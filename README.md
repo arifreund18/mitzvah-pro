@@ -34,7 +34,7 @@ npm run build
 3. Senha padrão: `mitzvah` (`DASHBOARD_PASSWORD`)
 4. Crie um evento → o wizard abre com preview ao vivo
 5. Save the Date e convite são **emails** (preview no wizard; envio no dashboard do evento)
-6. Publique → o **site** fica em `seu-slug.mitzvah.pro` e o **email** em `convites@mail.seu-slug.mitzvah.pro` (Resend + DNS Vercel)
+6. Publique → o **site** fica em `seu-slug.mitzvah.pro`; o **email** sai do domínio SES compartilhado (`SES_FROM_EMAIL`) com nome do evento e Reply-To do anfitrião (fallback Resend)
 
 Há um evento semente **do studio** em `/e/beni` (demo da plataforma, não é o BarBeni). O evento real do Beni continua em `/BarBeni/en`.
 
@@ -47,13 +47,18 @@ No DNS/Vercel, aponte o wildcard `*.mitzvah.pro` para **este** projeto. `/e/{slu
 | Variável | Obrigatória | Descrição |
 |----------|-------------|-----------|
 | `BAR_BENI_ORIGIN` | Sim (prod) | URL do deploy **bar-beni** (outro repo), sem barra final. Só para o rewrite `/BarBeni/*` |
-| `RESEND_API_KEY` | Sim (contato e convites) | API Resend |
-| `RESEND_FROM_EMAIL` | Sim (contato; fallback de convites) | Remetente da landing e fallback se o domínio do evento ainda não verificou |
-| `VERCEL_TOKEN` | Sim (isolamento de email) | Token da conta Vercel para gravar DNS em `mitzvah.pro` |
+| `EMAIL_PROVIDER` | Não | `ses` ou `resend` (auto: SES se AWS+`SES_FROM_EMAIL`, senão Resend) |
+| `AWS_REGION` | Não | Região SES (default `us-east-2`) |
+| `AWS_ACCESS_KEY_ID` | Sim (SES) | Credencial IAM (não commitar) |
+| `AWS_SECRET_ACCESS_KEY` | Sim (SES) | Credencial IAM (não commitar) |
+| `SES_FROM_EMAIL` | Sim (SES) | Remetente no domínio verificado no SES |
+| `RESEND_API_KEY` | Fallback | API Resend |
+| `RESEND_FROM_EMAIL` | Fallback | Remetente Resend / legado |
+| `VERCEL_TOKEN` | Só modo Resend isolado | Token Vercel para DNS `mail.{slug}` |
 | `VERCEL_TEAM_ID` | Se o projeto for de um team | Team ID (Settings do time na Vercel) |
 | `VERCEL_DNS_DOMAIN` | Não | Zona DNS (default `mitzvah.pro`) |
-| `MAIL_FROM_LOCAL` | Não | Parte local do remetente (default `convites`) |
-| `MAIL_DOMAIN_PREFIX` | Não | Prefixo do domínio de envio (default `mail` → `mail.{slug}.mitzvah.pro`) |
+| `MAIL_FROM_LOCAL` | Não | Parte local do remetente legado (default `convites`) |
+| `MAIL_DOMAIN_PREFIX` | Não | Prefixo legado Resend (default `mail`) |
 | `MITZVAH_CONTACT_EMAIL` | Não | Exibido na página (default `mitzvah@mitzvah.pro`) |
 | `MITZVAH_CONTACT_FORWARD_TO` | Não | Destino dos emails do form |
 | `DASHBOARD_PASSWORD` | Não | Senha do studio **mitzvah-pro** (default `mitzvah`) |
@@ -82,22 +87,17 @@ No DNS/Vercel, aponte o wildcard `*.mitzvah.pro` para **este** projeto. `/e/{slu
 
 Atalhos antigos `/en/invite` e `/pt/invite` (etc.) ainda redirecionam para `/BarBeni/...` para não quebrar emails já enviados. **`/admin` no apex não existe.**
 
-## Email por evento (Resend + DNS Vercel)
+## Email (Amazon SES + fallback Resend)
 
-O DNS de `mitzvah.pro` fica **na Vercel**, não no Cloudflare. No **publish** do wizard:
+Padrão: **Amazon SES** (`us-east-2`) com domínio compartilhado verificado. Ver checklist manual em [`docs/SES.md`](docs/SES.md) (sair do sandbox, SPF/DKIM/DMARC, SNS para bounces).
 
-1. Cria o domínio `mail.{slug}.mitzvah.pro` na API do Resend
-2. Grava SPF/DKIM/MX na zona DNS da Vercel
-3. Pede verificação ao Resend
-4. Envia Save the Date e convites de `convites@mail.{slug}.mitzvah.pro`
+No publish, o app **só consulta** o status da identidade SES — não cria recursos AWS nem grava DNS. Cada evento usa `SES_FROM_EMAIL` com display name próprio e Reply-To do anfitrião.
 
-Assim a reputação de um evento não mistura com a dos outros nem com o formulário da landing (`RESEND_FROM_EMAIL`). Sem `VERCEL_TOKEN`, o publish do site continua e o envio usa o remetente compartilhado.
-
-Crie o token em [vercel.com/account/tokens](https://vercel.com/account/tokens). Se o projeto for de um team, copie o Team ID em Team Settings.
+Fallback: `EMAIL_PROVIDER=resend` restaura o isolamento legado `mail.{slug}.mitzvah.pro` (Resend + `VERCEL_TOKEN`).
 
 ## Deploy Vercel
 
 1. Projeto **mitzvah-pro** (este repo): domínio `mitzvah.pro` e wildcard `*.mitzvah.pro`
 2. Projeto **bar-beni** (outro repo): URL interna; este app aponta `BAR_BENI_ORIGIN` para ela
 3. `NEXT_PUBLIC_SITE_HOST=mitzvah.pro`
-4. `VERCEL_TOKEN` (+ `VERCEL_TEAM_ID` se for team) para gravar DNS de email por slug
+4. Credenciais SES + `SES_FROM_EMAIL` (ver `docs/SES.md`); opcional `VERCEL_TOKEN` só no modo Resend isolado

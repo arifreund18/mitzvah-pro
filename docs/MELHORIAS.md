@@ -505,6 +505,7 @@ P0 e o subdomínio `{slug}.mitzvah.pro` **já saíram** da lista (ver §0).
 | 2026-08-13 | Lista priorizada: removidos itens já entregues (P0, subdomínio, emails DNS); P1 passa a incluir persistência durável e preview de rascunho |
 | 2026-08-13 | DNS de email por slug na Vercel (não Cloudflare); `mitzvah.pro` permanece na Vercel |
 | 2026-08-13 | Publish provisiona domínio Resend `mail.{slug}.mitzvah.pro` + DNS |
+| 2026-11-16 | Email: camada `sendEmail` com SES (`us-east-2`) + fallback Resend; domínio SES compartilhado |
 | 2026-08-12 | `/admin` no apex removido; admin BarBeni só em `/BarBeni/admin/dashboard`; docs separam os dois repos |
 | 2026-08-12 | `/en` volta a ser a landing Mitzvah.pro; BarBeni fica em `/BarBeni/en` |
 | 2026-08-12 | BarBeni legado permanece em `/BarBeni/en`; slug `beni` não vira subdomínio |

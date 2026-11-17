@@ -5,6 +5,7 @@ import type { EventMailDomain, MailDomainStatus } from './types'
 export {
   emailAddressOnly,
   eventFromDisplayName,
+  eventHostReplyTo,
   eventSendFrom,
   formatFromAddress,
   sanitizeFromDisplayName,

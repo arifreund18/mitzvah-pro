@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto'
 import { NextRequest, NextResponse } from 'next/server'
-import { getResend } from '@/lib/email/send'
+import { isEmailConfigured, sendEmail } from '@/lib/email/send'
 import { authorizeCron } from '@/lib/platform/cron-auth'
 import {
   calendarDateInTz,
@@ -8,7 +8,7 @@ import {
   isoWeekKeyInTz,
   yearMonthInTz,
 } from '@/lib/platform/event-tz'
-import { eventSendFrom } from '@/lib/platform/mail-domain'
+import { eventHostReplyTo, eventSendFrom } from '@/lib/platform/mail-domain'
 import {
   appendEmailLog,
   listEmailLogs,
@@ -135,7 +135,7 @@ export async function GET(request: NextRequest) {
 
   const store = await loadPlatformStoreForCron()
   const logs = await listEmailLogs()
-  const resend = getResend()
+  const emailReady = isEmailConfigured()
   const sent: Array<{
     eventId: string
     mode: string
@@ -164,23 +164,27 @@ export async function GET(request: NextRequest) {
     const changes = changedSince(event.guests, previous)
     if (!changes.length) continue
 
-    const from = eventSendFrom(event.config) || process.env.RESEND_FROM_EMAIL
+    const from =
+      eventSendFrom(event.config) ||
+      process.env.SES_FROM_EMAIL ||
+      process.env.RESEND_FROM_EMAIL
     const html = digestHtml(event, changes)
     const metaJson = JSON.stringify(meta)
     const subject = `Digest RSVP (${mode}) — ${event.config.basics.honoreeName || event.slug}`
+    const replyTo = eventHostReplyTo(event.config)
 
     for (const to of recipients) {
       let status = 'queued'
       let resendId: string | null = null
       let error = metaJson
-      if (resend && from) {
-        const result = await resend.emails.send({ from, to, subject, html })
-        if (result.error) {
+      if (emailReady && from) {
+        const result = await sendEmail({ from, to, subject, html, replyTo })
+        if (!result.ok) {
           status = 'failed'
-          error = result.error.message
+          error = result.error || 'send_failed'
         } else {
           status = 'sent'
-          resendId = (result.data as { id?: string } | null)?.id || null
+          resendId = result.messageId
         }
       }
       await appendEmailLog({

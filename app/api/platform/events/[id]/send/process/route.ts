@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server'
 import { getEvent, markMailSent, appendEmailLog } from '@/lib/platform/store'
 import { requireEventAccess } from '@/lib/platform/session'
-import { getResend } from '@/lib/email/send'
+import { isEmailConfigured, sendEmail } from '@/lib/email/send'
 import { guestMailRecipients } from '@/lib/platform/family-emails'
+import { eventHostReplyTo } from '@/lib/platform/mail-domain'
 import { mailHtml, mailSubject } from '@/lib/platform/mail'
 import {
   getLatestMailJobForEvent,
@@ -36,9 +37,8 @@ export async function POST(request: Request, ctx: Ctx) {
     return NextResponse.json({ ...mailJobProgress(job), done: true })
   }
 
-  const resend = getResend()
-  if (!resend) {
-    return NextResponse.json({ error: 'RESEND_API_KEY ausente' }, { status: 502 })
+  if (!isEmailConfigured()) {
+    return NextResponse.json({ error: 'Provedor de email ausente' }, { status: 502 })
   }
   if (!job.from) {
     return NextResponse.json({ error: 'Remetente ausente no job' }, { status: 502 })
@@ -52,6 +52,7 @@ export async function POST(request: Request, ctx: Ctx) {
   const remaining = job.pendingGuestIds.slice(MAIL_BATCH_SIZE)
   const deliveredIds: string[] = []
   const guestById = new Map(event.guests.map((guest) => [guest.id, guest]))
+  const replyTo = eventHostReplyTo(event.config)
 
   for (const guestId of batch) {
     const guest = guestById.get(guestId)
@@ -63,36 +64,37 @@ export async function POST(request: Request, ctx: Ctx) {
       continue
     }
     const toEmail = recipients.join(', ')
-    const result = await resend.emails.send({
+    const result = await sendEmail({
       from: job.from,
       to: recipients,
+      replyTo,
       subject: mailSubject(job.kind, event.config, guest),
       html: mailHtml(job.kind, event.config, job.host, guest),
     })
     job.processed += 1
-    if (!result.error) {
+    if (result.ok) {
       deliveredIds.push(guest.id)
       job.succeeded += 1
-      const data = result.data as { id?: string } | null
       await appendEmailLog({
         eventId: id,
         familyId: guest.id,
         type: job.kind,
         status: 'sent',
         toEmail,
-        resendId: data?.id || null,
+        resendId: result.messageId,
       })
     } else {
+      const err = result.error || 'send_failed'
       job.failed += 1
-      job.errors.push(`${toEmail}: ${result.error.message}`)
-      job.lastError = result.error.message
+      job.errors.push(`${toEmail}: ${err}`)
+      job.lastError = err
       await appendEmailLog({
         eventId: id,
         familyId: guest.id,
         type: job.kind,
         status: 'failed',
         toEmail,
-        error: result.error.message,
+        error: err,
       })
     }
   }

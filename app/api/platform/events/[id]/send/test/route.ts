@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server'
 import { addGuest, appendEmailLog, getEvent, updateEvent } from '@/lib/platform/store'
 import { requireEventAccess } from '@/lib/platform/session'
-import { getResend } from '@/lib/email/send'
+import { isEmailConfigured, sendEmail } from '@/lib/email/send'
 import { provisionEventMailDomain, refreshEventMailDomain } from '@/lib/email/provision-domain'
-import { eventSendFrom } from '@/lib/platform/mail-domain'
+import { eventHostReplyTo, eventSendFrom } from '@/lib/platform/mail-domain'
 import { mailHtml, mailSubject } from '@/lib/platform/mail'
 import { normalizeGuest } from '@/lib/platform/normalize-guest'
 import type { EventConfig, Guest } from '@/lib/platform/types'
@@ -74,7 +74,10 @@ export async function POST(request: Request, ctx: Ctx) {
       config: { ...config, domain: { ...config.domain, mail } },
     })
     if (updated) config = updated.config
-  } else if (config.domain.mail?.status === 'pending' && config.domain.mail.resendDomainId) {
+  } else if (
+    config.domain.mail?.status === 'pending' &&
+    (config.domain.mail.resendDomainId || config.domain.mail.sendingDomain)
+  ) {
     const mail = await refreshEventMailDomain(config.domain.mail)
     if (mail.status !== config.domain.mail.status || mail.lastError !== config.domain.mail.lastError) {
       const updated = await updateEvent(id, {
@@ -85,7 +88,8 @@ export async function POST(request: Request, ctx: Ctx) {
   }
 
   const from = eventSendFrom(config)
-  const resend = getResend()
+  const replyTo = eventHostReplyTo(config)
+  const emailReady = isEmailConfigured()
   const sample =
     (await ensureTestGuest(id, to, config)) ||
     normalizeGuest({
@@ -100,19 +104,19 @@ export async function POST(request: Request, ctx: Ctx) {
       openRsvp: true,
     })
 
-  if (!resend) {
+  if (!emailReady) {
     await appendEmailLog({
       eventId: id,
       familyId: sample.id,
       type: `test-${kind}`,
       status: 'local',
       toEmail: to,
-      error: 'RESEND_API_KEY ausente',
+      error: 'Provedor de email ausente',
     })
     return NextResponse.json({
       ok: true,
       local: true,
-      warning: 'RESEND_API_KEY ausente — teste não enviado de verdade.',
+      warning: 'Provedor de email ausente — teste não enviado de verdade.',
       to,
       kind,
       cardToken: sample.token,
@@ -123,29 +127,30 @@ export async function POST(request: Request, ctx: Ctx) {
       {
         error:
           config.domain.mail?.lastError ||
-          'Sem remetente: verifique o domínio isolado ou defina RESEND_FROM_EMAIL.',
+          'Sem remetente: verifique SES_FROM_EMAIL / domínio SES ou RESEND_FROM_EMAIL.',
         mail: config.domain.mail,
       },
       { status: 502 },
     )
   }
 
-  const result = await resend.emails.send({
+  const result = await sendEmail({
     from,
     to,
+    replyTo,
     subject: `[TESTE] ${mailSubject(kind, config, sample)}`,
     html: mailHtml(kind, config, host, sample),
   })
-  if (result.error) {
+  if (!result.ok) {
     await appendEmailLog({
       eventId: id,
       familyId: sample.id,
       type: `test-${kind}`,
       status: 'failed',
       toEmail: to,
-      error: result.error.message,
+      error: result.error || 'send_failed',
     })
-    return NextResponse.json({ error: result.error.message }, { status: 502 })
+    return NextResponse.json({ error: result.error || 'send_failed' }, { status: 502 })
   }
 
   await appendEmailLog({
@@ -154,7 +159,7 @@ export async function POST(request: Request, ctx: Ctx) {
     type: `test-${kind}`,
     status: 'sent',
     toEmail: to,
-    resendId: (result.data as { id?: string } | null)?.id || null,
+    resendId: result.messageId,
   })
 
   return NextResponse.json({
@@ -164,6 +169,8 @@ export async function POST(request: Request, ctx: Ctx) {
     kind,
     from,
     cardToken: sample.token,
-    resendId: (result.data as { id?: string } | null)?.id || null,
+    resendId: result.messageId,
+    messageId: result.messageId,
+    provider: result.provider,
   })
 }
