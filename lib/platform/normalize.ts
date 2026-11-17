@@ -9,7 +9,6 @@ import { DEFAULT_ORG_ID } from './auth'
 import type {
   ContactPerson,
   EventConfig,
-  EventLocale,
   FaqItem,
   GalleryItem,
   Hotel,
@@ -21,7 +20,7 @@ import type {
 import { PLACE_CATEGORIES } from './types'
 import { resolveLocales } from './locales'
 import { normalizeMailDomain } from './mail-domain'
-import { normalizeGuest, normalizePerson } from './normalize-guest.ts'
+import { normalizeGuest } from './normalize-guest.ts'
 import { normalizeProducts, productModeFrom } from './products'
 
 export { normalizeGuest, normalizePerson } from './normalize-guest.ts'
