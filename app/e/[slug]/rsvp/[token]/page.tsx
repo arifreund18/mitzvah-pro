@@ -1,7 +1,7 @@
 import { notFound } from 'next/navigation'
 import { TokenRsvpForm } from '@/components/template/TokenRsvpForm'
+import { resolveGuestLocale } from '@/lib/platform/guest-locale'
 import { getFamilyByToken, getEventBySlug } from '@/lib/platform/store'
-import type { EventLocale } from '@/lib/platform/types'
 
 export const dynamic = 'force-dynamic'
 
@@ -17,7 +17,7 @@ export default async function TokenRsvpPage({
   const found = await getFamilyByToken(token)
   if (!found || found.event.id !== event.id) notFound()
 
-  const locale = (found.guest.inviteLocale || event.config.locales.default) as EventLocale
+  const locale = resolveGuestLocale(found.guest, event.config)
   const accent = event.config.branding.accentColor || '#22d3ee'
   const dir = locale === 'he' ? 'rtl' : 'ltr'
 

@@ -1,5 +1,6 @@
 import { notFound } from 'next/navigation'
 import { ComingSoon } from '@/components/template/ComingSoon'
+import { resolveGuestLocale } from '@/lib/platform/guest-locale'
 import { isEventLocale } from '@/lib/platform/locales'
 import { getEventBySlug } from '@/lib/platform/store'
 
@@ -16,8 +17,7 @@ export default async function ComingSoonPage({
   const { lang } = await searchParams
   const event = await getEventBySlug(slug)
   if (!event || event.status !== 'published') notFound()
-  const enabled = event.config.locales.enabled
-  const locale =
-    lang && isEventLocale(lang) && enabled.includes(lang) ? lang : event.config.locales.default
+  const explicit = lang && isEventLocale(lang) ? lang : null
+  const locale = resolveGuestLocale(null, event.config, explicit)
   return <ComingSoon config={event.config} locale={locale} />
 }

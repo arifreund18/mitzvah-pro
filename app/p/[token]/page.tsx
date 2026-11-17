@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import { EventSite } from '@/components/template/EventSite'
+import { primaryEventLocale } from '@/lib/platform/guest-locale'
 import { getEventByPreviewToken } from '@/lib/platform/store'
 
 export const dynamic = 'force-dynamic'
@@ -27,7 +28,7 @@ export default async function PreviewDraftPage({
   const { token } = await params
   const event = await getEventByPreviewToken(token)
   if (!event || event.status === 'archived') notFound()
-  const locale = event.config.locales.default
+  const locale = primaryEventLocale(event.config)
 
   return (
     <div className="bg-[#0b1020] text-white">

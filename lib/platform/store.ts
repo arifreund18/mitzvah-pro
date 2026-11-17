@@ -16,6 +16,7 @@ import {
 } from './persistence'
 import { configHasDataUrl, externalizeConfigDataUrls } from './media-blob'
 import { isReservedSlug } from './site-url'
+import { coerceGuestInviteLocale, primaryEventLocale } from './guest-locale'
 import { normalizeConfig, normalizeGuest } from './normalize'
 import { applyProducts, parseProductsInput } from './products'
 import type {
@@ -285,7 +286,10 @@ export async function updateGuest(
     if (!event) return null
     const index = event.guests.findIndex((item) => item.id === guestId)
     if (index < 0) return null
-    const guest = normalizeGuest({ ...event.guests[index], ...patch, id: guestId })
+    const guest = coerceGuestInviteLocale(
+      normalizeGuest({ ...event.guests[index], ...patch, id: guestId }),
+      event.config,
+    )
     event.guests[index] = guest
     event.updatedAt = new Date().toISOString()
     if (eventScopedReadsEnabled() && storageDriver() === 'postgres') {
@@ -500,14 +504,18 @@ export async function addGuest(
     const event = store.events.find((item) => item.id === eventId)
     if (!event) return null
     const now = new Date().toISOString()
-    const incoming = normalizeGuest(
-      {
-        ...guest,
-        id: uid(),
-        createdAt: now,
-        inviteLocale: guest.inviteLocale || event.config.locales.default,
-      },
-      { inviteLocale: event.config.locales.default },
+    const localeDefault = primaryEventLocale(event.config)
+    const incoming = coerceGuestInviteLocale(
+      normalizeGuest(
+        {
+          ...guest,
+          id: uid(),
+          createdAt: now,
+          inviteLocale: guest.inviteLocale || localeDefault,
+        },
+        { inviteLocale: localeDefault },
+      ),
+      event.config,
     )
     const incomingEmails = Array.from(
       new Set([incoming.email, ...(incoming.emails || [])].map((item) => item.trim()).filter(Boolean)),
@@ -598,15 +606,18 @@ export async function addGuests(
     const added: Guest[] = []
     for (const row of rows) {
       if (!row.familyName?.trim()) continue
-      const localeDefault = event.config.locales.default
-      const incoming = normalizeGuest(
-        {
-          ...row,
-          id: uid(),
-          createdAt: now,
-          inviteLocale: row.inviteLocale || localeDefault,
-        },
-        { inviteLocale: localeDefault },
+      const localeDefault = primaryEventLocale(event.config)
+      const incoming = coerceGuestInviteLocale(
+        normalizeGuest(
+          {
+            ...row,
+            id: uid(),
+            createdAt: now,
+            inviteLocale: row.inviteLocale || localeDefault,
+          },
+          { inviteLocale: localeDefault },
+        ),
+        event.config,
       )
       const incomingEmails = Array.from(
         new Set(
@@ -621,19 +632,22 @@ export async function addGuests(
       if (index >= 0) {
         const current = event.guests[index]
         const people = mergePeople(current.people || [], incoming.people || [])
-        const merged = normalizeGuest(
-          {
-            ...current,
-            familyName: incoming.familyName || current.familyName,
-            email: current.email || incomingEmails[0] || '',
-            emails: Array.from(
-              new Set([...(current.emails || []), ...(incoming.emails || []), ...incomingEmails]),
-            ),
-            people,
-            partySize: people.length,
-            notes: incoming.notes || current.notes,
-          },
-          { inviteLocale: localeDefault },
+        const merged = coerceGuestInviteLocale(
+          normalizeGuest(
+            {
+              ...current,
+              familyName: incoming.familyName || current.familyName,
+              email: current.email || incomingEmails[0] || '',
+              emails: Array.from(
+                new Set([...(current.emails || []), ...(incoming.emails || []), ...incomingEmails]),
+              ),
+              people,
+              partySize: people.length,
+              notes: incoming.notes || current.notes,
+            },
+            { inviteLocale: localeDefault },
+          ),
+          event.config,
         )
         event.guests[index] = merged
         added.push(merged)
@@ -653,7 +667,9 @@ export async function replaceGuests(eventId: string, guests: Guest[]): Promise<P
     const store = await loadStore()
     const event = store.events.find((item) => item.id === eventId)
     if (!event) return null
-    event.guests = guests.map((guest) => normalizeGuest(guest))
+    event.guests = guests.map((guest) =>
+      coerceGuestInviteLocale(normalizeGuest(guest), event.config),
+    )
     event.updatedAt = new Date().toISOString()
     await saveStore(store)
     return event

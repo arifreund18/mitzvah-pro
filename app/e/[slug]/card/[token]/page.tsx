@@ -1,7 +1,7 @@
 import { notFound } from 'next/navigation'
 import { InvitationCard } from '@/components/template/EventEmails'
 import { EnvelopeClient } from '@/lib/event-cards'
-import { localizedOpenLabel } from '@/lib/platform/guest-locale'
+import { localizedOpenLabel, resolveGuestLocale } from '@/lib/platform/guest-locale'
 import { openEnvelopeLabel } from '@/lib/platform/guest-ui'
 import { getLocalizedCardDesign } from '@/lib/platform/i18n-content'
 import { getEventBySlug, markGuestOpened } from '@/lib/platform/store'
@@ -25,7 +25,7 @@ export default async function InvitationCardTokenPage({
   await markGuestOpened(event.id, guest.id, 'invite')
 
   const host = hostFromHeaders(await headers())
-  const locale = guest.inviteLocale || event.config.locales.default
+  const locale = resolveGuestLocale(guest, event.config)
   const design = getLocalizedCardDesign(event.config, locale, 'invite')
   const sealUrl = design.sealUrl || event.config.invitation.sealImageUrl
 

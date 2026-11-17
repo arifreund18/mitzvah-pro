@@ -4,6 +4,7 @@ import { notFound } from 'next/navigation'
 import { EventSite } from '@/components/template/EventSite'
 import { EventRsvpForm } from '@/components/template/EventRsvpForm'
 import { TokenRsvpForm } from '@/components/template/TokenRsvpForm'
+import { resolveGuestLocale } from '@/lib/platform/guest-locale'
 import { isEventLocale } from '@/lib/platform/locales'
 import { eventPublicUrl, hostFromHeaders } from '@/lib/platform/site-url'
 import { getEventBySlug } from '@/lib/platform/store'
@@ -39,20 +40,11 @@ export default async function PublicEventPage({
   const guestToken = guestParam || token
   const event = await getEventBySlug(slug)
   if (!event || event.status !== 'published') notFound()
-  const enabled = event.config.locales.enabled
-  const displayLocale =
-    lang && isEventLocale(lang) && enabled.includes(lang) ? lang : event.config.locales.default
   const guest = guestToken
     ? event.guests.find((item) => item.token === guestToken) || null
     : null
-  const guestLocale =
-    guest?.inviteLocale && isEventLocale(guest.inviteLocale) && enabled.includes(guest.inviteLocale)
-      ? guest.inviteLocale
-      : null
-  const resolvedLocale =
-    lang && isEventLocale(lang) && enabled.includes(lang)
-      ? lang
-      : guestLocale || displayLocale
+  const explicitLang = lang && isEventLocale(lang) ? lang : null
+  const resolvedLocale = resolveGuestLocale(guest, event.config, explicitLang)
   const showPublicForm = !guest && event.config.rsvp.publicFormEnabled
   const accent = event.config.branding.accentColor || '#22d3ee'
 

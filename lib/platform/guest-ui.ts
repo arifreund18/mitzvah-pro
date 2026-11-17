@@ -1,3 +1,4 @@
+import { isForeignSystemChrome } from './guest-locale.ts'
 import type { EventLocale } from './types'
 
 export type PublicRsvpCopy = {
@@ -98,7 +99,8 @@ export function openEnvelopeLabel(
   locale: EventLocale,
   custom?: string,
 ): string {
-  if (custom?.trim()) return custom.trim()
+  const trimmed = custom?.trim() || ''
+  if (trimmed && !isForeignSystemChrome(trimmed, locale, 'openLabel')) return trimmed
   const map: Record<EventLocale, { std: string; invite: string }> = {
     en: { std: 'Open save the date', invite: 'Open invitation' },
     pt: { std: 'Abrir save the date', invite: 'Abrir convite' },
