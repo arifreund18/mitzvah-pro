@@ -118,6 +118,13 @@ export function EventSite({
       ? 'ring-2 ring-offset-2 ring-offset-transparent'
       : ''
 
+  const statusLabel =
+    guest?.status === 'yes' ? 'Confirmed' : guest?.status === 'no' ? 'Declined' : 'Pending RSVP'
+  const rsvpAnchor =
+    guest || guestToken || config.rsvp.publicFormEnabled || config.rsvp.openRsvpDefault
+      ? '#rsvp-form'
+      : '#rsvp'
+
   const nav = [
     { href: '#welcome', label: ui.welcome, show: Boolean(story.parentsMessage) },
     { href: '#about', label: ui.about, show: Boolean(story.about || story.honoreeBio) },
@@ -130,13 +137,6 @@ export function EventSite({
     { href: rsvpAnchor, label: 'RSVP', show: true },
     { href: '#contact', label: ui.contact, show: hasContact },
   ].filter((item) => item.show)
-
-  const statusLabel =
-    guest?.status === 'yes' ? 'Confirmed' : guest?.status === 'no' ? 'Declined' : 'Pending RSVP'
-  const rsvpAnchor =
-    guest || guestToken || config.rsvp.publicFormEnabled || config.rsvp.openRsvpDefault
-      ? '#rsvp-form'
-      : '#rsvp'
 
   return (
     <div
