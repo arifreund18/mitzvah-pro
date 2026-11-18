@@ -13,8 +13,9 @@ export function StorageAlert() {
         pedidos — criar um evento parece funcionar e o wizard responde 404.
       </p>
       <p className="mt-2 text-amber-50/80">
-        Defina <code className="text-amber-100">DATABASE_URL</code> (Postgres/Neon) ou{' '}
-        <code className="text-amber-100">BLOB_READ_WRITE_TOKEN</code> no projeto Vercel e faça
+        Defina <code className="text-amber-100">DATABASE_URL</code> (Postgres/Neon) ou token Blob
+        (<code className="text-amber-100">BLOB1_READ_WRITE_TOKEN</code> /{' '}
+        <code className="text-amber-100">BLOB_READ_WRITE_TOKEN</code>) no projeto Vercel e faça
         redeploy. Até lá, a criação de eventos fica bloqueada.
       </p>
     </div>

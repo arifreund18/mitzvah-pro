@@ -18,7 +18,7 @@ export async function POST(request: Request, ctx: Ctx) {
     return NextResponse.json(
       {
         error:
-          'BLOB_READ_WRITE_TOKEN não configurado. Defina o token do Vercel Blob para uploads do studio.',
+          'Token Blob ausente. Defina BLOB1_READ_WRITE_TOKEN (ou BLOB_READ_WRITE_TOKEN) no projeto Vercel.',
       },
       { status: 503 },
     )
