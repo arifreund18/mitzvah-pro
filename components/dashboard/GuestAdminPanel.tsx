@@ -199,6 +199,12 @@ export function GuestAdminPanel({ event }: { event: PlatformEvent }) {
                     </td>
                     <td className="px-4 py-3">{guest.status}</td>
                     <td className="px-4 py-3">
+                      <p className="mb-1 text-[10px] uppercase tracking-wide text-white/35">
+                        Atalho · preferir{' '}
+                        <a href="#schedule-invites" className="text-cyan-200 hover:underline">
+                          Convites da programação
+                        </a>
+                      </p>
                       <select
                         disabled={busyId === guest.id}
                         value={guest.scheduleInviteMode || 'all'}

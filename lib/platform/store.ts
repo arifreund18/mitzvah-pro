@@ -19,6 +19,7 @@ import { isReservedSlug } from './site-url'
 import { coerceGuestInviteLocale, primaryEventLocale } from './guest-locale'
 import { normalizeConfig, normalizeGuest } from './normalize'
 import { applyProducts, parseProductsInput } from './products'
+import { applyScheduleItemInvitations } from './schedule-invite'
 import type {
   EventConfig,
   EventLocale,
@@ -673,6 +674,32 @@ export async function replaceGuests(eventId: string, guests: Guest[]): Promise<P
     event.updatedAt = new Date().toISOString()
     await saveStore(store)
     return event
+  })
+}
+
+/** Replace which guests are invited to one schedule item (BarBeni-style bulk picker). */
+export async function replaceScheduleItemInvitations(
+  eventId: string,
+  scheduleItemId: string,
+  invitedGuestIds: string[],
+): Promise<{ event: PlatformEvent; invitedCount: number } | null> {
+  return withLock(async () => {
+    const store = await loadStore()
+    const event = store.events.find((item) => item.id === eventId)
+    if (!event) return null
+    const allItemIds = event.config.schedule.items.map((item) => item.id)
+    if (!allItemIds.includes(scheduleItemId)) return null
+    const allowedGuests = new Set(event.guests.map((guest) => guest.id))
+    const invited = [...new Set(invitedGuestIds.filter((id) => allowedGuests.has(id)))]
+    event.guests = applyScheduleItemInvitations(
+      event.guests,
+      scheduleItemId,
+      allItemIds,
+      invited,
+    ).map((guest) => coerceGuestInviteLocale(normalizeGuest(guest), event.config))
+    event.updatedAt = new Date().toISOString()
+    await saveStore(store)
+    return { event, invitedCount: invited.length }
   })
 }
 
