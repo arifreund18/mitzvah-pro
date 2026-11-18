@@ -284,17 +284,6 @@ export function CardDesignFields({
             value={design.cardImagePosition || 'center'}
             onChange={(cardImagePosition) => patch({ cardImagePosition })}
           />
-          <Field label="Tamanho do corpo (px)">
-            <TextInput
-              type="number"
-              min={10}
-              max={32}
-              value={design.bodySizePx || 16}
-              onChange={(e) =>
-                patch({ bodySizePx: Math.max(10, Math.min(32, Number(e.target.value) || 16)) })
-              }
-            />
-          </Field>
           <Field label="Tamanho da intro (px)">
             <TextInput
               type="number"
@@ -317,17 +306,20 @@ export function CardDesignFields({
               }
             />
           </Field>
+          <Field label="Tamanho do corpo (px)">
+            <TextInput
+              type="number"
+              min={10}
+              max={32}
+              value={design.bodySizePx || 16}
+              onChange={(e) =>
+                patch({ bodySizePx: Math.max(10, Math.min(32, Number(e.target.value) || 16)) })
+              }
+            />
+          </Field>
         </div>
 
         <div className="flex flex-wrap gap-4 text-sm">
-          <label className="flex items-center gap-2">
-            <input
-              type="checkbox"
-              checked={Boolean(design.bodyBold)}
-              onChange={(e) => patch({ bodyBold: e.target.checked })}
-            />
-            Corpo em negrito
-          </label>
           <label className="flex items-center gap-2">
             <input
               type="checkbox"
@@ -339,10 +331,42 @@ export function CardDesignFields({
           <label className="flex items-center gap-2">
             <input
               type="checkbox"
+              checked={design.introItalic !== false}
+              onChange={(e) => patch({ introItalic: e.target.checked })}
+            />
+            Intro em itálico
+          </label>
+          <label className="flex items-center gap-2">
+            <input
+              type="checkbox"
               checked={Boolean(design.headingBold)}
               onChange={(e) => patch({ headingBold: e.target.checked })}
             />
             Heading em negrito
+          </label>
+          <label className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              checked={Boolean(design.headingItalic)}
+              onChange={(e) => patch({ headingItalic: e.target.checked })}
+            />
+            Heading em itálico
+          </label>
+          <label className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              checked={Boolean(design.bodyBold)}
+              onChange={(e) => patch({ bodyBold: e.target.checked })}
+            />
+            Corpo em negrito
+          </label>
+          <label className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              checked={Boolean(design.bodyItalic)}
+              onChange={(e) => patch({ bodyItalic: e.target.checked })}
+            />
+            Corpo em itálico
           </label>
         </div>
 

@@ -789,20 +789,25 @@ export const WizardStepForm = forwardRef<
           />
         </Field>
         <Field label={ui.heroUpload}>
-          <input
-            type="file"
-            accept="image/*"
-            onChange={async (e) => {
-              const file = e.target.files?.[0]
-              if (!file) return
-              try {
-                const url = await uploadWizardImage(eventId, file, ui.imageTooBig, 'hero')
-                set({ ...config, media: { ...config.media, heroUrl: url } })
-              } catch (err) {
-                alert(err instanceof Error ? err.message : ui.uploadFail)
-              }
-            }}
-          />
+          <label className="flex cursor-pointer items-center justify-center rounded-xl border border-dashed border-white/25 bg-white/5 px-3 py-3 text-sm text-white/80 hover:border-cyan-400/50 hover:bg-cyan-400/5">
+            Importar imagem
+            <input
+              type="file"
+              accept="image/*"
+              className="sr-only"
+              onChange={async (e) => {
+                const file = e.target.files?.[0]
+                e.target.value = ''
+                if (!file) return
+                try {
+                  const url = await uploadWizardImage(eventId, file, ui.imageTooBig, 'hero')
+                  set({ ...config, media: { ...config.media, heroUrl: url } })
+                } catch (err) {
+                  alert(err instanceof Error ? err.message : ui.uploadFail)
+                }
+              }}
+            />
+          </label>
         </Field>
         <Field label={ui.gallery}>
           <TextArea
@@ -827,6 +832,61 @@ export const WizardStepForm = forwardRef<
               })
             }}
           />
+          <label className="mt-2 flex cursor-pointer items-center justify-center rounded-xl border border-dashed border-white/25 bg-white/5 px-3 py-3 text-sm text-white/80 hover:border-cyan-400/50 hover:bg-cyan-400/5">
+            Importar imagens para a galeria
+            <input
+              type="file"
+              accept="image/*"
+              multiple
+              className="sr-only"
+              onChange={async (e) => {
+                const files = Array.from(e.target.files || [])
+                e.target.value = ''
+                if (!files.length) return
+                try {
+                  const uploaded: string[] = []
+                  for (const file of files) {
+                    uploaded.push(await uploadWizardImage(eventId, file, ui.imageTooBig, 'gallery'))
+                  }
+                  const base = config.media.galleryItems?.length
+                    ? [...config.media.galleryItems]
+                    : config.media.gallery.map((url, i) => ({
+                        id: uid(),
+                        url,
+                        type: 'image' as const,
+                        caption: '',
+                        approved: true,
+                        showOnSite: true,
+                        sortOrder: i,
+                      }))
+                  const nextItems = [
+                    ...base,
+                    ...uploaded.map((url, i) => ({
+                      id: uid(),
+                      url,
+                      type: 'image' as const,
+                      caption: '',
+                      approved: true,
+                      showOnSite: true,
+                      sortOrder: base.length + i,
+                    })),
+                  ]
+                  set({
+                    ...config,
+                    media: {
+                      ...config.media,
+                      galleryItems: nextItems,
+                      gallery: nextItems
+                        .filter((item) => item.type === 'image' && item.showOnSite)
+                        .map((item) => item.url),
+                    },
+                  })
+                } catch (err) {
+                  alert(err instanceof Error ? err.message : ui.uploadFail)
+                }
+              }}
+            />
+          </label>
         </Field>
         <Field label="Ambient audio URL">
           <TextInput

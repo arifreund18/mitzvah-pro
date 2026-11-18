@@ -9,6 +9,7 @@ import {
   eventSendFrom,
 } from '@/lib/platform/mail-domain'
 import { buildRsvpPeopleUpdate } from '@/lib/platform/rsvp-people'
+import { isRsvpDeadlinePassed } from '@/lib/platform/rsvp-deadline'
 
 const personSchema = z.object({
   id: z.string().optional(),
@@ -62,6 +63,9 @@ export async function POST(request: Request, ctx: Ctx) {
   const { event, guest } = found
   if (event.status !== 'published' && event.status !== 'approved') {
     return NextResponse.json({ error: 'Evento indisponível' }, { status: 403 })
+  }
+  if (isRsvpDeadlinePassed(event.config.rsvp.deadline)) {
+    return NextResponse.json({ error: 'O prazo do RSVP já passou.' }, { status: 403 })
   }
 
   const limit = guest.openRsvp ? 60 : 5
