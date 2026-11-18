@@ -19,12 +19,21 @@ export default async function CustomHostEventPage({
   const { lang } = await searchParams
   const explicit = lang && isEventLocale(lang) ? lang : null
   const displayLocale = resolveGuestLocale(null, event.config, explicit)
+  const showPublicForm = event.config.rsvp.publicFormEnabled
   return (
     <div className="bg-[#0b1020] text-white">
-      <EventSite config={event.config} mode="live" displayLocale={displayLocale} slug={event.slug} />
-      <section className="mx-auto max-w-xl px-6 pb-24">
-        <EventRsvpForm event={event} locale={displayLocale} />
-      </section>
+      <EventSite
+        config={event.config}
+        mode="live"
+        displayLocale={displayLocale}
+        slug={event.slug}
+        eventId={event.id}
+      />
+      {showPublicForm ? (
+        <section id="rsvp-form" className="mx-auto max-w-xl px-6 pb-24">
+          <EventRsvpForm event={event} locale={displayLocale} />
+        </section>
+      ) : null}
     </div>
   )
 }

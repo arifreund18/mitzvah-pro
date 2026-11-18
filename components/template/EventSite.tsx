@@ -9,6 +9,7 @@ import {
   getLocalizedStory,
 } from '@/lib/platform/i18n-content'
 import { scheduleItemsForGuest } from '@/lib/platform/schedule-visibility'
+import { canShowSiteRsvp, siteRsvpAnchor } from '@/lib/platform/site-rsvp'
 import { templateUi } from '@/lib/platform/template-copy'
 import { googleCalendarUrl } from '@/lib/platform/calendar'
 import { ComingSoon } from '@/components/template/ComingSoon'
@@ -125,10 +126,16 @@ export function EventSite({
       : guest?.status === 'no'
         ? ui.guestDeclined
         : ui.guestPending
-  const rsvpAnchor =
-    guest || guestToken || config.rsvp.publicFormEnabled || config.rsvp.openRsvpDefault
-      ? '#rsvp-form'
-      : '#rsvp'
+  const showRsvp = canShowSiteRsvp({
+    mode,
+    guest,
+    publicFormEnabled: config.rsvp.publicFormEnabled,
+  })
+  const rsvpAnchor = siteRsvpAnchor({
+    mode,
+    guest,
+    publicFormEnabled: config.rsvp.publicFormEnabled,
+  })
 
   const nav = [
     { href: '#welcome', label: ui.welcome, show: Boolean(story.parentsMessage) },
@@ -139,7 +146,7 @@ export function EventSite({
     { href: '#travel', label: ui.travel, show: Boolean(config.travel?.enabled) },
     { href: '#places', label: ui.thingsToDo, show: places.length > 0 },
     { href: '#gallery', label: ui.gallery, show: galleryItems.length > 0 },
-    { href: rsvpAnchor, label: 'RSVP', show: true },
+    { href: rsvpAnchor, label: 'RSVP', show: showRsvp },
     { href: '#contact', label: ui.contact, show: hasContact },
   ].filter((item) => item.show)
 
@@ -240,13 +247,15 @@ export function EventSite({
           labels={{ days: ui.days, hours: ui.hours, minutes: ui.minutes, seconds: ui.seconds }}
         />
         <div className="relative mt-8 flex flex-wrap justify-center gap-3">
-          <a
-            href={rsvpAnchor}
-            className="inline-block rounded-full px-8 py-3 font-semibold text-black"
-            style={{ background: accent }}
-          >
-            {ui.rsvpNow}
-          </a>
+          {showRsvp ? (
+            <a
+              href={rsvpAnchor}
+              className="inline-block rounded-full px-8 py-3 font-semibold text-black"
+              style={{ background: accent }}
+            >
+              {ui.rsvpNow}
+            </a>
+          ) : null}
           {calendar ? (
             <a
               href={calendar}
@@ -510,50 +519,52 @@ export function EventSite({
         </section>
       )}
 
-      <section id="rsvp" data-preview="rsvp" className={`px-6 py-20 ${mark('rsvp')}`}>
-        <div
-          className="mx-auto max-w-xl rounded-3xl border border-white/10 p-8 text-center"
-          style={{ background: theme.card }}
-        >
-          <h2 className="font-display text-3xl">RSVP</h2>
-          <p className="mt-3" style={{ color: theme.muted }}>
-            {site.rsvpUntil}{' '}
-            {config.rsvp.deadline ? formatEventDate(config.rsvp.deadline, locale) : site.deadlineTbd}.
-          </p>
-          {config.rsvp.notes ? (
-            <p className="mt-2 whitespace-pre-line text-sm" style={{ color: theme.muted }}>
-              {config.rsvp.notes}
+      {showRsvp ? (
+        <section id="rsvp" data-preview="rsvp" className={`px-6 py-20 ${mark('rsvp')}`}>
+          <div
+            className="mx-auto max-w-xl rounded-3xl border border-white/10 p-8 text-center"
+            style={{ background: theme.card }}
+          >
+            <h2 className="font-display text-3xl">RSVP</h2>
+            <p className="mt-3" style={{ color: theme.muted }}>
+              {site.rsvpUntil}{' '}
+              {config.rsvp.deadline ? formatEventDate(config.rsvp.deadline, locale) : site.deadlineTbd}.
             </p>
-          ) : null}
-          <div className="mt-6 flex flex-wrap justify-center gap-2">
-            {config.rsvp.meals.filter(Boolean).map((meal) => (
-              <span
-                key={meal}
-                className="rounded-full px-3 py-1 text-xs font-semibold"
-                style={{ background: `${accent}22`, color: accent }}
+            {config.rsvp.notes ? (
+              <p className="mt-2 whitespace-pre-line text-sm" style={{ color: theme.muted }}>
+                {config.rsvp.notes}
+              </p>
+            ) : null}
+            <div className="mt-6 flex flex-wrap justify-center gap-2">
+              {config.rsvp.meals.filter(Boolean).map((meal) => (
+                <span
+                  key={meal}
+                  className="rounded-full px-3 py-1 text-xs font-semibold"
+                  style={{ background: `${accent}22`, color: accent }}
+                >
+                  {meal}
+                </span>
+              ))}
+            </div>
+            {interactive ? (
+              <a
+                href={rsvpAnchor}
+                className="mt-8 inline-block rounded-full px-8 py-3 font-semibold text-black"
+                style={{ background: accent }}
               >
-                {meal}
+                {ui.confirmRsvp}
+              </a>
+            ) : (
+              <span
+                className="mt-8 inline-block rounded-full px-8 py-3 font-semibold text-black"
+                style={{ background: accent }}
+              >
+                {ui.confirmRsvp}
               </span>
-            ))}
+            )}
           </div>
-          {interactive ? (
-            <a
-              href="#rsvp-form"
-              className="mt-8 inline-block rounded-full px-8 py-3 font-semibold text-black"
-              style={{ background: accent }}
-            >
-              {ui.confirmRsvp}
-            </a>
-          ) : (
-            <span
-              className="mt-8 inline-block rounded-full px-8 py-3 font-semibold text-black"
-              style={{ background: accent }}
-            >
-              {ui.confirmRsvp}
-            </span>
-          )}
-        </div>
-      </section>
+        </section>
+      ) : null}
 
       {hasContact ? (
         <section id="contact" className={`px-6 py-16 text-center ${mark('contact')}`}>
