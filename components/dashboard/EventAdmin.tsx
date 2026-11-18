@@ -8,6 +8,7 @@ import { EventOptionsPanel } from '@/components/dashboard/EventOptionsPanel'
 import { GuestAdminPanel } from '@/components/dashboard/GuestAdminPanel'
 import { GuestCsvImport } from '@/components/dashboard/GuestCsvImport'
 import { GuestManualAdd } from '@/components/dashboard/GuestManualAdd'
+import { ScheduleGuestsPanel } from '@/components/dashboard/ScheduleGuestsPanel'
 import { normalizeProducts } from '@/lib/platform/products'
 import { SECTION_EDITOR_IDS, SECTION_LABELS } from '@/lib/platform/section-editor'
 import type { PlatformEvent } from '@/lib/platform/types'
@@ -384,6 +385,17 @@ export function EventAdmin({
           </Link>
         ))}
       </div>
+
+      {products.site ? (
+        <div id="schedule-invites" className="mt-12">
+          <h2 className="font-display text-2xl">Convites da programação</h2>
+          <p className="mt-2 text-sm text-white/50">
+            Por cada momento do schedule, adicione todos, remova todos ou escolha quais famílias
+            veem o evento no site — como no Bar-Beni.
+          </p>
+          <ScheduleGuestsPanel event={event} />
+        </div>
+      ) : null}
 
       <h2 id="guests" className="font-display mt-12 text-2xl">
         Convidados
