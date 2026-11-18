@@ -11,6 +11,7 @@ import { consumeRateLimit } from '@/lib/platform/rate-limit'
 import { uid } from '@/lib/platform/ids'
 import { parseEmailsInput } from '@/lib/platform/family-emails'
 import { normalizePerson } from '@/lib/platform/normalize-guest'
+import { isRsvpDeadlinePassed } from '@/lib/platform/rsvp-deadline'
 import type { Guest, GuestPerson, GuestRsvp, ScheduleInviteMode } from '@/lib/platform/types'
 import { SCHEDULE_INVITE_MODES } from '@/lib/platform/types'
 
@@ -55,6 +56,9 @@ export async function POST(request: Request, ctx: Ctx) {
     }
     if (!event.config.rsvp.publicFormEnabled) {
       return NextResponse.json({ error: 'Formulário público de RSVP desativado' }, { status: 403 })
+    }
+    if (isRsvpDeadlinePassed(event.config.rsvp.deadline)) {
+      return NextResponse.json({ error: 'O prazo do RSVP já passou.' }, { status: 403 })
     }
     const ip = clientIp(request)
     const limit = await consumeRateLimit(`rsvp:public:${id}:${ip}`, 30, 3_600_000)

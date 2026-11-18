@@ -159,10 +159,13 @@ export type CardDesign = {
   headingColor: string
   bodySizePx: number
   bodyBold: boolean
+  bodyItalic: boolean
   introSizePx: number
   introBold: boolean
+  introItalic: boolean
   headingSizePx: number
   headingBold: boolean
+  headingItalic: boolean
   // Panel photo
   panelPhotoUrl: string
   panelPhotoShape: 'circle' | 'rectangle'

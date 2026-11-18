@@ -2,6 +2,8 @@
 
 import { useState } from 'react'
 import { publicRsvpCopy } from '@/lib/platform/guest-ui'
+import { isRsvpDeadlinePassed } from '@/lib/platform/rsvp-deadline'
+import { siteFieldClass, siteSelectClass } from '@/lib/platform/site-form'
 import type { EventConfig, EventLocale, PlatformEvent } from '@/lib/platform/types'
 
 export function EventRsvpForm({
@@ -15,9 +17,13 @@ export function EventRsvpForm({
   const lang = locale || config.locales.default || 'pt'
   const ui = publicRsvpCopy(lang)
   const dir = lang === 'he' ? 'rtl' : 'ltr'
+  const themeId = config.branding.theme
+  const fieldClass = siteFieldClass(themeId)
+  const selectClass = siteSelectClass(themeId)
   const [sent, setSent] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const closed = isRsvpDeadlinePassed(config.rsvp.deadline)
 
   if (!config.rsvp.publicFormEnabled && !config.rsvp.openRsvpDefault) {
     return (
@@ -26,6 +32,17 @@ export function EventRsvpForm({
         dir={dir}
       >
         {ui.personalLinkOnly}
+      </p>
+    )
+  }
+
+  if (closed) {
+    return (
+      <p
+        className="rounded-2xl border border-amber-400/30 bg-amber-400/10 px-6 py-8 text-center"
+        dir={dir}
+      >
+        {ui.deadlineClosed}
       </p>
     )
   }
@@ -73,19 +90,11 @@ export function EventRsvpForm({
     <form id="rsvp-form" onSubmit={onSubmit} className="space-y-4 text-left" dir={dir}>
       <label className="block text-sm">
         {ui.familyName}
-        <input
-          name="familyName"
-          required
-          className="mt-1 w-full rounded-xl border border-white/15 bg-white/5 px-4 py-3 outline-none"
-        />
+        <input name="familyName" required className={fieldClass} />
       </label>
       <label className="block text-sm">
         {ui.email}
-        <input
-          name="email"
-          type="email"
-          className="mt-1 w-full rounded-xl border border-white/15 bg-white/5 px-4 py-3 outline-none"
-        />
+        <input name="email" type="email" className={fieldClass} />
       </label>
       <div className="grid gap-4 sm:grid-cols-2">
         <label className="block text-sm">
@@ -95,16 +104,12 @@ export function EventRsvpForm({
             type="number"
             min={1}
             defaultValue={1}
-            className="mt-1 w-full rounded-xl border border-white/15 bg-white/5 px-4 py-3 outline-none"
+            className={fieldClass}
           />
         </label>
         <label className="block text-sm">
           {ui.status}
-          <select
-            name="status"
-            defaultValue="yes"
-            className="mt-1 w-full rounded-xl border border-white/15 bg-[#12182a] px-4 py-3 outline-none"
-          >
+          <select name="status" defaultValue="yes" className={selectClass}>
             <option value="yes">{ui.yes}</option>
             <option value="no">{ui.no}</option>
             <option value="pending">{ui.pending}</option>
@@ -116,7 +121,7 @@ export function EventRsvpForm({
           {ui.meal}
           <select
             name="meal"
-            className="mt-1 w-full rounded-xl border border-white/15 bg-[#12182a] px-4 py-3 outline-none"
+            className={selectClass}
             defaultValue={config.rsvp.meals[0] || ''}
           >
             {config.rsvp.meals.map((meal) => (
@@ -130,25 +135,19 @@ export function EventRsvpForm({
       {config.rsvp.collectDietary ? (
         <label className="block text-sm">
           {ui.dietary}
-          <input
-            name="dietary"
-            className="mt-1 w-full rounded-xl border border-white/15 bg-white/5 px-4 py-3 outline-none"
-          />
+          <input name="dietary" className={fieldClass} />
         </label>
       ) : null}
       <label className="block text-sm">
         {ui.message}
-        <textarea
-          name="message"
-          rows={3}
-          className="mt-1 w-full rounded-xl border border-white/15 bg-white/5 px-4 py-3 outline-none"
-        />
+        <textarea name="message" rows={3} className={fieldClass} />
       </label>
       {error ? <p className="text-sm text-rose-300">{error}</p> : null}
       <button
         type="submit"
         disabled={loading}
-        className="rounded-full bg-cyan-400 px-6 py-3 font-semibold text-[#0b1020] disabled:opacity-50"
+        className="rounded-full px-6 py-3 font-semibold text-[#0b1020] disabled:opacity-50"
+        style={{ background: config.branding.accentColor || '#22d3ee' }}
       >
         {loading ? ui.submitting : ui.submit}
       </button>

@@ -252,7 +252,8 @@ export function EventSite({
               href={calendar}
               target="_blank"
               rel="noreferrer"
-              className="inline-block rounded-full border border-white/20 px-6 py-3 text-sm"
+              className="inline-block rounded-full border-2 px-6 py-3 text-sm font-semibold"
+              style={{ borderColor: accent, color: accent }}
             >
               {ui.addToCalendar}
             </a>
@@ -269,25 +270,31 @@ export function EventSite({
           <p className="text-xs uppercase tracking-[0.3em]" style={{ color: accent }}>
             {ui.welcome}
           </p>
-          <p className="mt-2 text-sm opacity-70">{ui.theFamily}</p>
-          <p className="font-display mt-6 text-xl leading-relaxed">{story.parentsMessage}</p>
+          <p
+            className="mt-6 text-lg leading-relaxed md:text-xl"
+            style={{ color: theme.text }}
+          >
+            {story.parentsMessage}
+          </p>
         </section>
       ) : null}
 
       {(story.about || story.honoreeBio) && (
-        <section id="about" className={`mx-auto max-w-3xl px-6 py-16 ${mark('story')}`}>
+        <section id="about" className={`mx-auto max-w-3xl px-6 py-16 text-center ${mark('story')}`}>
           {story.about ? (
             <>
-              <h2 className="font-display text-center text-3xl">{ui.about}</h2>
-              <p className="mt-6 leading-relaxed" style={{ color: theme.muted }}>
+              <h2 className="font-display text-3xl">{ui.about}</h2>
+              <p className="mt-6 text-lg leading-relaxed" style={{ color: theme.muted }}>
                 {story.about}
               </p>
             </>
           ) : null}
           {story.honoreeBio ? (
             <>
-              <h3 className="font-display mt-10 text-2xl">{ui.aboutHonoree}</h3>
-              <p className="mt-4 leading-relaxed" style={{ color: theme.muted }}>
+              <h2 className={`font-display text-3xl ${story.about ? 'mt-12' : ''}`}>
+                {ui.aboutHonoree}
+              </h2>
+              <p className="mt-6 text-lg leading-relaxed" style={{ color: theme.muted }}>
                 {story.honoreeBio}
               </p>
             </>
@@ -596,7 +603,12 @@ export function EventSite({
             ))}
           </div>
           {interactive && config.contact.formEnabled && eventId ? (
-            <EventContactForm eventId={eventId} accent={accent} muted={theme.muted} />
+            <EventContactForm
+              eventId={eventId}
+              accent={accent}
+              muted={theme.muted}
+              themeId={config.branding.theme}
+            />
           ) : null}
         </section>
       ) : null}

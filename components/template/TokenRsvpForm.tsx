@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { isRsvpDeadlinePassed } from '@/lib/platform/rsvp-deadline'
 import type { EventLocale, Guest, GuestPerson, GuestRsvp, PersonType } from '@/lib/platform/types'
 
 type PublicRsvpConfig = {
@@ -36,6 +37,7 @@ type Strings = {
   nameRequired: string
   contactEmail: string
   emailRequired: string
+  deadlineClosed: string
 }
 
 const STRINGS: Record<EventLocale, Strings> = {
@@ -62,6 +64,7 @@ const STRINGS: Record<EventLocale, Strings> = {
     nameRequired: 'Please enter a name for each guest.',
     contactEmail: 'Contact email',
     emailRequired: 'Please enter a valid contact email.',
+    deadlineClosed: 'The RSVP deadline has passed.',
   },
   pt: {
     title: 'RSVP',
@@ -86,6 +89,7 @@ const STRINGS: Record<EventLocale, Strings> = {
     nameRequired: 'Informe o nome de cada convidado.',
     contactEmail: 'E-mail de contato',
     emailRequired: 'Informe um e-mail de contato válido.',
+    deadlineClosed: 'O prazo do RSVP já passou.',
   },
   es: {
     title: 'RSVP',
@@ -110,6 +114,7 @@ const STRINGS: Record<EventLocale, Strings> = {
     nameRequired: 'Indique el nombre de cada invitado.',
     contactEmail: 'Correo de contacto',
     emailRequired: 'Indique un correo de contacto válido.',
+    deadlineClosed: 'La fecha límite del RSVP ya pasó.',
   },
   he: {
     title: 'RSVP',
@@ -134,6 +139,7 @@ const STRINGS: Record<EventLocale, Strings> = {
     nameRequired: 'נא להזין שם לכל אורח.',
     contactEmail: 'אימייל ליצירת קשר',
     emailRequired: 'נא להזין אימייל תקין.',
+    deadlineClosed: 'מועד ה־RSVP כבר עבר.',
   },
 }
 
@@ -185,6 +191,9 @@ export function TokenRsvpForm({
   const t = STRINGS[locale] || STRINGS.pt
   const openMode = Boolean(guest.openRsvp)
   const alreadyReplied = guest.people.some((p) => p.status !== 'pending') || guest.status !== 'pending'
+  const fieldClass =
+    'mt-1 w-full rounded-xl border border-white/40 bg-white/12 px-4 py-3 outline-none focus:border-white/70'
+  const deadlineClosed = isRsvpDeadlinePassed(rsvp.deadline)
   const [people, setPeople] = useState<Row[]>(() => toRows(guest, openMode, rsvp.meals))
   const [message, setMessage] = useState(guest.message || '')
   const [contactEmail, setContactEmail] = useState(guest.email || guest.emails[0] || '')
@@ -263,6 +272,15 @@ export function TokenRsvpForm({
     )
   }
 
+  if (deadlineClosed) {
+    return (
+      <div className="rounded-2xl border border-amber-400/30 bg-amber-400/10 px-6 py-8 text-center">
+        <p className="text-lg font-medium">{t.deadlineClosed}</p>
+        {rsvp.deadline ? <p className="mt-2 text-sm opacity-70">{rsvp.deadline}</p> : null}
+      </div>
+    )
+  }
+
   const canAdd = openMode || rsvp.allowPlusOne
 
   return (
@@ -293,7 +311,7 @@ export function TokenRsvpForm({
                   required
                   value={person.name}
                   onChange={(e) => updatePerson(index, { name: e.target.value })}
-                  className="mt-1 w-full rounded-xl border border-white/15 bg-white/5 px-4 py-3 outline-none"
+                  className={fieldClass}
                 />
               </label>
             ) : (
@@ -311,7 +329,7 @@ export function TokenRsvpForm({
                 <select
                   value={person.type}
                   onChange={(e) => updatePerson(index, { type: e.target.value as PersonType })}
-                  className="mt-1 w-full rounded-xl border border-white/15 bg-white/5 px-4 py-3 outline-none"
+                  className={fieldClass}
                 >
                   <option value="adult">{t.adult}</option>
                   <option value="child">{t.child}</option>
@@ -361,7 +379,7 @@ export function TokenRsvpForm({
                 <select
                   value={person.meal || rsvp.meals[0] || ''}
                   onChange={(e) => updatePerson(index, { meal: e.target.value })}
-                  className="mt-1 w-full rounded-xl border border-white/15 bg-white/5 px-4 py-3 outline-none"
+                  className={fieldClass}
                 >
                   {rsvp.meals.filter(Boolean).map((meal) => (
                     <option key={meal} value={meal}>
@@ -378,7 +396,7 @@ export function TokenRsvpForm({
                 <input
                   value={person.dietary}
                   onChange={(e) => updatePerson(index, { dietary: e.target.value })}
-                  className="mt-1 w-full rounded-xl border border-white/15 bg-white/5 px-4 py-3 outline-none"
+                  className={fieldClass}
                 />
               </label>
             ) : null}
@@ -409,7 +427,7 @@ export function TokenRsvpForm({
             required
             value={contactEmail}
             onChange={(e) => setContactEmail(e.target.value)}
-            className="mt-1 w-full rounded-xl border border-white/15 bg-white/5 px-4 py-3 outline-none"
+            className={fieldClass}
             autoComplete="email"
           />
         </label>
@@ -421,7 +439,7 @@ export function TokenRsvpForm({
           rows={3}
           value={message}
           onChange={(e) => setMessage(e.target.value)}
-          className="mt-1 w-full rounded-xl border border-white/15 bg-white/5 px-4 py-3 outline-none"
+          className={fieldClass}
         />
       </label>
 

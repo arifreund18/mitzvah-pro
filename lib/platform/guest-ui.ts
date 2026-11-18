@@ -17,6 +17,7 @@ export type PublicRsvpCopy = {
   message: string
   submit: string
   submitting: string
+  deadlineClosed: string
 }
 
 const PUBLIC_RSVP: Record<EventLocale, PublicRsvpCopy> = {
@@ -36,6 +37,7 @@ const PUBLIC_RSVP: Record<EventLocale, PublicRsvpCopy> = {
     message: 'Message',
     submit: 'Send RSVP',
     submitting: 'Sending…',
+    deadlineClosed: 'The RSVP deadline has passed.',
   },
   pt: {
     personalLinkOnly: 'Use o link pessoal do e-mail de convite para confirmar presença.',
@@ -53,6 +55,7 @@ const PUBLIC_RSVP: Record<EventLocale, PublicRsvpCopy> = {
     message: 'Mensagem',
     submit: 'Enviar RSVP',
     submitting: 'Enviando…',
+    deadlineClosed: 'O prazo do RSVP já passou.',
   },
   es: {
     personalLinkOnly: 'Use el enlace personal del correo de invitación para confirmar.',
@@ -70,6 +73,7 @@ const PUBLIC_RSVP: Record<EventLocale, PublicRsvpCopy> = {
     message: 'Mensaje',
     submit: 'Enviar RSVP',
     submitting: 'Enviando…',
+    deadlineClosed: 'La fecha límite del RSVP ya pasó.',
   },
   he: {
     personalLinkOnly: 'השתמשו בקישור האישי מהמייל כדי לאשר הגעה.',
@@ -87,6 +91,7 @@ const PUBLIC_RSVP: Record<EventLocale, PublicRsvpCopy> = {
     message: 'הודעה',
     submit: 'שליחת אישור',
     submitting: 'שולחים…',
+    deadlineClosed: 'מועד ה־RSVP כבר עבר.',
   },
 }
 

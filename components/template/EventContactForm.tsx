@@ -1,16 +1,20 @@
 'use client'
 
 import { useState } from 'react'
+import { siteFieldClass } from '@/lib/platform/site-form'
+import type { ThemeId } from '@/lib/platform/types'
 
 export function EventContactForm({
   eventId,
   accent,
   muted,
+  themeId,
   labels,
 }: {
   eventId: string
   accent: string
   muted: string
+  themeId?: ThemeId
   labels?: { name?: string; email?: string; message?: string; send?: string; thanks?: string }
 }) {
   const [sent, setSent] = useState(false)
@@ -21,6 +25,7 @@ export function EventContactForm({
   const messageLabel = labels?.message || 'Message'
   const sendLabel = labels?.send || 'Send'
   const thanksLabel = labels?.thanks || 'Message sent. Thank you!'
+  const fieldClass = siteFieldClass(themeId)
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -57,29 +62,15 @@ export function EventContactForm({
     <form onSubmit={onSubmit} className="mx-auto mt-8 max-w-md space-y-3 text-start">
       <label className="block text-sm">
         {nameLabel}
-        <input
-          name="name"
-          required
-          className="mt-1 w-full rounded-xl border border-white/15 bg-white/5 px-4 py-3 outline-none"
-        />
+        <input name="name" required className={fieldClass} />
       </label>
       <label className="block text-sm">
         {emailLabel}
-        <input
-          name="email"
-          type="email"
-          required
-          className="mt-1 w-full rounded-xl border border-white/15 bg-white/5 px-4 py-3 outline-none"
-        />
+        <input name="email" type="email" required className={fieldClass} />
       </label>
       <label className="block text-sm">
         {messageLabel}
-        <textarea
-          name="message"
-          required
-          rows={4}
-          className="mt-1 w-full rounded-xl border border-white/15 bg-white/5 px-4 py-3 outline-none"
-        />
+        <textarea name="message" required rows={4} className={fieldClass} />
       </label>
       {error ? <p className="text-sm text-rose-300">{error}</p> : null}
       <button

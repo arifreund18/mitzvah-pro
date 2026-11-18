@@ -183,11 +183,12 @@ export function InvitationCard({
         />
       ) : null}
       <p
-        className="mt-6 text-sm italic opacity-80"
+        className={`mt-6 text-sm opacity-80 ${d.introItalic !== false ? 'italic' : 'not-italic'}`}
         style={{
           color: d.greetingColor || undefined,
           fontSize: d.introSizePx || undefined,
           fontWeight: d.introBold ? 700 : 400,
+          fontStyle: d.introItalic === false ? 'normal' : 'italic',
         }}
       >
         {greeting}
@@ -198,6 +199,7 @@ export function InvitationCard({
           color: d.nameColor || undefined,
           fontSize: d.headingSizePx || undefined,
           fontWeight: d.headingBold ? 700 : undefined,
+          fontStyle: d.headingItalic ? 'italic' : 'normal',
         }}
       >
         {name}
@@ -208,6 +210,7 @@ export function InvitationCard({
           color: d.bodyColor || undefined,
           fontSize: d.bodySizePx || 16,
           fontWeight: d.bodyBold ? 700 : 400,
+          fontStyle: d.bodyItalic ? 'italic' : 'normal',
         }}
       >
         {d.message || d.intro || config.invitation.body}
