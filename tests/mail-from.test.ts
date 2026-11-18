@@ -21,7 +21,7 @@ function config(partial: {
     basics: {
       type: 'bat_mitzvah',
       honoreeName: partial.honoreeName || 'Laura Adissi',
-      familyName: partial.familyName || 'Adissi',
+      familyName: partial.familyName !== undefined ? partial.familyName : 'Adissi',
       date: '',
       startTime: '',
       city: '',
@@ -67,11 +67,22 @@ describe('mail from display name', () => {
     )
   })
 
-  it('prefers host line over family/honoree', () => {
+  it('prefers Family field over host line / honoree', () => {
     assert.equal(
       eventFromDisplayName(
-        config({ hostLine: 'The Adissi family', familyName: 'Adissi', honoreeName: 'Laura' }),
+        config({
+          hostLine: 'The Adissi family',
+          familyName: 'Tatiana & Rodrigo',
+          honoreeName: 'Laura',
+        }),
       ),
+      'Tatiana & Rodrigo',
+    )
+  })
+
+  it('falls back to host line when Family is empty', () => {
+    assert.equal(
+      eventFromDisplayName(config({ hostLine: 'The Adissi family', familyName: '' })),
       'The Adissi family',
     )
   })
@@ -105,26 +116,29 @@ describe('eventSendFrom', () => {
     else process.env.AWS_ACCESS_KEY_ID = prevKey
   })
 
-  it('uses host line with shared RESEND_FROM_EMAIL', () => {
-    const from = eventSendFrom(config({ hostLine: 'The Adissi family' }))
-    assert.equal(from, 'The Adissi family <noreply@mitzvah.pro>')
+  it('uses Family field with shared RESEND_FROM_EMAIL', () => {
+    const from = eventSendFrom(
+      config({ familyName: 'Tatiana & Rodrigo', hostLine: 'The Tatiana & Rodrigo family' }),
+    )
+    assert.equal(from, 'Tatiana & Rodrigo <noreply@mitzvah.pro>')
   })
 
   it('prefers EMAIL_FROM_ADDRESS for SES', () => {
     process.env.EMAIL_PROVIDER = 'ses'
     process.env.AWS_ACCESS_KEY_ID = 'test'
     process.env.EMAIL_FROM_ADDRESS = 'convites@mitzvah.pro'
-    const from = eventSendFrom(config({ hostLine: 'Bar Mitzvah do Beni' }))
+    const from = eventSendFrom(config({ familyName: '', hostLine: 'Bar Mitzvah do Beni' }))
     assert.equal(from, 'Bar Mitzvah do Beni <convites@mitzvah.pro>')
     delete process.env.EMAIL_FROM_ADDRESS
     delete process.env.AWS_ACCESS_KEY_ID
     process.env.EMAIL_PROVIDER = 'resend'
   })
 
-  it('rewrites verified fromEmail display name to host line', () => {
+  it('rewrites verified fromEmail display name to Family field', () => {
     const from = eventSendFrom(
       config({
-        hostLine: 'Família Adissi',
+        familyName: 'Família Adissi',
+        hostLine: 'The Adissi family',
         mailStatus: 'verified',
         fromEmail: 'Laura Adissi <convites@mitzvah.pro>',
       }),
@@ -133,7 +147,7 @@ describe('eventSendFrom', () => {
   })
 
   it('resolves host Reply-To from contact email', () => {
-    const cfg = config({ hostLine: 'Família Adissi' })
+    const cfg = config({ familyName: 'Família Adissi' })
     cfg.contact = {
       phone: '',
       email: 'host@example.com',
