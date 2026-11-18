@@ -76,7 +76,7 @@ export function EventPlaces({
               </p>
               <h3 className="mt-1 text-lg font-semibold">{place.name}</h3>
               {place.notes ? (
-                <p className="mt-2 text-sm" style={{ color: muted }}>
+                <p className="mt-2 whitespace-pre-line text-sm" style={{ color: muted }}>
                   {place.notes}
                 </p>
               ) : null}

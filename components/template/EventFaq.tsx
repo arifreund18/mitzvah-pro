@@ -30,7 +30,7 @@ export function EventFaq({
               <span style={{ color: accent }}>{active ? '–' : '+'}</span>
             </button>
             {active ? (
-              <p className="px-5 pb-4 text-sm leading-relaxed" style={{ color: muted }}>
+              <p className="px-5 pb-4 text-sm leading-relaxed whitespace-pre-line" style={{ color: muted }}>
                 {item.answer}
               </p>
             ) : null}
