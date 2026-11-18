@@ -26,14 +26,16 @@ import { reviewIssues } from '@/lib/platform/wizard'
 import { GuestCsvImport } from '@/components/dashboard/GuestCsvImport'
 import { GuestManualAdd } from '@/components/dashboard/GuestManualAdd'
 import { GooglePhotosImport } from '@/components/wizard/GooglePhotosImport'
+import { studioUi } from '@/lib/platform/studio-ui'
 
 async function uploadWizardImage(
   eventId: string | undefined,
   file: File,
   tooBig: string,
   kind: string,
+  saveFirst: string,
 ): Promise<string> {
-  if (!eventId) throw new Error('Salve o evento antes de importar imagens.')
+  if (!eventId) throw new Error(saveFirst)
   const { uploadStudioImageFile } = await import('@/lib/platform/studio-image-upload')
   return uploadStudioImageFile({ eventId, file, kind, tooBigMessage: tooBig })
 }
@@ -54,6 +56,8 @@ export const WizardStepForm = forwardRef<
   }
 >(function WizardStepForm({ step, config, guests, onChange, onGuests, eventId }, ref) {
   const ui = wizardUi(config.locales.default)
+  const studio = studioUi(config.locales.default)
+  const locale = config.locales.default
   const set = (next: EventConfig) => onChange(next)
   const patch = (fn: (draft: EventConfig) => EventConfig) => onChange(applyGeneratedPatch(config, fn))
   const draftGuestForm = useRef<HTMLFormElement>(null)
@@ -466,7 +470,7 @@ export const WizardStepForm = forwardRef<
                     e.target.value = ''
                     if (!file) return
                     try {
-                      const url = await uploadWizardImage(eventId, file, ui.imageTooBig, 'hotel')
+                      const url = await uploadWizardImage(eventId, file, ui.imageTooBig, 'hotel', studio.saveEventFirst)
                       patchHotel(hotel.id, { photoUrl: url })
                     } catch (err) {
                       alert(err instanceof Error ? err.message : ui.uploadFail)
@@ -790,7 +794,7 @@ export const WizardStepForm = forwardRef<
         </Field>
         <Field label={ui.heroUpload}>
           <label className="flex cursor-pointer items-center justify-center rounded-xl border border-dashed border-white/25 bg-white/5 px-3 py-3 text-sm text-white/80 hover:border-cyan-400/50 hover:bg-cyan-400/5">
-            Importar imagem
+            {studio.importImage}
             <input
               type="file"
               accept="image/*"
@@ -800,7 +804,7 @@ export const WizardStepForm = forwardRef<
                 e.target.value = ''
                 if (!file) return
                 try {
-                  const url = await uploadWizardImage(eventId, file, ui.imageTooBig, 'hero')
+                  const url = await uploadWizardImage(eventId, file, ui.imageTooBig, 'hero', studio.saveEventFirst)
                   set({ ...config, media: { ...config.media, heroUrl: url } })
                 } catch (err) {
                   alert(err instanceof Error ? err.message : ui.uploadFail)
@@ -833,7 +837,7 @@ export const WizardStepForm = forwardRef<
             }}
           />
           <label className="mt-2 flex cursor-pointer items-center justify-center rounded-xl border border-dashed border-white/25 bg-white/5 px-3 py-3 text-sm text-white/80 hover:border-cyan-400/50 hover:bg-cyan-400/5">
-            Importar imagens para a galeria
+            {studio.importGallery}
             <input
               type="file"
               accept="image/*"
@@ -846,7 +850,7 @@ export const WizardStepForm = forwardRef<
                 try {
                   const uploaded: string[] = []
                   for (const file of files) {
-                    uploaded.push(await uploadWizardImage(eventId, file, ui.imageTooBig, 'gallery'))
+                    uploaded.push(await uploadWizardImage(eventId, file, ui.imageTooBig, 'gallery', studio.saveEventFirst))
                   }
                   const base = config.media.galleryItems?.length
                     ? [...config.media.galleryItems]
@@ -899,6 +903,7 @@ export const WizardStepForm = forwardRef<
         </Field>
         <GooglePhotosImport
           eventId={eventId}
+          locale={locale}
           onImported={(galleryItems) =>
             set({
               ...config,
@@ -955,6 +960,7 @@ export const WizardStepForm = forwardRef<
         <CardDesignFields
           design={config.saveTheDate.design}
           eventId={eventId}
+          locale={locale}
           onChange={(design) =>
             set({ ...config, saveTheDate: { ...config.saveTheDate, design } })
           }
@@ -1021,7 +1027,7 @@ export const WizardStepForm = forwardRef<
                 e.target.value = ''
                 if (!file) return
                 try {
-                  const url = await uploadWizardImage(eventId, file, ui.imageTooBig, 'seal')
+                  const url = await uploadWizardImage(eventId, file, ui.imageTooBig, 'seal', studio.saveEventFirst)
                   set({ ...config, invitation: { ...config.invitation, sealImageUrl: url } })
                 } catch (err) {
                   alert(err instanceof Error ? err.message : ui.uploadFail)
@@ -1039,6 +1045,7 @@ export const WizardStepForm = forwardRef<
         <CardDesignFields
           design={config.invitation.design}
           eventId={eventId}
+          locale={locale}
           onChange={(design) =>
             set({ ...config, invitation: { ...config.invitation, design } })
           }

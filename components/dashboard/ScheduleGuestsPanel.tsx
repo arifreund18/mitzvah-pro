@@ -6,17 +6,18 @@ import {
   guestsInvitedToScheduleItem,
   guestScheduleState,
 } from '@/lib/platform/schedule-invite'
-import type { PlatformEvent } from '@/lib/platform/types'
+import { fillTemplate, studioUi } from '@/lib/platform/studio-ui'
+import type { EventLocale, PlatformEvent } from '@/lib/platform/types'
 
-export function ScheduleGuestsPanel({ event }: { event: PlatformEvent }) {
+export function ScheduleGuestsPanel({ event, locale = 'en' }: { event: PlatformEvent; locale?: EventLocale }) {
+  const ui = studioUi(locale)
   const items = event.config.schedule.items
   const allItemIds = useMemo(() => items.map((item) => item.id), [items])
 
   if (!items.length) {
     return (
       <div className="mt-6 rounded-2xl border border-white/10 bg-white/5 p-5 text-sm text-white/50">
-        Ainda não há momentos na programação. Adicione-os na seção Programação para gerir
-        convites por evento.
+{ui.scheduleEmpty}
       </div>
     )
   }
@@ -24,7 +25,7 @@ export function ScheduleGuestsPanel({ event }: { event: PlatformEvent }) {
   if (!event.guests.length) {
     return (
       <div className="mt-6 rounded-2xl border border-white/10 bg-white/5 p-5 text-sm text-white/50">
-        Importe ou adicione convidados para escolher quem vê cada momento da programação.
+{ui.guestsEmptySchedule}
       </div>
     )
   }
@@ -40,6 +41,7 @@ export function ScheduleGuestsPanel({ event }: { event: PlatformEvent }) {
           itemMeta={[item.time, item.place].filter(Boolean).join(' · ')}
           guests={event.guests}
           allItemIds={allItemIds}
+          ui={ui}
         />
       ))}
     </div>
@@ -53,6 +55,7 @@ function ScheduleItemGuestsPicker({
   itemMeta,
   guests,
   allItemIds,
+  ui,
 }: {
   eventId: string
   itemId: string
@@ -60,6 +63,7 @@ function ScheduleItemGuestsPicker({
   itemMeta: string
   guests: PlatformEvent['guests']
   allItemIds: string[]
+  ui: ReturnType<typeof studioUi>
 }) {
   const router = useRouter()
   const initial = useMemo(
@@ -145,7 +149,7 @@ function ScheduleItemGuestsPicker({
           <p className="font-medium text-white">{itemLabel}</p>
           {itemMeta ? <p className="mt-1 text-xs text-white/45">{itemMeta}</p> : null}
           <p className="mt-1 text-xs text-white/40">
-            {invitedCount}/{guests.length} família(s) convidada(s)
+            {fillTemplate(ui.invitedCount, { invited: invitedCount, total: guests.length })}
           </p>
         </div>
         <button
@@ -156,7 +160,7 @@ function ScheduleItemGuestsPicker({
           }}
           className="rounded-full border border-cyan-400/40 px-3 py-1.5 text-xs text-cyan-100 hover:bg-cyan-400/10"
         >
-          {open ? 'Fechar' : 'Gerir convidados'}
+          {open ? ui.close : ui.manageGuests}
         </button>
       </div>
 
@@ -172,19 +176,19 @@ function ScheduleItemGuestsPicker({
               onClick={selectAll}
               className="rounded-full border border-white/20 px-3 py-1.5 text-xs hover:bg-white/10"
             >
-              Adicionar todos
+              {ui.addAll}
             </button>
             <button
               type="button"
               onClick={selectNone}
               className="rounded-full border border-white/20 px-3 py-1.5 text-xs hover:bg-white/10"
             >
-              Remover todos
+              {ui.removeAll}
             </button>
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Buscar família / pessoa / email"
+              placeholder={ui.searchFamily}
               className="min-w-52 flex-1 rounded-xl border border-white/15 bg-white/5 px-3 py-1.5 text-xs outline-none"
             />
           </div>
@@ -207,7 +211,7 @@ function ScheduleItemGuestsPicker({
                         <span className="text-white/45"> — {people}</span>
                       ) : null}
                       <span className="ml-2 text-[10px] uppercase tracking-wide text-white/30">
-                        {mode === 'all' ? 'todos' : mode === 'none' ? 'nenhum' : 'parcial'}
+                        {mode === 'all' ? ui.modeAll : mode === 'none' ? ui.modeNone : ui.modeSubset}
                       </span>
                     </span>
                   </label>
@@ -225,7 +229,7 @@ function ScheduleItemGuestsPicker({
               onClick={() => void save()}
               className="rounded-full bg-cyan-400 px-4 py-2 text-xs font-semibold text-[#0b1020] disabled:opacity-40"
             >
-              {saving ? 'A guardar…' : `Guardar (${selected.size})`}
+              {saving ? ui.saving : fillTemplate(ui.saveCount, { n: selected.size })}
             </button>
             {message ? (
               <p className={`text-xs ${messageTone === 'err' ? 'text-rose-300' : 'text-cyan-200'}`}>

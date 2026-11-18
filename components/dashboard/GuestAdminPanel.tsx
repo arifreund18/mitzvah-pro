@@ -2,7 +2,8 @@
 
 import { useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import type { Guest, PlatformEvent, ScheduleInviteMode } from '@/lib/platform/types'
+import { studioUi } from '@/lib/platform/studio-ui'
+import type { EventLocale, Guest, PlatformEvent, ScheduleInviteMode } from '@/lib/platform/types'
 
 function fmt(iso: string | null) {
   if (!iso) return '—'
@@ -11,7 +12,8 @@ function fmt(iso: string | null) {
 
 type SortKey = 'name' | 'rsvp' | 'std' | 'invite'
 
-export function GuestAdminPanel({ event }: { event: PlatformEvent }) {
+export function GuestAdminPanel({ event, locale = 'en' }: { event: PlatformEvent; locale?: EventLocale }) {
+  const ui = studioUi(locale)
   const router = useRouter()
   const [query, setQuery] = useState('')
   const [rsvp, setRsvp] = useState<'all' | 'yes' | 'no' | 'pending'>('all')
@@ -77,8 +79,7 @@ export function GuestAdminPanel({ event }: { event: PlatformEvent }) {
   }
 
   async function removeGuest(guestId: string, personId?: string) {
-    const label = personId ? 'este convidado' : 'esta família e todos os convidados'
-    if (!confirm(`Excluir ${label}?`)) return
+    if (!confirm(personId ? ui.deleteGuestConfirm : ui.deleteFamilyConfirm)) return
     setBusyId(guestId)
     const res = await fetch(`/api/platform/events/${event.id}/guests`, {
       method: 'DELETE',
@@ -92,13 +93,13 @@ export function GuestAdminPanel({ event }: { event: PlatformEvent }) {
   return (
     <div className="mt-6 space-y-4">
       <p className="text-sm text-white/50">
-        Adultos: {counts.adults} · Crianças: {counts.children}
+        {ui.adults}: {counts.adults} · {ui.children}: {counts.children}
       </p>
       <div className="flex flex-wrap gap-2 text-sm">
         <input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Buscar família / email"
+          placeholder={ui.searchGuest}
           className="min-w-52 rounded-xl border border-white/15 bg-white/5 px-3 py-2 outline-none"
         />
         <select
@@ -106,7 +107,7 @@ export function GuestAdminPanel({ event }: { event: PlatformEvent }) {
           onChange={(e) => setRsvp(e.target.value as typeof rsvp)}
           className="rounded-xl border border-white/15 bg-[#12182a] px-3 py-2"
         >
-          <option value="all">RSVP: todos</option>
+          <option value="all">{ui.rsvpAll}</option>
           <option value="yes">RSVP: sim</option>
           <option value="no">RSVP: não</option>
           <option value="pending">RSVP: pendente</option>
@@ -134,10 +135,10 @@ export function GuestAdminPanel({ event }: { event: PlatformEvent }) {
           onChange={(e) => setSort(e.target.value as SortKey)}
           className="rounded-xl border border-white/15 bg-[#12182a] px-3 py-2"
         >
-          <option value="name">Ordenar: nome</option>
-          <option value="rsvp">Ordenar: RSVP</option>
-          <option value="std">Ordenar: STD</option>
-          <option value="invite">Ordenar: convite</option>
+          <option value="name">{ui.sortName}</option>
+          <option value="rsvp">{ui.sortRsvp}</option>
+          <option value="std">{ui.sortStd}</option>
+          <option value="invite">{ui.sortInvite}</option>
         </select>
       </div>
 
@@ -145,21 +146,21 @@ export function GuestAdminPanel({ event }: { event: PlatformEvent }) {
         <table className="w-full min-w-[980px] text-left text-sm">
           <thead className="bg-white/5 text-white/50">
             <tr>
-              <th className="px-4 py-3 font-medium">Família</th>
-              <th className="px-4 py-3 font-medium">Email</th>
-              <th className="px-4 py-3 font-medium">Pessoas</th>
+              <th className="px-4 py-3 font-medium">{ui.familyPrefix}</th>
+              <th className="px-4 py-3 font-medium">{ui.email}</th>
+              <th className="px-4 py-3 font-medium">{ui.people}</th>
               <th className="px-4 py-3 font-medium">RSVP</th>
-              <th className="px-4 py-3 font-medium">Programação</th>
+              <th className="px-4 py-3 font-medium">{ui.programCol}</th>
               <th className="px-4 py-3 font-medium">STD</th>
               <th className="px-4 py-3 font-medium">Convite</th>
-              <th className="px-4 py-3 font-medium">Ações</th>
+              <th className="px-4 py-3 font-medium">{ui.actions}</th>
             </tr>
           </thead>
           <tbody>
             {rows.length === 0 ? (
               <tr>
                 <td colSpan={8} className="px-4 py-8 text-center text-white/40">
-                  Nenhum convidado neste filtro.
+                  {ui.noGuestsFilter}
                 </td>
               </tr>
             ) : (
@@ -200,9 +201,9 @@ export function GuestAdminPanel({ event }: { event: PlatformEvent }) {
                     <td className="px-4 py-3">{guest.status}</td>
                     <td className="px-4 py-3">
                       <p className="mb-1 text-[10px] uppercase tracking-wide text-white/35">
-                        Atalho · preferir{' '}
+                        {ui.shortcut}{' '}
                         <a href="#schedule-invites" className="text-cyan-200 hover:underline">
-                          Convites da programação
+                          {ui.preferScheduleInvites}
                         </a>
                       </p>
                       <select
@@ -215,9 +216,9 @@ export function GuestAdminPanel({ event }: { event: PlatformEvent }) {
                         }
                         className="mb-2 w-full rounded-lg border border-white/15 bg-[#12182a] px-2 py-1 text-xs"
                       >
-                        <option value="all">Todos os momentos</option>
-                        <option value="subset">Subconjunto</option>
-                        <option value="none">Nenhum</option>
+                        <option value="all">{ui.allMoments}</option>
+                        <option value="subset">{ui.subset}</option>
+                        <option value="none">{ui.none}</option>
                       </select>
                       {guest.scheduleInviteMode === 'subset' ? (
                         <div className="max-h-28 space-y-1 overflow-auto text-xs">
@@ -255,7 +256,7 @@ export function GuestAdminPanel({ event }: { event: PlatformEvent }) {
                         onClick={() => void removeGuest(guest.id)}
                         className="text-xs text-rose-300 hover:text-rose-200 disabled:opacity-40"
                       >
-                        Excluir família
+                        {ui.deleteFamily}
                       </button>
                     </td>
                   </tr>

@@ -10,7 +10,8 @@ import { GuestCsvImport } from '@/components/dashboard/GuestCsvImport'
 import { GuestManualAdd } from '@/components/dashboard/GuestManualAdd'
 import { ScheduleGuestsPanel } from '@/components/dashboard/ScheduleGuestsPanel'
 import { normalizeProducts } from '@/lib/platform/products'
-import { SECTION_EDITOR_IDS, SECTION_LABELS } from '@/lib/platform/section-editor'
+import { SECTION_EDITOR_IDS } from '@/lib/platform/section-editor'
+import { fillTemplate, sectionLabelsFor, studioUi } from '@/lib/platform/studio-ui'
 import type { PlatformEvent } from '@/lib/platform/types'
 import { eventApexPathUrl, eventPublicHostLabel, eventPublicUrl } from '@/lib/platform/site-url'
 import { eventMailDomainName } from '@/lib/platform/mail-domain'
@@ -57,6 +58,9 @@ export function EventAdmin({
     if (section === 'reminders') return products.invitation || products.saveTheDate
     return true
   })
+  const locale = event.config.locales.default
+  const ui = studioUi(locale)
+  const sectionLabels = sectionLabelsFor(locale)
   const peopleCounts = useMemo(() => {
     let adults = 0
     let children = 0
@@ -177,7 +181,7 @@ export function EventAdmin({
     const to = testTo.trim()
     if (!to) {
       setMessageTone('err')
-      setMessage('Informe um email para o envio de teste')
+      setMessage(ui.emailNeeded)
       return
     }
     setBusy(`test-${kind}`)
@@ -260,7 +264,7 @@ export function EventAdmin({
       <p className="text-xs uppercase tracking-[0.3em] text-cyan-300/80">Dashboard do evento</p>
       <h1 className="font-display mt-2 text-4xl">{event.config.basics.honoreeName || 'Evento'}</h1>
       <p className="mt-2 text-white/50">
-        Família {event.config.basics.familyName || '—'} ·{' '}
+        {ui.familyPrefix} {event.config.basics.familyName || '—'} ·{' '}
         <a href={siteUrl} className="text-cyan-200 hover:underline">
           {siteUrl.replace(/^https?:\/\//, '')}
         </a>
@@ -291,7 +295,7 @@ export function EventAdmin({
       />
       <CustomDomainPanel eventId={event.id} domain={event.config.domain} />
       <div className="mt-8">
-        <EventActions id={event.id} slug={event.slug} status={event.status} previewToken={event.previewToken} />
+        <EventActions id={event.id} slug={event.slug} status={event.status} previewToken={event.previewToken} locale={locale} />
       </div>
       <div className="mt-6 flex flex-wrap gap-3 text-sm">
         <a href={stdUrl} className="rounded-full border border-white/20 px-4 py-2 hover:bg-white/10">
@@ -306,7 +310,7 @@ export function EventAdmin({
           onClick={() => send('std')}
           className="rounded-full bg-cyan-400 px-4 py-2 font-semibold text-[#0b1020] disabled:opacity-40"
         >
-          {busy === 'std' ? 'Enviando…' : 'Enviar Save the Date'}
+          {busy === 'std' ? ui.sending : ui.sendStd}
         </button>
         <button
           type="button"
@@ -314,12 +318,12 @@ export function EventAdmin({
           onClick={() => send('invite')}
           className="rounded-full bg-white px-4 py-2 font-semibold text-[#0b1020] disabled:opacity-40"
         >
-          {busy === 'invite' ? 'Enviando…' : 'Enviar convites'}
+          {busy === 'invite' ? ui.sending : ui.sendInvite}
         </button>
       </div>
       <div className="mt-4 flex flex-wrap items-end gap-3 text-sm">
         <label className="block min-w-56 flex-1">
-          <span className="text-xs uppercase text-white/40">Email de teste</span>
+          <span className="text-xs uppercase text-white/40">{ui.testEmail}</span>
           <input
             value={testTo}
             onChange={(e) => setTestTo(e.target.value)}
@@ -333,7 +337,7 @@ export function EventAdmin({
           onClick={() => void sendTest('std')}
           className="rounded-full border border-cyan-400/40 px-4 py-2 text-cyan-100 hover:bg-cyan-400/10 disabled:opacity-40"
         >
-          {busy === 'test-std' ? 'Enviando…' : 'Enviar teste STD'}
+          {busy === 'test-std' ? ui.sending : ui.sendTestStd}
         </button>
         <button
           type="button"
@@ -341,7 +345,7 @@ export function EventAdmin({
           onClick={() => void sendTest('invite')}
           className="rounded-full border border-white/25 px-4 py-2 hover:bg-white/10 disabled:opacity-40"
         >
-          {busy === 'test-invite' ? 'Enviando…' : 'Enviar teste convite'}
+          {busy === 'test-invite' ? ui.sending : ui.sendTestInvite}
         </button>
       </div>
       {message ? (
@@ -350,12 +354,12 @@ export function EventAdmin({
 
       <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
         {[
-          ['Convidados', String(stats.total)],
-          ['Pessoas (sim/pendente)', String(stats.people)],
-          ['Adultos / crianças', `${peopleCounts.adults} / ${peopleCounts.children}`],
-          ['RSVP sim / não / pendente', `${stats.yes} / ${stats.no} / ${stats.pending}`],
-          ['STD enviados', String(stats.std)],
-          ['Convites enviados', String(stats.invite)],
+          [ui.guests, String(stats.total)],
+          [ui.peopleYesPending, String(stats.people)],
+          [ui.adultsChildren, `${peopleCounts.adults} / ${peopleCounts.children}`],
+          [ui.rsvpBreakdown, `${stats.yes} / ${stats.no} / ${stats.pending}`],
+          [ui.stdSent, String(stats.std)],
+          [ui.invitesSent, String(stats.invite)],
         ].map(([label, value]) => (
           <div key={label} className="rounded-2xl border border-white/10 bg-white/5 p-5">
             <p className="text-xs uppercase text-white/40">{label}</p>
@@ -366,13 +370,13 @@ export function EventAdmin({
 
       {canManageOptions ? (
         <div className="mt-12">
-          <EventOptionsPanel event={event} />
+          <EventOptionsPanel event={event} locale={locale} />
         </div>
       ) : null}
 
-      <h2 className="font-display mt-12 text-2xl">Editar seção</h2>
+      <h2 className="font-display mt-12 text-2xl">{ui.editSection}</h2>
       <p className="mt-2 text-sm text-white/50">
-        Edite uma seção do evento publicado sem reabrir o wizard completo.
+        {ui.editSectionHint}
       </p>
       <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {visibleSections.map((section) => (
@@ -381,28 +385,26 @@ export function EventAdmin({
             href={`/dashboard/events/${event.id}/sections/${section}`}
             className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm hover:border-cyan-400/40 hover:bg-cyan-400/5"
           >
-            {SECTION_LABELS[section]}
+            {sectionLabels[section]}
           </Link>
         ))}
       </div>
 
       {products.site ? (
         <div id="schedule-invites" className="mt-12">
-          <h2 className="font-display text-2xl">Convites da programação</h2>
+          <h2 className="font-display text-2xl">{ui.scheduleInvites}</h2>
           <p className="mt-2 text-sm text-white/50">
-            Por cada momento do schedule, adicione todos, remova todos ou escolha quais famílias
-            veem o evento no site — como no Bar-Beni.
+            {ui.scheduleInvitesHint}
           </p>
-          <ScheduleGuestsPanel event={event} />
+          <ScheduleGuestsPanel event={event} locale={locale} />
         </div>
       ) : null}
 
       <h2 id="guests" className="font-display mt-12 text-2xl">
-        Convidados
+        {ui.guestsTitle}
       </h2>
       <p className="mt-2 text-sm text-white/50">
-        Envie Save the Date e convite por email. Sem provedor no localhost, o status é marcado mesmo assim.
-        Com SES + Vercel DNS, cada evento usa convites@mail.{'{slug}'}.mitzvah.pro (reputação isolada).
+        {ui.guestsHint}
       </p>
       <div className="mt-4 space-y-4">
         <GuestManualAdd eventId={event.id} />
@@ -412,17 +414,17 @@ export function EventAdmin({
             href={`/api/platform/events/${event.id}/guests/export`}
             className="rounded-full border border-white/20 px-4 py-2 text-sm hover:bg-white/10"
           >
-            Exportar CSV
+            {ui.exportCsv}
           </a>
           <a
             href={`/api/platform/events/${event.id}/guests/export?format=xlsx`}
             className="rounded-full border border-white/20 px-4 py-2 text-sm hover:bg-white/10"
           >
-            Exportar XLSX
+            {ui.exportXlsx}
           </a>
         </div>
       </div>
-      <GuestAdminPanel event={event} />
+      <GuestAdminPanel event={event} locale={locale} />
     </div>
   )
 }

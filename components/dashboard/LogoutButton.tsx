@@ -2,7 +2,7 @@
 
 import { useRouter } from 'next/navigation'
 
-export function LogoutButton() {
+export function LogoutButton({ label = 'Log out' }: { label?: string }) {
   const router = useRouter()
   return (
     <button
@@ -14,7 +14,7 @@ export function LogoutButton() {
         router.refresh()
       }}
     >
-      Sair
+      {label}
     </button>
   )
 }
