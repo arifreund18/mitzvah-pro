@@ -138,7 +138,7 @@ export function EventSite({
   })
 
   const nav = [
-    { href: '#welcome', label: ui.welcome, show: Boolean(story.parentsMessage) },
+    { href: '#welcome', label: ui.parentsMessage, show: Boolean(story.parentsMessage) },
     { href: '#about', label: ui.about, show: Boolean(story.about || story.honoreeBio) },
     { href: '#schedule', label: ui.schedule, show: scheduleItems.length > 0 },
     { href: '#faq', label: ui.faq, show: publishedFaq.length > 0 },
@@ -276,13 +276,8 @@ export function EventSite({
           data-preview="story"
           className={`mx-auto max-w-3xl px-6 py-16 text-center ${mark('story')}`}
         >
-          <p className="text-xs uppercase tracking-[0.3em]" style={{ color: accent }}>
-            {ui.welcome}
-          </p>
-          <p
-            className="mt-6 whitespace-pre-line text-lg leading-relaxed md:text-xl"
-            style={{ color: theme.text }}
-          >
+          <h2 className="font-display text-3xl">{ui.parentsMessage}</h2>
+          <p className="mt-6 whitespace-pre-line text-lg leading-relaxed" style={{ color: theme.muted }}>
             {story.parentsMessage}
           </p>
         </section>

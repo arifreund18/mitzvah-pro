@@ -4,6 +4,7 @@ export type TemplateUi = {
   joinUs: string
   rsvpNow: string
   welcome: string
+  parentsMessage: string
   theFamily: string
   about: string
   aboutHonoree: string
@@ -48,6 +49,7 @@ const PACKS: Record<EventLocale, TemplateUi> = {
     joinUs: 'Celebre conosco',
     rsvpNow: 'Confirmar presença',
     welcome: 'Boas-vindas',
+    parentsMessage: 'Mensagem dos pais',
     theFamily: 'A família',
     about: 'Sobre a celebração',
     aboutHonoree: 'Sobre o celebrante',
@@ -98,6 +100,7 @@ const PACKS: Record<EventLocale, TemplateUi> = {
     joinUs: 'Join us for a special celebration',
     rsvpNow: 'RSVP now',
     welcome: 'Welcome',
+    parentsMessage: 'Parents’ message',
     theFamily: 'The family',
     about: 'About the celebration',
     aboutHonoree: 'About the honoree',
@@ -148,6 +151,7 @@ const PACKS: Record<EventLocale, TemplateUi> = {
     joinUs: 'Celebra con nosotros',
     rsvpNow: 'Confirmar asistencia',
     welcome: 'Bienvenida',
+    parentsMessage: 'Mensaje de los padres',
     theFamily: 'La familia',
     about: 'Sobre la celebración',
     aboutHonoree: 'Sobre el celebrante',
@@ -198,6 +202,7 @@ const PACKS: Record<EventLocale, TemplateUi> = {
     joinUs: 'חגגו איתנו',
     rsvpNow: 'אישור הגעה',
     welcome: 'ברוכים הבאים',
+    parentsMessage: 'מסר מההורים',
     theFamily: 'המשפחה',
     about: 'על החגיגה',
     aboutHonoree: 'על החוגג/ת',
