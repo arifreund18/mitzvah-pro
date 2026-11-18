@@ -17,9 +17,10 @@ export default async function EventDetailPage({
   const event = await getEvent(id)
   if (!event) redirect('/dashboard?missing=1')
   const actor = await currentActor()
+  const locale = event.config.locales.default
 
   return (
-    <DashboardShell>
+    <DashboardShell locale={locale} lockLocale>
       <EventAdmin event={event} canManageOptions={canManageEventOptions(actor)} />
     </DashboardShell>
   )

@@ -3,7 +3,8 @@
 import Link from 'next/link'
 import { useEffect, useRef, useState } from 'react'
 import { WizardStepForm, type WizardStepFormHandle } from '@/components/wizard/WizardStepForm'
-import { SECTION_LABELS, type SectionEditorId } from '@/lib/platform/section-editor'
+import type { SectionEditorId } from '@/lib/platform/section-editor'
+import { fillTemplate, sectionLabelsFor, studioUi } from '@/lib/platform/studio-ui'
 import type { EventConfig, Guest, PlatformEvent } from '@/lib/platform/types'
 
 export function SectionEditor({
@@ -13,12 +14,14 @@ export function SectionEditor({
   event: PlatformEvent
   section: SectionEditorId
 }) {
+  const locale = event.config.locales.default
+  const ui = studioUi(locale)
+  const label = sectionLabelsFor(locale)[section]
   const [config, setConfig] = useState<EventConfig>(event.config)
   const [guests, setGuests] = useState<Guest[]>(event.guests)
   const [saveState, setSaveState] = useState<'saved' | 'saving' | 'error' | 'dirty'>('saved')
   const skipFirst = useRef(true)
   const formRef = useRef<WizardStepFormHandle>(null)
-  const label = SECTION_LABELS[section]
 
   useEffect(() => {
     if (skipFirst.current) {
@@ -59,26 +62,28 @@ export function SectionEditor({
 
   const statusLabel =
     saveState === 'saving'
-      ? 'A guardar…'
+      ? ui.saving
       : saveState === 'error'
-        ? 'Erro ao guardar'
+        ? ui.saveError
         : saveState === 'dirty'
-          ? 'Alterações por guardar'
-          : 'Guardado'
+          ? ui.dirty
+          : ui.saved
 
   return (
-    <div className="mx-auto max-w-2xl px-4 py-8">
+    <div className="mx-auto max-w-2xl px-4 py-8" lang={locale}>
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <div>
           <Link
             href={`/dashboard/events/${event.id}`}
             className="text-xs text-white/40 hover:text-white"
           >
-            ← Dashboard do evento
+            {ui.backToEvent}
           </Link>
-          <h1 className="font-display mt-2 text-3xl">Editar seção · {label}</h1>
+          <h1 className="font-display mt-2 text-3xl">
+            {fillTemplate(ui.editSectionTitle, { label })}
+          </h1>
           <p className="mt-1 text-sm text-white/50">
-            {event.config.basics.honoreeName || 'Evento'} · alterações guardam automaticamente
+            {event.config.basics.honoreeName || ui.unnamed}
           </p>
         </div>
         <p

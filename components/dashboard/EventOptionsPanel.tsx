@@ -4,28 +4,18 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { LOCALE_OPTIONS } from '@/lib/platform/locales'
 import { applyProducts, normalizeProducts, toggleProduct } from '@/lib/platform/products'
+import { studioUi } from '@/lib/platform/studio-ui'
 import type { EventConfig, EventLocale, EventProducts, PlatformEvent } from '@/lib/platform/types'
 
-const PRODUCT_OPTIONS: { id: keyof EventProducts; title: string; hint: string }[] = [
-  {
-    id: 'site',
-    title: 'Site',
-    hint: 'Páginas do evento: história, programação, hotéis, FAQ.',
-  },
-  {
-    id: 'invitation',
-    title: 'Convite',
-    hint: 'Email de convite, RSVP e lista de convidados.',
-  },
-  {
-    id: 'saveTheDate',
-    title: 'Save the Date',
-    hint: 'Aviso antecipado por email para reservar a data.',
-  },
-]
-
-export function EventOptionsPanel({ event }: { event: PlatformEvent }) {
+export function EventOptionsPanel({
+  event,
+  locale = 'en',
+}: {
+  event: PlatformEvent
+  locale?: EventLocale
+}) {
   const router = useRouter()
+  const ui = studioUi(locale)
   const [config, setConfig] = useState<EventConfig>(event.config)
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState('')
@@ -40,6 +30,12 @@ export function EventOptionsPanel({ event }: { event: PlatformEvent }) {
     ? config.locales.enabled
     : ([config.locales.default] as EventLocale[])
 
+  const productOptions: { id: keyof EventProducts; title: string; hint: string }[] = [
+    { id: 'site', title: ui.productSite, hint: ui.productSiteHint },
+    { id: 'invitation', title: ui.productInvite, hint: ui.productInviteHint },
+    { id: 'saveTheDate', title: ui.productStd, hint: ui.productStdHint },
+  ]
+
   async function persist(next: EventConfig) {
     setConfig(next)
     setBusy(true)
@@ -52,11 +48,11 @@ export function EventOptionsPanel({ event }: { event: PlatformEvent }) {
     setBusy(false)
     if (!res.ok) {
       setTone('err')
-      setMessage('Não foi possível guardar as opções')
+      setMessage(ui.optionsSaveFailed)
       return
     }
     setTone('ok')
-    setMessage('Opções atualizadas')
+    setMessage(ui.optionsSaved)
     router.refresh()
   }
 
@@ -64,14 +60,14 @@ export function EventOptionsPanel({ event }: { event: PlatformEvent }) {
     void persist(applyProducts(config, toggleProduct(products, id)))
   }
 
-  function onToggleLocale(locale: EventLocale) {
-    const selected = enabledLocales.includes(locale)
+  function onToggleLocale(nextLocale: EventLocale) {
+    const selected = enabledLocales.includes(nextLocale)
     let nextEnabled: EventLocale[]
     if (selected) {
       if (enabledLocales.length === 1) return
-      nextEnabled = enabledLocales.filter((item) => item !== locale)
+      nextEnabled = enabledLocales.filter((item) => item !== nextLocale)
     } else {
-      nextEnabled = [...enabledLocales, locale]
+      nextEnabled = [...enabledLocales, nextLocale]
     }
     const nextDefault = nextEnabled.includes(config.locales.default)
       ? config.locales.default
@@ -84,14 +80,12 @@ export function EventOptionsPanel({ event }: { event: PlatformEvent }) {
 
   return (
     <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
-      <h2 className="font-display text-2xl">Opções do evento</h2>
-      <p className="mt-2 text-sm text-white/50">
-        Altere o que o evento inclui e os idiomas. O wizard e os envios adaptam-se a estas escolhas.
-      </p>
+      <h2 className="font-display text-2xl">{ui.optionsTitle}</h2>
+      <p className="mt-2 text-sm text-white/50">{ui.optionsHint}</p>
 
-      <p className="mt-5 text-xs uppercase tracking-wide text-white/40">Produtos</p>
+      <p className="mt-5 text-xs uppercase tracking-wide text-white/40">{ui.products}</p>
       <div className="mt-2 grid gap-2 sm:grid-cols-3">
-        {PRODUCT_OPTIONS.map((option) => {
+        {productOptions.map((option) => {
           const selected = products[option.id]
           return (
             <button
@@ -115,7 +109,7 @@ export function EventOptionsPanel({ event }: { event: PlatformEvent }) {
         })}
       </div>
 
-      <p className="mt-6 text-xs uppercase tracking-wide text-white/40">Idiomas</p>
+      <p className="mt-6 text-xs uppercase tracking-wide text-white/40">{ui.languages}</p>
       <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-4">
         {LOCALE_OPTIONS.map((option) => {
           const selected = enabledLocales.includes(option.value)
@@ -125,23 +119,23 @@ export function EventOptionsPanel({ event }: { event: PlatformEvent }) {
               type="button"
               disabled={busy}
               onClick={() => onToggleLocale(option.value)}
-              className={`rounded-xl border px-3 py-3 text-start text-sm disabled:opacity-50 ${
+              className={`rounded-xl border px-3 py-2 text-sm disabled:opacity-50 ${
                 selected
                   ? 'border-cyan-400 bg-cyan-400/10 text-cyan-100'
-                  : 'border-white/15 bg-white/5 text-white/80'
+                  : 'border-white/15 bg-white/5 text-white/70'
               }`}
             >
-              <span className="block font-medium">
-                {selected ? '✓ ' : ''}
-                {option.label}
-              </span>
+              {selected ? '✓ ' : ''}
+              {option.label}
+              {config.locales.default === option.value ? ' ★' : ''}
             </button>
           )
         })}
       </div>
-
       {message ? (
-        <p className={`mt-3 text-sm ${tone === 'err' ? 'text-rose-300' : 'text-cyan-200'}`}>{message}</p>
+        <p className={`mt-4 text-sm ${tone === 'err' ? 'text-rose-300' : 'text-cyan-200'}`}>
+          {message}
+        </p>
       ) : null}
     </div>
   )

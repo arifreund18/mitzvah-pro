@@ -2,94 +2,138 @@
 
 import { Field, TextArea, TextInput } from '@/components/wizard/fields'
 import { uploadStudioImageFile } from '@/lib/platform/studio-image-upload'
-import type { CardDesign } from '@/lib/platform/types'
+import { fillTemplate, studioUi, type CardDesignUi } from '@/lib/platform/studio-ui'
+import type { CardDesign, EventLocale } from '@/lib/platform/types'
 
-const COLOR_FIELDS: { key: keyof CardDesign; label: string }[] = [
-  { key: 'pageColor', label: 'Cor da página' },
-  { key: 'envelopeColor', label: 'Cor do envelope' },
-  { key: 'envelopeLiner', label: 'Forro do envelope' },
-  { key: 'envelopeExterior', label: 'Exterior do envelope' },
-  { key: 'envelopeNameColor', label: 'Nome no envelope' },
-  { key: 'sealBg', label: 'Fundo do selo' },
-  { key: 'cardColor', label: 'Cor do cartão' },
-  { key: 'cardTextColor', label: 'Texto do cartão' },
-  { key: 'ctaRsvpColor', label: 'Texto do RSVP' },
-  { key: 'greetingColor', label: 'Cor da saudação' },
-  { key: 'nameColor', label: 'Cor do nome' },
-  { key: 'bodyColor', label: 'Cor do corpo' },
-  { key: 'introColor', label: 'Cor da intro' },
-  { key: 'headingColor', label: 'Cor do heading' },
+const COLOR_KEYS = [
+  'pageColor',
+  'envelopeColor',
+  'envelopeLiner',
+  'envelopeExterior',
+  'envelopeNameColor',
+  'sealBg',
+  'cardColor',
+  'cardTextColor',
+  'ctaRsvpColor',
+  'greetingColor',
+  'nameColor',
+  'bodyColor',
+  'introColor',
+  'headingColor',
+] as const
+
+const TEXT_KEYS: { key: keyof CardDesign; placeholder?: string }[] = [
+  { key: 'sealLabel' },
+  { key: 'mapUrl', placeholder: 'https://maps…' },
+  { key: 'openLabel' },
+  { key: 'forLabel' },
+  { key: 'title' },
+  { key: 'eventName' },
+  { key: 'heading' },
+  { key: 'hosts' },
+  { key: 'greeting' },
+  { key: 'dateLabel' },
+  { key: 'timeLabel' },
+  { key: 'placeLabel' },
+  { key: 'cityLabel' },
+  { key: 'address1' },
+  { key: 'address2' },
+  { key: 'subject' },
+  { key: 'ctaView' },
+  { key: 'ctaCalendar' },
+  { key: 'ctaMap' },
+  { key: 'ctaRsvp' },
+  { key: 'rsvpLabel' },
+  { key: 'rsvpHint' },
+  { key: 'suggestedPalette' },
 ]
 
-const TEXT_FIELDS: { key: keyof CardDesign; label: string; placeholder?: string }[] = [
-  { key: 'sealLabel', label: 'Rótulo do selo' },
-  { key: 'mapUrl', label: 'Map URL', placeholder: 'https://maps…' },
-  { key: 'openLabel', label: 'Rótulo abrir envelope' },
-  { key: 'forLabel', label: 'Rótulo "para:"' },
-  { key: 'title', label: 'Título no cartão' },
-  { key: 'eventName', label: 'Nome do evento no cartão' },
-  { key: 'heading', label: 'Heading' },
-  { key: 'hosts', label: 'Anfitriões' },
-  { key: 'greeting', label: 'Saudação' },
-  { key: 'dateLabel', label: 'Rótulo data' },
-  { key: 'timeLabel', label: 'Rótulo horário' },
-  { key: 'placeLabel', label: 'Rótulo local' },
-  { key: 'cityLabel', label: 'Rótulo cidade' },
-  { key: 'address1', label: 'Endereço linha 1' },
-  { key: 'address2', label: 'Endereço linha 2' },
-  { key: 'subject', label: 'Assunto (email)' },
-  { key: 'ctaView', label: 'CTA ver' },
-  { key: 'ctaCalendar', label: 'CTA calendário' },
-  { key: 'ctaMap', label: 'CTA mapa' },
-  { key: 'ctaRsvp', label: 'CTA RSVP' },
-  { key: 'rsvpLabel', label: 'Rótulo RSVP' },
-  { key: 'rsvpHint', label: 'Dica RSVP' },
-  { key: 'suggestedPalette', label: 'Paleta sugerida (hex, vírgula)' },
-]
-
-const IMAGE_FIELDS: { key: keyof CardDesign; label: string; placeholder?: string }[] = [
-  { key: 'pageTexture', label: 'Textura da página', placeholder: 'https://…/texture.png' },
-  { key: 'envelopeTexture', label: 'Textura do envelope', placeholder: 'https://…' },
-  { key: 'sealUrl', label: 'Selo / logo', placeholder: 'https://…' },
-  { key: 'cardImageUrl', label: 'Imagem de fundo do cartão', placeholder: 'https://…' },
-  { key: 'panelPhotoUrl', label: 'Foto do painel', placeholder: 'https://…' },
+const IMAGE_KEYS: { key: keyof CardDesign; placeholder?: string }[] = [
+  { key: 'pageTexture', placeholder: 'https://…/texture.png' },
+  { key: 'envelopeTexture', placeholder: 'https://…' },
+  { key: 'sealUrl', placeholder: 'https://…' },
+  { key: 'cardImageUrl', placeholder: 'https://…' },
+  { key: 'panelPhotoUrl', placeholder: 'https://…' },
 ]
 
 function parseFocal(value: string | undefined): { x: number; y: number } {
   const raw = (value || 'center').trim().toLowerCase()
   if (!raw || raw === 'center') return { x: 50, y: 50 }
-  if (raw === 'top') return { x: 50, y: 0 }
-  if (raw === 'bottom') return { x: 50, y: 100 }
-  if (raw === 'left') return { x: 0, y: 50 }
-  if (raw === 'right') return { x: 100, y: 50 }
-  const parts = raw.split(/\s+/)
-  const x = Number.parseFloat(parts[0] || '')
-  const y = Number.parseFloat(parts[1] || parts[0] || '')
+  const match = raw.match(/^(\d+(?:\.\d+)?)%\s+(\d+(?:\.\d+)?)%$/)
+  if (!match) return { x: 50, y: 50 }
   return {
-    x: Number.isFinite(x) ? Math.max(0, Math.min(100, x)) : 50,
-    y: Number.isFinite(y) ? Math.max(0, Math.min(100, y)) : 50,
+    x: Math.max(0, Math.min(100, Number(match[1]))),
+    y: Math.max(0, Math.min(100, Number(match[2]))),
   }
 }
 
 function formatFocal(x: number, y: number): string {
-  if (x === 50 && y === 50) return 'center'
   return `${Math.round(x)}% ${Math.round(y)}%`
+}
+
+function PositionSliders({
+  label,
+  value,
+  onChange,
+}: {
+  label: string
+  value: string
+  onChange: (next: string) => void
+}) {
+  const focal = parseFocal(value)
+  return (
+    <Field label={label}>
+      <div className="space-y-3 rounded-xl border border-white/10 bg-white/5 p-3">
+        <label className="block text-xs text-white/50">
+          X {Math.round(focal.x)}%
+          <input
+            type="range"
+            min={0}
+            max={100}
+            value={focal.x}
+            onChange={(e) => onChange(formatFocal(Number(e.target.value), focal.y))}
+            className="mt-1 w-full"
+          />
+        </label>
+        <label className="block text-xs text-white/50">
+          Y {Math.round(focal.y)}%
+          <input
+            type="range"
+            min={0}
+            max={100}
+            value={focal.y}
+            onChange={(e) => onChange(formatFocal(focal.x, Number(e.target.value)))}
+            className="mt-1 w-full"
+          />
+        </label>
+        <button
+          type="button"
+          className="rounded-full border border-white/15 px-2.5 py-1 text-[11px] text-white/70 hover:border-cyan-400/50"
+          onClick={() => onChange('center')}
+        >
+          center
+        </button>
+      </div>
+    </Field>
+  )
 }
 
 function ImageUrlField({
   label,
-  placeholder,
   value,
   onChange,
+  placeholder,
   eventId,
   kind,
+  ui,
 }: {
   label: string
-  placeholder?: string
   value: string
   onChange: (next: string) => void
+  placeholder?: string
   eventId?: string
-  kind?: string
+  kind: string
+  ui: CardDesignUi
 }) {
   return (
     <Field label={label}>
@@ -106,7 +150,7 @@ function ImageUrlField({
             className="text-sm text-rose-200 hover:text-rose-100"
             onClick={() => onChange('')}
           >
-            Remover
+            {ui.remove}
           </button>
         </div>
       ) : null}
@@ -116,7 +160,7 @@ function ImageUrlField({
         onChange={(e) => onChange(e.target.value)}
       />
       <label className="mt-2 flex cursor-pointer items-center justify-center rounded-xl border border-dashed border-white/20 bg-white/5 px-3 py-2 text-sm text-white/70 hover:border-cyan-400/50">
-        Importar imagem
+        {ui.importImage}
         <input
           type="file"
           accept="image/*"
@@ -126,78 +170,17 @@ function ImageUrlField({
             e.target.value = ''
             if (!file) return
             if (!eventId) {
-              alert('Salve o evento antes de importar imagens.')
+              alert(ui.saveBeforeUpload)
               return
             }
             try {
               onChange(await uploadStudioImageFile({ eventId, file, kind }))
             } catch (err) {
-              alert(err instanceof Error ? err.message : 'Falha no upload')
+              alert(err instanceof Error ? err.message : ui.uploadFail)
             }
           }}
         />
       </label>
-      <p className="mt-1 text-xs text-white/40">Cole um link ou importe um arquivo (máx. 1.5 MB).</p>
-    </Field>
-  )
-}
-
-function PositionSliders({
-  label,
-  value,
-  onChange,
-}: {
-  label: string
-  value: string
-  onChange: (next: string) => void
-}) {
-  const focal = parseFocal(value)
-  return (
-    <Field label={label}>
-      <div className="space-y-3 rounded-xl border border-white/10 bg-white/5 p-3">
-        <label className="block text-xs text-white/60">
-          Horizontal {Math.round(focal.x)}%
-          <input
-            type="range"
-            min={0}
-            max={100}
-            value={focal.x}
-            onChange={(e) => onChange(formatFocal(Number(e.target.value), focal.y))}
-            className="mt-1 w-full accent-cyan-400"
-          />
-        </label>
-        <label className="block text-xs text-white/60">
-          Vertical {Math.round(focal.y)}%
-          <input
-            type="range"
-            min={0}
-            max={100}
-            value={focal.y}
-            onChange={(e) => onChange(formatFocal(focal.x, Number(e.target.value)))}
-            className="mt-1 w-full accent-cyan-400"
-          />
-        </label>
-        <div className="flex flex-wrap gap-2">
-          {(
-            [
-              ['center', 50, 50],
-              ['top', 50, 0],
-              ['bottom', 50, 100],
-              ['left', 0, 50],
-              ['right', 100, 50],
-            ] as const
-          ).map(([key, x, y]) => (
-            <button
-              key={key}
-              type="button"
-              className="rounded-full border border-white/15 px-2.5 py-1 text-[11px] text-white/70 hover:border-cyan-400/50"
-              onClick={() => onChange(formatFocal(x, y))}
-            >
-              {key}
-            </button>
-          ))}
-        </div>
-      </div>
     </Field>
   )
 }
@@ -206,22 +189,25 @@ export function CardDesignFields({
   design,
   onChange,
   eventId,
+  locale = 'en',
 }: {
   design: CardDesign
   onChange: (next: CardDesign) => void
   eventId?: string
+  locale?: EventLocale
 }) {
+  const ui = studioUi(locale).card
   const patch = (partial: Partial<CardDesign>) => onChange({ ...design, ...partial })
 
   return (
     <details className="rounded-2xl border border-white/10 bg-white/5 p-4" open>
       <summary className="cursor-pointer select-none text-sm font-medium text-white/80">
-        Design do envelope ({Object.keys(design).length} parâmetros)
+        {fillTemplate(ui.summary, { n: Object.keys(design).length })}
       </summary>
       <div className="mt-4 space-y-4">
         <div className="grid gap-3 sm:grid-cols-2">
-          {COLOR_FIELDS.map(({ key, label }) => (
-            <Field key={key} label={label}>
+          {COLOR_KEYS.map((key) => (
+            <Field key={key} label={ui.colors[key] || key}>
               <div className="flex items-center gap-2">
                 <input
                   type="color"
@@ -239,21 +225,22 @@ export function CardDesignFields({
         </div>
 
         <div className="grid gap-3 sm:grid-cols-2">
-          {IMAGE_FIELDS.map(({ key, label, placeholder }) => (
+          {IMAGE_KEYS.map(({ key, placeholder }) => (
             <ImageUrlField
               key={key}
-              label={label}
+              label={ui.images[String(key)] || String(key)}
               placeholder={placeholder}
               value={String(design[key] || '')}
               onChange={(next) => patch({ [key]: next })}
               eventId={eventId}
               kind={String(key)}
+              ui={ui}
             />
           ))}
         </div>
 
         <div className="grid gap-3 sm:grid-cols-2">
-          <Field label="Formato da foto">
+          <Field label={ui.photoShape}>
             <select
               value={design.panelPhotoShape || 'circle'}
               onChange={(e) =>
@@ -263,11 +250,11 @@ export function CardDesignFields({
               }
               className="w-full rounded-xl border border-white/15 bg-[#12182a] px-3 py-2.5 text-sm"
             >
-              <option value="circle">Círculo</option>
-              <option value="rectangle">Retângulo</option>
+              <option value="circle">{ui.circle}</option>
+              <option value="rectangle">{ui.rectangle}</option>
             </select>
           </Field>
-          <Field label="Fonte (fontKey)">
+          <Field label={ui.fontKey}>
             <TextInput
               value={design.fontKey}
               placeholder="georgia | playfair | cormorant | lato | montserrat"
@@ -275,16 +262,16 @@ export function CardDesignFields({
             />
           </Field>
           <PositionSliders
-            label="Posição da foto do painel"
+            label={ui.panelPhotoPosition}
             value={design.panelPhotoPosition || 'center'}
             onChange={(panelPhotoPosition) => patch({ panelPhotoPosition })}
           />
           <PositionSliders
-            label="Posição da imagem de fundo"
+            label={ui.cardImagePosition}
             value={design.cardImagePosition || 'center'}
             onChange={(cardImagePosition) => patch({ cardImagePosition })}
           />
-          <Field label="Tamanho da intro (px)">
+          <Field label={ui.introSize}>
             <TextInput
               type="number"
               min={10}
@@ -295,7 +282,7 @@ export function CardDesignFields({
               }
             />
           </Field>
-          <Field label="Tamanho do heading (px)">
+          <Field label={ui.headingSize}>
             <TextInput
               type="number"
               min={14}
@@ -306,7 +293,7 @@ export function CardDesignFields({
               }
             />
           </Field>
-          <Field label="Tamanho do corpo (px)">
+          <Field label={ui.bodySize}>
             <TextInput
               type="number"
               min={10}
@@ -326,7 +313,7 @@ export function CardDesignFields({
               checked={Boolean(design.introBold)}
               onChange={(e) => patch({ introBold: e.target.checked })}
             />
-            Intro em negrito
+            {ui.introBold}
           </label>
           <label className="flex items-center gap-2">
             <input
@@ -334,7 +321,7 @@ export function CardDesignFields({
               checked={design.introItalic !== false}
               onChange={(e) => patch({ introItalic: e.target.checked })}
             />
-            Intro em itálico
+            {ui.introItalic}
           </label>
           <label className="flex items-center gap-2">
             <input
@@ -342,7 +329,7 @@ export function CardDesignFields({
               checked={Boolean(design.headingBold)}
               onChange={(e) => patch({ headingBold: e.target.checked })}
             />
-            Heading em negrito
+            {ui.headingBold}
           </label>
           <label className="flex items-center gap-2">
             <input
@@ -350,7 +337,7 @@ export function CardDesignFields({
               checked={Boolean(design.headingItalic)}
               onChange={(e) => patch({ headingItalic: e.target.checked })}
             />
-            Heading em itálico
+            {ui.headingItalic}
           </label>
           <label className="flex items-center gap-2">
             <input
@@ -358,7 +345,7 @@ export function CardDesignFields({
               checked={Boolean(design.bodyBold)}
               onChange={(e) => patch({ bodyBold: e.target.checked })}
             />
-            Corpo em negrito
+            {ui.bodyBold}
           </label>
           <label className="flex items-center gap-2">
             <input
@@ -366,13 +353,13 @@ export function CardDesignFields({
               checked={Boolean(design.bodyItalic)}
               onChange={(e) => patch({ bodyItalic: e.target.checked })}
             />
-            Corpo em itálico
+            {ui.bodyItalic}
           </label>
         </div>
 
         <div className="grid gap-3 sm:grid-cols-2">
-          {TEXT_FIELDS.map(({ key, label, placeholder }) => (
-            <Field key={key} label={label}>
+          {TEXT_KEYS.map(({ key, placeholder }) => (
+            <Field key={key} label={ui.texts[String(key)] || String(key)}>
               <TextInput
                 value={String(design[key] || '')}
                 placeholder={placeholder}
@@ -382,13 +369,13 @@ export function CardDesignFields({
           ))}
         </div>
 
-        <Field label="Mensagem no cartão">
+        <Field label={ui.cardMessage}>
           <TextArea value={design.message} onChange={(e) => patch({ message: e.target.value })} />
         </Field>
-        <Field label="Intro">
+        <Field label={ui.intro}>
           <TextArea value={design.intro} onChange={(e) => patch({ intro: e.target.value })} />
         </Field>
-        <Field label="Dica / tip">
+        <Field label={ui.tip}>
           <TextArea value={design.tip} onChange={(e) => patch({ tip: e.target.value })} />
         </Field>
       </div>

@@ -19,7 +19,7 @@ export default async function EventSectionPage({
   if (!event) redirect('/dashboard?missing=1')
 
   return (
-    <DashboardShell>
+    <DashboardShell locale={event.config.locales.default} lockLocale>
       <SectionEditor event={event} section={section} />
     </DashboardShell>
   )

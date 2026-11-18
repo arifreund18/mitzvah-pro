@@ -25,6 +25,7 @@ export function sectionAsWizardStep(section: SectionEditorId): WizardStepId {
   return section
 }
 
+/** @deprecated Prefer sectionLabelsFor(locale) from studio-ui. */
 export const SECTION_LABELS: Record<SectionEditorId, string> = {
   story: 'História',
   schedule: 'Programação',
@@ -39,3 +40,5 @@ export const SECTION_LABELS: Record<SectionEditorId, string> = {
   legal: 'Legal',
   reminders: 'Lembretes',
 }
+
+export { sectionLabelsFor } from './studio-ui.ts'

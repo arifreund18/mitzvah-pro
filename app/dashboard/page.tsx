@@ -1,7 +1,7 @@
-import { headers } from 'next/headers'
+import { cookies, headers } from 'next/headers'
 import Link from 'next/link'
 import { Suspense } from 'react'
-import { DashboardShell } from '@/components/dashboard/DashboardShell'
+import { DashboardShell, dashboardSubtitle } from '@/components/dashboard/DashboardShell'
 import { EventActions } from '@/components/dashboard/EventActions'
 import { MissingEventNotice } from '@/components/dashboard/MissingEventNotice'
 import { actorAllowedEventIds, actorSeesAllOrgEvents } from '@/lib/platform/access'
@@ -10,6 +10,8 @@ import { typeLabel } from '@/lib/platform/defaults'
 import { eventPublicHostLabel, hostFromHeaders } from '@/lib/platform/site-url'
 import { actorOrgId, currentActor } from '@/lib/platform/session'
 import { isPlatformAdmin } from '@/lib/platform/auth'
+import { resolveStudioLocale, STUDIO_LOCALE_COOKIE } from '@/lib/platform/studio-locale'
+import { studioUi } from '@/lib/platform/studio-ui'
 
 export const dynamic = 'force-dynamic'
 
@@ -23,20 +25,27 @@ export default async function DashboardPage() {
   const org = actor ? await getOrg(actor.orgId) : null
   const host = hostFromHeaders(await headers())
   const canCreate = actorSeesAllOrgEvents(actor)
+  const jar = await cookies()
+  const hdrs = await headers()
+  const locale = resolveStudioLocale({
+    cookie: jar.get(STUDIO_LOCALE_COOKIE)?.value,
+    acceptLanguage: hdrs.get('accept-language'),
+  })
+  const ui = studioUi(locale)
   return (
-    <DashboardShell>
+    <DashboardShell locale={locale}>
       <Suspense fallback={null}>
         <MissingEventNotice />
       </Suspense>
       <div className="flex items-end justify-between gap-4">
         <div>
-          <h1 className="font-display text-3xl">Eventos</h1>
+          <h1 className="font-display text-3xl">{ui.eventsTitle}</h1>
           <p className="mt-2 text-sm text-white/50">
-            {isPlatformAdmin(actor)
-              ? 'Visão global — todos os eventos de todas as organizações.'
-              : scoped
-                ? 'Eventos atribuídos à sua conta.'
-                : `Eventos da organização ${org?.name || actor?.orgId}.`}
+            {dashboardSubtitle(ui, {
+              all: isPlatformAdmin(actor),
+              scoped,
+              org: org?.name || actor?.orgId,
+            })}
           </p>
         </div>
         {canCreate ? (
@@ -44,16 +53,14 @@ export default async function DashboardPage() {
             href="/dashboard/events/new"
             className="rounded-full bg-cyan-400 px-5 py-2.5 text-sm font-semibold text-[#0b1020]"
           >
-            Novo evento
+            {ui.newEvent}
           </Link>
         ) : null}
       </div>
       <div className="mt-10 grid gap-4">
         {events.length === 0 ? (
           <p className="rounded-2xl border border-white/10 bg-white/5 p-8 text-center text-white/50">
-            {scoped
-              ? 'Nenhum evento atribuído a esta conta. Peça à equipa Mitzvah para liberar o acesso.'
-              : 'Nenhum evento. Crie o primeiro com “Novo evento”.'}
+            {scoped ? ui.noEventsScoped : ui.noEvents}
           </p>
         ) : (
           events.map((event) => (
@@ -67,10 +74,11 @@ export default async function DashboardPage() {
                     {typeLabel(event.config.basics.type, event.config.locales.default)}
                   </p>
                   <h2 className="font-display mt-1 text-2xl">
-                    {event.config.basics.honoreeName || 'Sem nome'}
+                    {event.config.basics.honoreeName || ui.unnamed}
                   </h2>
                   <p className="text-sm text-white/50">
-                    Família {event.config.basics.familyName || '—'} · {eventPublicHostLabel(event.slug, { host })}
+                    {ui.familyPrefix} {event.config.basics.familyName || '—'} ·{' '}
+                    {eventPublicHostLabel(event.slug, { host })}
                   </p>
                 </Link>
                 <span
@@ -96,6 +104,7 @@ export default async function DashboardPage() {
                   status={event.status}
                   previewToken={event.previewToken}
                   compact
+                  locale={locale}
                 />
               </div>
             </div>

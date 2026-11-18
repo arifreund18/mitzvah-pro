@@ -2,15 +2,19 @@
 
 import { useEffect, useState } from 'react'
 import { Field, TextInput } from '@/components/wizard/fields'
-import type { GalleryItem } from '@/lib/platform/types'
+import { studioUi } from '@/lib/platform/studio-ui'
+import type { EventLocale, GalleryItem } from '@/lib/platform/types'
 
 export function GooglePhotosImport({
   eventId,
   onImported,
+  locale = 'en',
 }: {
   eventId?: string
   onImported: (items: GalleryItem[]) => void
+  locale?: EventLocale
 }) {
+  const ui = studioUi(locale)
   const [albumUrl, setAlbumUrl] = useState('')
   const [configured, setConfigured] = useState<boolean | null>(null)
   const [busy, setBusy] = useState(false)
@@ -46,16 +50,16 @@ export function GooglePhotosImport({
     } | null
     setBusy(false)
     if (!res.ok) {
-      setMessage(data?.error || data?.warning || 'Falha no import Google Fotos')
+      setMessage(data?.error || data?.warning || ui.card.uploadFail)
       return
     }
     if (!apply && data?.preview) {
-      setMessage(`${data.count || data.preview.length} item(ns) no preview — confirme para aplicar`)
+      setMessage(`${data.count || data.preview.length}`)
       return
     }
     if (data?.galleryItems) {
       onImported(data.galleryItems)
-      setMessage(`${data.added || 0} item(ns) importados`)
+      setMessage(`${data.added || 0}`)
       setAlbumUrl('')
     }
   }
@@ -63,10 +67,10 @@ export function GooglePhotosImport({
   return (
     <div className="rounded-2xl border border-dashed border-white/20 p-4 text-sm">
       <p className="text-white/50">
-        Google Fotos (opcional)
-        {configured === false ? ' — API key não configurada neste ambiente' : null}
+        {ui.googlePhotos}
+        {configured === false ? ui.googlePhotosMissingKey : null}
       </p>
-      <Field label="URL ou ID do álbum">
+      <Field label={ui.albumUrl}>
         <TextInput
           value={albumUrl}
           placeholder="https://photos.google.com/share/…"
@@ -89,15 +93,11 @@ export function GooglePhotosImport({
           onClick={() => void importAlbum(true)}
           className="rounded-full bg-cyan-400 px-4 py-2 font-semibold text-[#0b1020] disabled:opacity-40"
         >
-          {busy ? 'A importar…' : 'Importar para galeria'}
+          {busy ? ui.importing : ui.importToGallery}
         </button>
       </div>
       {message ? <p className="mt-2 text-cyan-200">{message}</p> : null}
-      {!eventId ? (
-        <p className="mt-2 text-xs text-white/40">
-          Guarde o evento e reabra o wizard para importar com o ID do evento.
-        </p>
-      ) : null}
+      {!eventId ? <p className="mt-2 text-xs text-white/40">{ui.googlePhotosSaveHint}</p> : null}
     </div>
   )
 }
