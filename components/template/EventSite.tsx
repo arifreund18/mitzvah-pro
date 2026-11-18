@@ -280,7 +280,7 @@ export function EventSite({
             {ui.welcome}
           </p>
           <p
-            className="mt-6 text-lg leading-relaxed md:text-xl"
+            className="mt-6 whitespace-pre-line text-lg leading-relaxed md:text-xl"
             style={{ color: theme.text }}
           >
             {story.parentsMessage}
@@ -293,7 +293,7 @@ export function EventSite({
           {story.about ? (
             <>
               <h2 className="font-display text-3xl">{ui.about}</h2>
-              <p className="mt-6 text-lg leading-relaxed" style={{ color: theme.muted }}>
+              <p className="mt-6 whitespace-pre-line text-lg leading-relaxed" style={{ color: theme.muted }}>
                 {story.about}
               </p>
             </>
@@ -303,7 +303,7 @@ export function EventSite({
               <h2 className={`font-display text-3xl ${story.about ? 'mt-12' : ''}`}>
                 {ui.aboutHonoree}
               </h2>
-              <p className="mt-6 text-lg leading-relaxed" style={{ color: theme.muted }}>
+              <p className="mt-6 whitespace-pre-line text-lg leading-relaxed" style={{ color: theme.muted }}>
                 {story.honoreeBio}
               </p>
             </>
@@ -339,7 +339,7 @@ export function EventSite({
                   </p>
                 ) : null}
                 {item.notes ? (
-                  <p className="mt-1 text-xs" style={{ color: theme.muted }}>
+                  <p className="mt-1 whitespace-pre-line text-xs" style={{ color: theme.muted }}>
                     {item.notes}
                   </p>
                 ) : null}
@@ -463,7 +463,7 @@ export function EventSite({
             <h2 className="font-display text-center text-3xl">{ui.travel}</h2>
             <div className="mt-8 space-y-4 text-sm" style={{ color: theme.muted }}>
               {config.travel.airports ? (
-                <p>
+                <p className="whitespace-pre-line">
                   <span className="font-semibold" style={{ color: accent }}>
                     Airports ·{' '}
                   </span>
@@ -471,7 +471,7 @@ export function EventSite({
                 </p>
               ) : null}
               {config.travel.transport ? (
-                <p>
+                <p className="whitespace-pre-line">
                   <span className="font-semibold" style={{ color: accent }}>
                     Transport ·{' '}
                   </span>
@@ -479,7 +479,7 @@ export function EventSite({
                 </p>
               ) : null}
               {config.travel.currency ? (
-                <p>
+                <p className="whitespace-pre-line">
                   <span className="font-semibold" style={{ color: accent }}>
                     Currency ·{' '}
                   </span>
@@ -487,7 +487,7 @@ export function EventSite({
                 </p>
               ) : null}
               {config.travel.emergency ? (
-                <p>
+                <p className="whitespace-pre-line">
                   <span className="font-semibold" style={{ color: accent }}>
                     Emergency ·{' '}
                   </span>
@@ -531,7 +531,7 @@ export function EventSite({
               {config.rsvp.deadline ? formatEventDate(config.rsvp.deadline, locale) : site.deadlineTbd}.
             </p>
             {config.rsvp.notes ? (
-              <p className="mt-2 text-sm" style={{ color: theme.muted }}>
+              <p className="mt-2 whitespace-pre-line text-sm" style={{ color: theme.muted }}>
                 {config.rsvp.notes}
               </p>
             ) : null}

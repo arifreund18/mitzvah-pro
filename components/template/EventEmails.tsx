@@ -95,7 +95,7 @@ export function SaveTheDateCard({
         {d.intro || typeLabel(config.basics.type, locale)}
       </p>
       <p
-        className="relative mt-6 leading-relaxed"
+        className="relative mt-6 whitespace-pre-line leading-relaxed"
         style={{
           color: d.bodyColor || undefined,
           fontSize: d.bodySizePx || 16,
@@ -205,7 +205,7 @@ export function InvitationCard({
         {name}
       </h2>
       <p
-        className="mt-4 leading-relaxed"
+        className="mt-4 whitespace-pre-line leading-relaxed"
         style={{
           color: d.bodyColor || undefined,
           fontSize: d.bodySizePx || 16,
