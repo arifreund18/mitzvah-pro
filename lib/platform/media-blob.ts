@@ -1,28 +1,26 @@
 /**
  * Studio images → Vercel Blob instead of data: URLs in Postgres.
- * Supports private stores (default) via /api/platform/media/proxy.
+ * Supports private stores via /api/platform/media/proxy, and public stores (BLOB1_* / BLOB_ACCESS=public).
  * Does not touch Bar-Beni.
  */
 import { get, put } from '@vercel/blob'
 import type { EventConfig } from './types.ts'
 import { uid } from './ids.ts'
 import { apexHost, protocolFor } from './site-url.ts'
+import {
+  blobAccessMode,
+  blobReadWriteToken,
+  blobUploadsConfigured,
+  type BlobAccess,
+} from './blob-env.ts'
+
+export type { BlobAccess }
+export { blobAccessMode, blobUploadsConfigured }
 
 const DATA_URL_RE = /^data:([^;,]+)?(?:;charset=[^;,]+)?(;base64)?,(.*)$/i
 
-export type BlobAccess = 'public' | 'private'
-
 export function isDataUrl(value: string | undefined | null): boolean {
   return Boolean(value && value.startsWith('data:'))
-}
-
-export function blobUploadsConfigured(): boolean {
-  return Boolean(process.env.BLOB_READ_WRITE_TOKEN)
-}
-
-/** Private unless BLOB_ACCESS=public (store must match). */
-export function blobAccessMode(): BlobAccess {
-  return process.env.BLOB_ACCESS === 'public' ? 'public' : 'private'
 }
 
 export function isVercelBlobUrl(value: string): boolean {
@@ -67,10 +65,8 @@ function extForContentType(contentType: string): string {
   return 'bin'
 }
 
-/** Browser/email-safe URL. Private blobs are served through our cached proxy. */
+/** Browser/email-safe URL. Private blobs go through our cached proxy; public URLs stay direct. */
 export function toDeliverableMediaUrl(blobUrl: string, hostHint?: string): string {
-  if (!isPrivateBlobUrl(blobUrl) && !isVercelBlobUrl(blobUrl)) return blobUrl
-  if (blobAccessMode() === 'public' && !isPrivateBlobUrl(blobUrl)) return blobUrl
   if (!isPrivateBlobUrl(blobUrl)) return blobUrl
   const host = hostHint || process.env.NEXT_PUBLIC_SITE_HOST || 'mitzvah.pro'
   const apex = apexHost(host)
@@ -82,8 +78,8 @@ export async function uploadBytesToBlob(input: {
   contentType: string
   pathname: string
 }): Promise<string> {
-  const token = process.env.BLOB_READ_WRITE_TOKEN
-  if (!token) throw new Error('BLOB_READ_WRITE_TOKEN ausente')
+  const token = blobReadWriteToken()
+  if (!token) throw new Error('BLOB_READ_WRITE_TOKEN / BLOB1_READ_WRITE_TOKEN ausente')
   const access = blobAccessMode()
   const result = await put(input.pathname, input.body, {
     access,
@@ -135,8 +131,9 @@ export async function fetchBlobContent(urlOrPathname: string): Promise<{
   contentType: string
   etag?: string
 } | null> {
-  const token = process.env.BLOB_READ_WRITE_TOKEN
-  const access = isPrivateBlobUrl(urlOrPathname) || blobAccessMode() === 'private' ? 'private' : 'public'
+  const token = blobReadWriteToken()
+  const access =
+    isPrivateBlobUrl(urlOrPathname) || blobAccessMode() === 'private' ? 'private' : 'public'
   const result = await get(urlOrPathname, {
     access,
     token,

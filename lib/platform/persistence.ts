@@ -2,6 +2,7 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import postgres from 'postgres'
 import { list, put } from '@vercel/blob'
+import { blobAccessMode, blobReadWriteToken } from './blob-env'
 import { createSeedEvent } from './defaults'
 import { DEFAULT_ORG_ID, isProductionEnv } from './auth'
 import { hashPassword } from './password'
@@ -111,7 +112,7 @@ function parseStore(raw: unknown): PlatformStore {
 
 export function storageDriver(): StorageDriver {
   if (process.env.DATABASE_URL) return 'postgres'
-  if (process.env.BLOB_READ_WRITE_TOKEN) return 'blob'
+  if (blobReadWriteToken()) return 'blob'
   return 'file'
 }
 
@@ -216,7 +217,7 @@ async function savePostgres(store: PlatformStore): Promise<void> {
 }
 
 async function loadBlob(): Promise<PlatformStore> {
-  const token = process.env.BLOB_READ_WRITE_TOKEN
+  const token = blobReadWriteToken()
   const { blobs } = await list({ prefix: BLOB_PATH, token, limit: 10 })
   const match = blobs.find((item) => item.pathname === BLOB_PATH) || blobs[0]
   // Do not write an empty store on miss — list can lag after put and would wipe fresh data.
@@ -231,10 +232,10 @@ async function loadBlob(): Promise<PlatformStore> {
 
 async function saveBlob(store: PlatformStore): Promise<void> {
   await put(BLOB_PATH, JSON.stringify(store), {
-    access: 'private',
+    access: blobAccessMode(),
     addRandomSuffix: false,
     allowOverwrite: true,
-    token: process.env.BLOB_READ_WRITE_TOKEN,
+    token: blobReadWriteToken(),
     contentType: 'application/json',
   })
 }
