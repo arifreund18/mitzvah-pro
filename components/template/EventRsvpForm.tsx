@@ -78,7 +78,7 @@ export function EventRsvpForm({
   if (sent) {
     return (
       <p
-        className="rounded-2xl border border-emerald-400/30 bg-emerald-400/10 px-6 py-8 text-center text-emerald-100"
+        className="whitespace-pre-line rounded-2xl border border-emerald-400/30 bg-emerald-400/10 px-6 py-8 text-center text-emerald-100"
         dir={dir}
       >
         {config.rsvp.confirmationMessage?.trim() || ui.thanks}
