@@ -25,13 +25,13 @@ describe('blob-env', () => {
     }
   })
 
-  it('prefers BLOB_READ_WRITE_TOKEN then BLOB1_READ_WRITE_TOKEN', () => {
-    delete process.env.BLOB_READ_WRITE_TOKEN
+  it('prefers BLOB1_READ_WRITE_TOKEN over legacy BLOB_READ_WRITE_TOKEN', () => {
+    process.env.BLOB_READ_WRITE_TOKEN = 'legacy-token'
     process.env.BLOB1_READ_WRITE_TOKEN = 'blob1-token'
     assert.equal(blobReadWriteToken(), 'blob1-token')
     assert.equal(blobUploadsConfigured(), true)
 
-    process.env.BLOB_READ_WRITE_TOKEN = 'legacy-token'
+    delete process.env.BLOB1_READ_WRITE_TOKEN
     assert.equal(blobReadWriteToken(), 'legacy-token')
   })
 

@@ -4,21 +4,23 @@
  */
 
 export function blobReadWriteToken(): string | undefined {
+  // Prefer BLOB1_* (new dashboard stores) over legacy BLOB_* so a leftover
+  // private-store token does not shadow the public store.
   return (
-    process.env.BLOB_READ_WRITE_TOKEN ||
     process.env.BLOB1_READ_WRITE_TOKEN ||
+    process.env.BLOB_READ_WRITE_TOKEN ||
     undefined
   )
 }
 
 export function blobStoreId(): string | undefined {
-  return process.env.BLOB_STORE_ID || process.env.BLOB1_STORE_ID || undefined
+  return process.env.BLOB1_STORE_ID || process.env.BLOB_STORE_ID || undefined
 }
 
 export function blobWebhookPublicKey(): string | undefined {
   return (
-    process.env.BLOB_WEBHOOK_PUBLIC_KEY ||
     process.env.BLOB1_WEBHOOK_PUBLIC_KEY ||
+    process.env.BLOB_WEBHOOK_PUBLIC_KEY ||
     undefined
   )
 }
