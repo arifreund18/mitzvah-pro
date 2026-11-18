@@ -17,11 +17,11 @@ export function formatFromAddress(displayName: string, emailOrFrom: string): str
   return `${name} <${email}>`
 }
 
-/** Prefer invitation host line for the visible From name in inboxes. */
+/** Prefer the Family field for the visible From name in inboxes (no “The … family” wrapper). */
 export function eventFromDisplayName(config: EventConfig): string {
   return sanitizeFromDisplayName(
-    config.invitation.hostLine ||
-      config.basics.familyName ||
+    config.basics.familyName ||
+      config.invitation.hostLine ||
       config.basics.honoreeName ||
       'Mitzvah.pro',
   )
@@ -43,7 +43,7 @@ function sharedMailFrom(): string | null {
   )
 }
 
-/** Resolve provider `from` with Host line as the inbox display name. */
+/** Resolve provider `from` with Family (or host line fallback) as the inbox display name. */
 export function eventSendFrom(config: EventConfig): string | null {
   const mail = config.domain.mail
   const raw =
