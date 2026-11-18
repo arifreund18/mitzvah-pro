@@ -3,7 +3,10 @@ import assert from 'node:assert/strict'
 import {
   configHasDataUrl,
   isDataUrl,
+  isPrivateBlobUrl,
+  isVercelBlobUrl,
   parseDataUrl,
+  toDeliverableMediaUrl,
 } from '../lib/platform/media-blob.ts'
 import type { EventConfig } from '../lib/platform/types.ts'
 
@@ -30,5 +33,19 @@ describe('media-blob helpers', () => {
     config.media.heroUrl =
       'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=='
     assert.equal(configHasDataUrl(config), true)
+  })
+
+  it('rewrites private blob URLs through the media proxy', () => {
+    const privateUrl =
+      'https://abc123.private.blob.vercel-storage.com/events/e1/seal-xyz.png'
+    assert.equal(isVercelBlobUrl(privateUrl), true)
+    assert.equal(isPrivateBlobUrl(privateUrl), true)
+    const prev = process.env.BLOB_ACCESS
+    delete process.env.BLOB_ACCESS
+    const delivered = toDeliverableMediaUrl(privateUrl, 'mitzvah.pro')
+    assert.match(delivered, /^https:\/\/mitzvah\.pro\/api\/platform\/media\/proxy\?url=/)
+    assert.ok(delivered.includes(encodeURIComponent(privateUrl)))
+    if (prev === undefined) delete process.env.BLOB_ACCESS
+    else process.env.BLOB_ACCESS = prev
   })
 })

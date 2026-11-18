@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { fetchBlobContent, isPrivateBlobUrl, isVercelBlobUrl } from '@/lib/platform/media-blob'
 import { getEventBySlug } from '@/lib/platform/store'
 import type { CardDesign } from '@/lib/platform/types'
 
@@ -62,6 +63,30 @@ export async function GET(request: Request, ctx: Ctx) {
   }
 
   if (/^https?:\/\//i.test(asset)) {
+    let blobTarget = ''
+    try {
+      const parsed = new URL(asset)
+      if (parsed.pathname.includes('/api/platform/media/proxy')) {
+        blobTarget = parsed.searchParams.get('url') || ''
+      } else if (isPrivateBlobUrl(asset)) {
+        blobTarget = asset
+      }
+    } catch {
+      blobTarget = ''
+    }
+    if (blobTarget && isVercelBlobUrl(blobTarget)) {
+      const content = await fetchBlobContent(blobTarget)
+      if (!content) {
+        return NextResponse.json({ error: 'Blob ausente' }, { status: 404 })
+      }
+      return new NextResponse(content.body, {
+        status: 200,
+        headers: {
+          'Content-Type': content.contentType,
+          'Cache-Control': 'public, max-age=86400, stale-while-revalidate=604800',
+        },
+      })
+    }
     return NextResponse.redirect(asset, 302)
   }
 

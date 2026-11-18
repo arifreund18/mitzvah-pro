@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import {
   blobUploadsConfigured,
-  uploadFileBufferToPublicBlob,
+  uploadFileBufferToBlob,
 } from '@/lib/platform/media-blob'
 import { requireEventAccess } from '@/lib/platform/session'
 
@@ -41,7 +41,7 @@ export async function POST(request: Request, ctx: Ctx) {
 
   const buffer = Buffer.from(await file.arrayBuffer())
   try {
-    const url = await uploadFileBufferToPublicBlob({
+    const url = await uploadFileBufferToBlob({
       body: buffer,
       contentType,
       eventId: id,
@@ -49,9 +49,10 @@ export async function POST(request: Request, ctx: Ctx) {
     })
     return NextResponse.json({ url })
   } catch (err) {
-    return NextResponse.json(
-      { error: err instanceof Error ? err.message : 'Falha no upload' },
-      { status: 502 },
-    )
+    const message = err instanceof Error ? err.message : 'Falha no upload'
+    const hint = message.includes('private store')
+      ? ' Store Blob está private — o app agora usa access private + proxy. Redeploy se ainda vir este erro.'
+      : ''
+    return NextResponse.json({ error: `${message}${hint}` }, { status: 502 })
   }
 }
