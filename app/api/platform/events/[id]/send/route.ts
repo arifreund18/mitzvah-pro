@@ -11,6 +11,7 @@ import {
 } from '@/lib/platform/mail-domain'
 import { mailHtml, mailSubject } from '@/lib/platform/mail'
 import { createMailJob, MAIL_BATCH_SIZE } from '@/lib/platform/mail-queue'
+import { mailTargetsEmptyReason, selectMailTargets } from '@/lib/platform/mail-targets'
 import type { EventConfig, Guest } from '@/lib/platform/types'
 
 type Ctx = { params: Promise<{ id: string }> }
@@ -98,13 +99,14 @@ export async function POST(request: Request, ctx: Ctx) {
     request.headers.get('x-forwarded-host') ||
     request.headers.get('host') ||
     new URL(request.url).host
-  const targets = event.guests.filter((guest) => {
-    if (guestMailRecipients(guest).length === 0) return false
-    if (body?.guestIds?.length) return body.guestIds.includes(guest.id)
-    return true
-  })
+  // Bulk (no guestIds): only guests who have not received this kind yet.
+  // With guestIds: allow individual re-send to those specific guests.
+  const targets = selectMailTargets(event.guests, kind, body?.guestIds)
   if (targets.length === 0) {
-    return NextResponse.json({ error: 'Nenhum convidado com email na seleção' }, { status: 400 })
+    return NextResponse.json(
+      { error: mailTargetsEmptyReason(event.guests, kind, body?.guestIds) },
+      { status: 400 },
+    )
   }
 
   const emailReady = isEmailConfigured()
