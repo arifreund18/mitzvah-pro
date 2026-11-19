@@ -72,6 +72,7 @@ function minimalConfig(partial?: {
       onlyConfirmedForD7D2: false,
       message: '',
     },
+    followUps: [],
     faq: { items: [] },
     legal: { privacyHtml: '', termsHtml: '', comingSoon: false },
     domain: { slug: 'demo' },

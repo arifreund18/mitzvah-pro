@@ -8,7 +8,20 @@ import { formatEventDate, typeLabel } from './copy.ts'
 import { chromeCtaText, inviteRsvpLabel, resolveGuestLocale } from './guest-locale.ts'
 import { getLocalizedCardDesign } from './i18n-content.ts'
 import { apexHost, eventApexPathUrl, protocolFor } from './site-url.ts'
-import type { CardDesign, EventConfig, EventLocale, Guest } from './types.ts'
+import {
+  followUpCopy,
+  followUpHeadline,
+  followUpSubject,
+  hostDisplayName,
+  previewMessage,
+} from './follow-up.ts'
+import type {
+  CardDesign,
+  EventConfig,
+  EventLocale,
+  Guest,
+  HostFollowUp,
+} from './types.ts'
 
 export function escapeHtml(value: string): string {
   return value
@@ -620,6 +633,240 @@ export function mailRsvpConfirmationHtml(
           <tr>
             <td align="center" style="padding:28px 8px 0;">
               <a href="${escapeHtml(cardHref)}" style="display:inline-block;font-family:${font};font-size:13px;font-weight:bold;letter-spacing:0.06em;color:${escapeHtml(viewCardTextColor)};background-color:${escapeHtml(cardColor)};text-decoration:none;padding:14px 36px;border-radius:999px;">${escapeHtml(viewCard)}</a>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`
+}
+
+export function mailFollowUpSubject(
+  followUp: Pick<HostFollowUp, 'type' | 'subject'>,
+  config: EventConfig,
+  guest?: Guest,
+): string {
+  const locale = guest ? localeOf(guest, config) : config.locales.default
+  const title = eventTitle('invite', config, locale)
+  const hostName = hostDisplayName(config)
+  return followUpSubject(followUp.type, locale, title, hostName, followUp.subject)
+}
+
+/**
+ * Host follow-up email:
+ * - reminder: greeting + body + VIEW CARD + card + event details (calendar/map)
+ * - message / update: headline + event + quoted body + CTA buttons
+ */
+export function mailFollowUpHtml(
+  followUp: Pick<HostFollowUp, 'type' | 'body'>,
+  config: EventConfig,
+  host: string,
+  guest: Guest,
+): string {
+  const locale = localeOf(guest, config)
+  const labels = followUpCopy(locale)
+  const design = designOf('invite', config, locale)
+  const dir = locale === 'he' ? 'rtl' : 'ltr'
+  const font = fontFamily(design.fontKey || 'georgia', locale)
+  const token = guest.token
+  const hostName = hostDisplayName(config)
+  const title = eventTitle('invite', config, locale)
+  const headline = followUpHeadline(followUp.type, locale, hostName)
+  const body = followUp.body.trim()
+  const bodyHtml = escapeHtml(body).replace(/\n/g, '<br>')
+
+  const cardHref = eventApexPathUrl(config.domain.slug, `/card/${token}`, { host })
+  const messagesHref = eventApexPathUrl(config.domain.slug, `/messages/${token}`, { host })
+  const apex = apexHost(host)
+  const icsHref = `${protocolFor(apex)}://${apex}/api/platform/calendar/${encodeURIComponent(token)}`
+  const googleHref = google(config, 'invite') || `${icsHref}?to=google`
+  const mapHref = mapUrlOf('invite', config, locale)
+
+  const pageTextureRaw = design.pageTexture?.trim() || ''
+  const pageTextureForMail = pageTextureRaw
+    ? mailImageSrc('invite', config, host, pageTextureRaw, 'pageTexture')
+    : ''
+  const pageBgCss = pageBackgroundCss(design, escapeHtml, pageTextureForMail)
+
+  const cardColor = design.cardColor || config.branding.primaryColor || '#1a2033'
+  const cardTextColor = design.cardTextColor || '#ffffff'
+  const ctaTextColor = design.ctaRsvpColor || '#ffffff'
+  const textColor = design.bodyColor || design.headingColor || '#3d3429'
+  const mutedColor = '#6b5f52'
+  const titleColor = design.headingColor || design.nameColor || textColor
+  const buttonBg = design.cardColor || '#4a5a3c'
+
+  const dateLine = eventDateLine('invite', config, locale)
+  const timeLine = eventTimeLine('invite', config, locale)
+  const venue = design.placeLabel?.trim() || ''
+  const address1 = design.address1?.trim() || ''
+  const address2 = design.address2?.trim() || ''
+  const addressLine = [address1, address2].filter(Boolean).join(', ')
+  const hostLine = (design.hosts?.trim() || config.invitation.hostLine || '').trim()
+  const familyName = guest.familyName || ''
+  const sealRaw = sealUrl('invite', config, locale)
+  const seal = sealRaw ? mailImageSrc('invite', config, host, sealRaw, 'sealUrl') : ''
+
+  const viewCard = chromeCtaText(config, locale, 'invite', 'ctaView', labels.viewCard)
+  const calendarLabel = chromeCtaText(config, locale, 'invite', 'ctaCalendar', labels.calendar)
+  const mapLabel = chromeCtaText(config, locale, 'invite', 'ctaMap', labels.map)
+
+  if (followUp.type === 'reminder') {
+    const sealCell = seal
+      ? `<td align="right" valign="top" style="padding:16px 16px 0 0;line-height:0;font-size:0;">
+          <img src="${escapeHtml(seal)}" alt="" width="72" height="72" style="display:block;border:0;width:72px;height:72px;object-fit:contain;" />
+        </td>`
+      : `<td width="72" style="padding:16px 16px 0 0;"></td>`
+
+    const locationBits = [venue, addressLine].filter(Boolean).join(' · ')
+    const iconClock = `<span style="display:inline-block;width:22px;height:22px;border:1.5px solid ${escapeHtml(mutedColor)};border-radius:50%;text-align:center;line-height:20px;font-size:11px;color:${escapeHtml(mutedColor)};">&#9200;</span>`
+    const iconPin = `<span style="display:inline-block;width:22px;height:22px;border:1.5px solid ${escapeHtml(mutedColor)};border-radius:50%;text-align:center;line-height:20px;font-size:12px;color:${escapeHtml(mutedColor)};">&#9679;</span>`
+
+    const detailRows: string[] = []
+    if (dateLine || timeLine) {
+      detailRows.push(`<tr>
+        <td valign="top" style="padding:16px 10px 16px 0;width:28px;">${iconClock}</td>
+        <td valign="middle" style="padding:16px 0;">
+          <div style="font-family:${font};font-size:15px;font-weight:bold;color:${escapeHtml(textColor)};">${escapeHtml([dateLine, timeLine].filter(Boolean).join(' · '))}</div>
+        </td>
+        <td align="right" valign="middle" style="padding:16px 0 16px 12px;white-space:nowrap;">
+          ${
+            googleHref
+              ? `<a href="${escapeHtml(googleHref)}" style="font-family:${font};font-size:11px;letter-spacing:0.08em;color:#888;text-decoration:none;">${escapeHtml(calendarLabel)}</a>`
+              : ''
+          }
+        </td>
+      </tr>`)
+    }
+    if (venue || addressLine) {
+      detailRows.push(`<tr>
+        <td valign="top" style="padding:16px 10px 16px 0;width:28px;">${iconPin}</td>
+        <td valign="middle" style="padding:16px 0;">
+          <div style="font-family:${font};font-size:15px;font-weight:bold;color:${escapeHtml(textColor)};">${escapeHtml(venue || addressLine)}</div>
+          ${
+            venue && addressLine
+              ? `<div style="margin:2px 0 0;font-family:${font};font-size:13px;color:${escapeHtml(mutedColor)};">${escapeHtml(addressLine)}</div>`
+              : ''
+          }
+        </td>
+        <td align="right" valign="middle" style="padding:16px 0 16px 12px;white-space:nowrap;">
+          ${
+            mapHref
+              ? `<a href="${escapeHtml(mapHref)}" style="font-family:${font};font-size:11px;letter-spacing:0.08em;color:#888;text-decoration:none;">${escapeHtml(mapLabel)}</a>`
+              : ''
+          }
+        </td>
+      </tr>`)
+    }
+
+    return `<!DOCTYPE html>
+<html lang="${escapeHtml(locale)}" dir="${dir}">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;${pageBgCss}font-family:${font};" dir="${dir}">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="${pageBgCss}">
+    <tr>
+      <td align="center" style="padding:32px 16px 48px;">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:480px;">
+          <tr>
+            <td align="center" style="padding-bottom:8px;">
+              <p style="margin:0;font-family:${font};font-size:18px;color:${escapeHtml(titleColor)};">${escapeHtml(labels.greeting(familyName))}</p>
+            </td>
+          </tr>
+          <tr>
+            <td align="center" style="padding:12px 8px 0;">
+              <p style="margin:0;font-family:${font};font-size:15px;line-height:1.55;color:${escapeHtml(textColor)};">${bodyHtml}</p>
+              ${
+                locationBits
+                  ? `<p style="margin:14px 0 0;font-family:${font};font-size:14px;color:${escapeHtml(mutedColor)};">&#128205; ${escapeHtml(locationBits)}</p>`
+                  : ''
+              }
+              <p style="margin:14px 0 0;font-family:${font};font-size:15px;color:${escapeHtml(textColor)};">${escapeHtml(labels.lookForward)}</p>
+            </td>
+          </tr>
+          <tr>
+            <td align="center" style="padding:28px 8px 0;">
+              <a href="${escapeHtml(cardHref)}" style="display:inline-block;font-family:${font};font-size:13px;font-weight:bold;letter-spacing:0.06em;color:${escapeHtml(ctaTextColor)};background-color:${escapeHtml(cardColor)};text-decoration:none;padding:14px 36px;border-radius:999px;">${escapeHtml(viewCard)}</a>
+            </td>
+          </tr>
+          <tr>
+            <td align="center" style="padding:28px 0 0;">
+              <a href="${escapeHtml(cardHref)}" style="text-decoration:none;color:inherit;">
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:400px;background-color:${escapeHtml(cardColor)};border-radius:2px;">
+                  <tr>
+                    <td width="*" style="font-size:0;line-height:0;">&nbsp;</td>
+                    ${sealCell}
+                  </tr>
+                  <tr>
+                    <td colspan="2" align="center" style="padding:40px 24px 48px;font-family:${font};font-size:28px;font-weight:bold;color:${escapeHtml(cardTextColor)};line-height:1.2;">
+                      ${escapeHtml(familyName || title)}
+                    </td>
+                  </tr>
+                </table>
+              </a>
+            </td>
+          </tr>
+          <tr>
+            <td align="center" style="padding:28px 8px 0;">
+              <p style="margin:0;font-family:${font};font-size:20px;font-weight:bold;color:${escapeHtml(titleColor)};">${escapeHtml(title)}</p>
+              ${
+                hostLine
+                  ? `<p style="margin:8px 0 0;font-family:${font};font-size:14px;color:${escapeHtml(mutedColor)};">${escapeHtml(hostLine)}</p>`
+                  : ''
+              }
+            </td>
+          </tr>
+          ${
+            detailRows.length
+              ? `<tr><td style="padding:24px 0 0;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;border-top:1px solid #e5e5e5;">${detailRows.join('<tr><td colspan="3" style="border-top:1px solid #e5e5e5;font-size:0;height:1px;">&nbsp;</td></tr>')}</table></td></tr>`
+              : ''
+          }
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`
+  }
+
+  const preview = escapeHtml(previewMessage(body)).replace(/\n/g, ' ')
+  const primaryHref = followUp.type === 'message' ? messagesHref : cardHref
+  const primaryLabel = followUp.type === 'message' ? labels.viewMessage : labels.viewInvitation
+  const secondaryHref = followUp.type === 'message' ? cardHref : messagesHref
+  const secondaryLabel = followUp.type === 'message' ? labels.viewInvitation : labels.viewMessages
+
+  return `<!DOCTYPE html>
+<html lang="${escapeHtml(locale)}" dir="${dir}">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;${pageBgCss}font-family:${font};" dir="${dir}">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="${pageBgCss}">
+    <tr>
+      <td align="center" style="padding:40px 16px 56px;">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:480px;">
+          <tr>
+            <td align="center">
+              <p style="margin:0;font-family:Georgia,'Times New Roman',serif;font-size:28px;line-height:1.3;color:${escapeHtml(titleColor)};">${escapeHtml(headline)}</p>
+            </td>
+          </tr>
+          <tr>
+            <td align="center" style="padding:18px 8px 0;">
+              <p style="margin:0;font-family:${font};font-size:16px;font-weight:bold;color:${escapeHtml(textColor)};">${escapeHtml(title)}</p>
+            </td>
+          </tr>
+          <tr>
+            <td align="center" style="padding:16px 8px 0;">
+              <p style="margin:0;font-family:${font};font-size:15px;line-height:1.5;color:${escapeHtml(mutedColor)};font-style:italic;">&ldquo;${preview}&rdquo;</p>
+            </td>
+          </tr>
+          <tr>
+            <td align="center" style="padding:28px 8px 0;">
+              <a href="${escapeHtml(primaryHref)}" style="display:inline-block;font-family:${font};font-size:14px;font-weight:bold;color:${escapeHtml(ctaTextColor)};background-color:${escapeHtml(buttonBg)};text-decoration:none;padding:14px 32px;border-radius:999px;">${escapeHtml(primaryLabel)}</a>
+            </td>
+          </tr>
+          <tr>
+            <td align="center" style="padding:16px 8px 0;">
+              <a href="${escapeHtml(secondaryHref)}" style="font-family:${font};font-size:14px;color:${escapeHtml(textColor)};text-decoration:underline;">${escapeHtml(secondaryLabel)}</a>
             </td>
           </tr>
         </table>

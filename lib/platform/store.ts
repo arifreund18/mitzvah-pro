@@ -20,6 +20,7 @@ import { coerceGuestInviteLocale, primaryEventLocale } from './guest-locale'
 import { normalizeConfig, normalizeGuest } from './normalize'
 import { applyProducts, parseProductsInput } from './products'
 import { applyScheduleItemInvitations } from './schedule-invite'
+import { normalizeFollowUp } from './follow-up'
 import type {
   EventConfig,
   EventLocale,
@@ -27,6 +28,9 @@ import type {
   Guest,
   GuestPerson,
   GuestRsvp,
+  HostFollowUp,
+  HostFollowUpAudience,
+  HostFollowUpType,
   Organization,
   PlatformEvent,
   PlatformStore,
@@ -757,6 +761,73 @@ export async function listEmailLogs(eventId?: string) {
   const store = await loadStore()
   const logs = store.emailLogs || []
   return eventId ? logs.filter((log) => log.eventId === eventId) : logs
+}
+
+export async function createFollowUp(
+  eventId: string,
+  input: {
+    type: HostFollowUpType
+    body: string
+    subject?: string
+    audience?: HostFollowUpAudience
+    guestIds?: string[]
+  },
+): Promise<{ event: PlatformEvent; followUp: HostFollowUp } | null> {
+  return withLock(async () => {
+    const store = await loadStore()
+    const event = store.events.find((item) => item.id === eventId)
+    if (!event) return null
+    const followUp = normalizeFollowUp({
+      type: input.type,
+      body: input.body,
+      subject: input.subject || '',
+      audience: input.audience || 'all',
+      guestIds: input.guestIds || [],
+      createdAt: new Date().toISOString(),
+      sentAt: null,
+      sentCount: 0,
+      failedCount: 0,
+      deferredCount: 0,
+    })
+    event.config.followUps = [...(event.config.followUps || []), followUp]
+    event.updatedAt = new Date().toISOString()
+    await saveStore(store)
+    return { event, followUp }
+  })
+}
+
+export async function updateFollowUpStats(
+  eventId: string,
+  followUpId: string,
+  patch: {
+    sentAt?: string | null
+    sentCount?: number
+    failedCount?: number
+    deferredCount?: number
+  },
+): Promise<HostFollowUp | null> {
+  return withLock(async () => {
+    const store = await loadStore()
+    const event = store.events.find((item) => item.id === eventId)
+    if (!event) return null
+    const list = event.config.followUps || []
+    const index = list.findIndex((item) => item.id === followUpId)
+    if (index < 0) return null
+    const current = list[index]!
+    const next = normalizeFollowUp({
+      ...current,
+      sentAt: patch.sentAt !== undefined ? patch.sentAt : current.sentAt,
+      sentCount: patch.sentCount !== undefined ? patch.sentCount : current.sentCount,
+      failedCount: patch.failedCount !== undefined ? patch.failedCount : current.failedCount,
+      deferredCount:
+        patch.deferredCount !== undefined ? patch.deferredCount : current.deferredCount,
+    })
+    list[index] = next
+    event.config.followUps = list
+    event.updatedAt = new Date().toISOString()
+    await saveStore(store)
+    return next
+  })
 }
 
 export async function appendEmailLog(input: {

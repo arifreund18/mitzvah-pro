@@ -18,6 +18,8 @@ describe('studioUi', () => {
     assert.equal(ui.sectionLabels.schedule, 'Programação')
     assert.equal(ui.card.importImage, 'Importar imagem')
     assert.equal(ui.sendInviteOne, 'Enviar convite')
+    assert.equal(ui.followUpTitle, 'Follow-up aos convidados')
+    assert.equal(ui.followUpTypeUpdate, 'Atualização do evento')
   })
 
   it('fills templates', () => {

@@ -73,6 +73,7 @@ function minimalConfig(overrides: Partial<EventConfig> = {}): EventConfig {
       onlyConfirmedForD7D2: true,
       message: '',
     },
+    followUps: [],
     faq: { items: [] },
     legal: { privacyHtml: '', termsHtml: '', comingSoon: false, comingSoonMessage: '' },
     domain: {

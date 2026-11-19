@@ -92,6 +92,29 @@ export type StudioUi = {
   sendTestStd: string
   sendTestInvite: string
   emailNeeded: string
+  followUpTitle: string
+  followUpHint: string
+  followUpType: string
+  followUpTypeReminder: string
+  followUpTypeMessage: string
+  followUpTypeUpdate: string
+  followUpAudience: string
+  followUpAudienceAll: string
+  followUpAudienceYes: string
+  followUpAudiencePending: string
+  followUpAudienceNo: string
+  followUpSubject: string
+  followUpSubjectPlaceholder: string
+  followUpBody: string
+  followUpBodyPlaceholder: string
+  followUpSend: string
+  followUpSendHint: string
+  followUpSendFailed: string
+  followUpLocalOk: string
+  followUpSent: string
+  followUpFailures: string
+  followUpDeferred: string
+  followUpHistory: string
   optionsTitle: string
   optionsHint: string
   products: string
@@ -460,6 +483,31 @@ function pack(
     sendTestStd: 'Send STD test',
     sendTestInvite: 'Send invitation test',
     emailNeeded: 'Enter an email for the test send',
+    followUpTitle: 'Follow-up to guests',
+    followUpHint:
+      'Send a reminder, a personal message, or an event update to everyone (or by RSVP status).',
+    followUpType: 'Communication type',
+    followUpTypeReminder: 'Reminder',
+    followUpTypeMessage: 'New message',
+    followUpTypeUpdate: 'Event update',
+    followUpAudience: 'Recipients',
+    followUpAudienceAll: 'All guests with email',
+    followUpAudienceYes: 'Confirmed (yes)',
+    followUpAudiencePending: 'Pending RSVP',
+    followUpAudienceNo: 'Declined (no)',
+    followUpSubject: 'Subject (optional)',
+    followUpSubjectPlaceholder: 'Leave blank to use the default subject',
+    followUpBody: 'Message body',
+    followUpBodyPlaceholder:
+      'Example: Due to winter weather we are moving the party to…',
+    followUpSend: 'Send to guests',
+    followUpSendHint: 'Emails go out immediately to the selected audience.',
+    followUpSendFailed: 'Could not send the follow-up',
+    followUpLocalOk: 'Marked locally (no email provider configured)',
+    followUpSent: 'sent',
+    followUpFailures: 'failed',
+    followUpDeferred: 'deferred',
+    followUpHistory: 'Recent follow-ups',
     optionsTitle: 'Event options',
     optionsHint: 'Change what the event includes and its languages. The wizard and sends follow these choices.',
     products: 'Products',
@@ -604,6 +652,31 @@ const STUDIO_UI: Record<EventLocale, StudioUi> = {
     sendTestStd: 'Enviar teste STD',
     sendTestInvite: 'Enviar teste convite',
     emailNeeded: 'Informe um email para o envio de teste',
+    followUpTitle: 'Follow-up aos convidados',
+    followUpHint:
+      'Envie um lembrete, uma mensagem pessoal ou uma atualização do evento a todos (ou por status de RSVP).',
+    followUpType: 'Tipo de comunicação',
+    followUpTypeReminder: 'Lembrete',
+    followUpTypeMessage: 'Nova mensagem',
+    followUpTypeUpdate: 'Atualização do evento',
+    followUpAudience: 'Destinatários',
+    followUpAudienceAll: 'Todos com email',
+    followUpAudienceYes: 'Confirmados (sim)',
+    followUpAudiencePending: 'RSVP pendente',
+    followUpAudienceNo: 'Recusaram (não)',
+    followUpSubject: 'Assunto (opcional)',
+    followUpSubjectPlaceholder: 'Deixe em branco para usar o assunto padrão',
+    followUpBody: 'Corpo da mensagem',
+    followUpBodyPlaceholder:
+      'Ex.: Por causa do mau tempo, vamos mudar o local para…',
+    followUpSend: 'Enviar aos convidados',
+    followUpSendHint: 'Os emails saem de imediato para o público escolhido.',
+    followUpSendFailed: 'Não foi possível enviar o follow-up',
+    followUpLocalOk: 'Marcado localmente (sem provedor de email)',
+    followUpSent: 'enviado(s)',
+    followUpFailures: 'falha(s)',
+    followUpDeferred: 'adiado(s)',
+    followUpHistory: 'Follow-ups recentes',
     optionsTitle: 'Opções do evento',
     optionsHint: 'Altere o que o evento inclui e os idiomas. O wizard e os envios adaptam-se a estas escolhas.',
     products: 'Produtos',

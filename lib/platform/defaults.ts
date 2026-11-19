@@ -215,6 +215,7 @@ export function createDefaultConfig(partial?: {
       onlyConfirmedForD7D2: true,
       message: '',
     },
+    followUps: [],
     faq: { items: [] },
     legal: {
       privacyHtml: '',
