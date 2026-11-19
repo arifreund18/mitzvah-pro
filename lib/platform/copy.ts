@@ -141,8 +141,9 @@ function fromConfig(config: EventConfig): GeneratedCopy {
   )
 }
 
+/** Keep user edits (including intentional empty). Only refresh stock generated text. */
 function pick(current: string, previousGenerated: string, nextGenerated: string): string {
-  if (!current.trim() || current === previousGenerated) return nextGenerated
+  if (current === previousGenerated) return nextGenerated
   return current
 }
 
@@ -161,7 +162,8 @@ export function syncGeneratedCopy(previous: EventConfig, next: EventConfig): Eve
       index === 0 ? prevGen.ceremonyTitle : index === 1 ? prevGen.receptionTitle : null
     const nextTitle =
       index === 0 ? nextGen.ceremonyTitle : index === 1 ? nextGen.receptionTitle : null
-    if (prevTitle && nextTitle && (item.title === prevTitle || !item.title.trim())) {
+    // Empty titles stay empty; only replace still-stock ceremony/reception labels.
+    if (prevTitle && nextTitle && item.title === prevTitle) {
       return { ...item, title: nextTitle }
     }
     return item
@@ -174,23 +176,23 @@ export function syncGeneratedCopy(previous: EventConfig, next: EventConfig): Eve
     ...next,
     story: {
       ...next.story,
-      headline: nextGen.headline,
+      headline: pick(next.story.headline, prevGen.headline, nextGen.headline),
       subtitle: pick(next.story.subtitle, prevGen.subtitle, nextGen.subtitle),
     },
     saveTheDate: {
       ...next.saveTheDate,
-      message: nextGen.stdMessage,
+      message: pick(next.saveTheDate.message, prevGen.stdMessage, nextGen.stdMessage),
       envelopeLabel: pick(next.saveTheDate.envelopeLabel, prevGen.envelopeLabel, nextGen.envelopeLabel),
     },
     invitation: {
       ...next.invitation,
       greeting: pick(next.invitation.greeting, prevGen.greeting, nextGen.greeting),
-      body: nextGen.inviteBody,
-      hostLine: nextGen.hostLine,
+      body: pick(next.invitation.body, prevGen.inviteBody, nextGen.inviteBody),
+      hostLine: pick(next.invitation.hostLine, prevGen.hostLine, nextGen.hostLine),
     },
     domain: {
       ...next.domain,
-      seoTitle: nextGen.seoTitle,
+      seoTitle: pick(next.domain.seoTitle, prevGen.seoTitle, nextGen.seoTitle),
       seoDescription: pick(next.domain.seoDescription, prevGen.seoDescription, nextGen.seoDescription),
     },
     rsvp: {
