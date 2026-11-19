@@ -4,7 +4,8 @@ import { EventSite } from '@/components/template/EventSite'
 import { EventRsvpForm } from '@/components/template/EventRsvpForm'
 import { resolveGuestLocale } from '@/lib/platform/guest-locale'
 import { isEventLocale } from '@/lib/platform/locales'
-import { eventPublicUrl, hostFromHeaders } from '@/lib/platform/site-url'
+import { rsvpSiteHomeHref } from '@/lib/platform/rsvp-site-home'
+import { hostFromHeaders } from '@/lib/platform/site-url'
 import { getEventByCustomHost } from '@/lib/platform/store'
 
 export const dynamic = 'force-dynamic'
@@ -22,10 +23,10 @@ export default async function CustomHostEventPage({
   const displayLocale = resolveGuestLocale(null, event.config, explicit)
   const showPublicForm = event.config.rsvp.publicFormEnabled
   const host = hostFromHeaders(await headers())
-  const hasSite = Boolean(event.config.products?.site ?? event.config.productMode !== 'invite_only')
-  const siteHomeHref = hasSite
-    ? eventPublicUrl(event.slug, lang ? `?lang=${encodeURIComponent(lang)}` : '', { host })
-    : null
+  const siteHomeHref = rsvpSiteHomeHref(event.config, event.slug, {
+    host,
+    langQuery: lang || null,
+  })
   return (
     <div className="bg-[#0b1020] text-white">
       <EventSite

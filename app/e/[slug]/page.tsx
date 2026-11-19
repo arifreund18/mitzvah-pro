@@ -6,6 +6,7 @@ import { EventRsvpForm } from '@/components/template/EventRsvpForm'
 import { TokenRsvpForm } from '@/components/template/TokenRsvpForm'
 import { resolveGuestLocale } from '@/lib/platform/guest-locale'
 import { isEventLocale } from '@/lib/platform/locales'
+import { rsvpSiteHomeHref } from '@/lib/platform/rsvp-site-home'
 import { eventPublicUrl, hostFromHeaders } from '@/lib/platform/site-url'
 import { getEventBySlug } from '@/lib/platform/store'
 
@@ -48,14 +49,11 @@ export default async function PublicEventPage({
   const showPublicForm = !guest && event.config.rsvp.publicFormEnabled
   const accent = event.config.branding.accentColor || '#22d3ee'
   const host = hostFromHeaders(await headers())
-  const hasSite = Boolean(event.config.products?.site ?? event.config.productMode !== 'invite_only')
-  const siteHomeHref = hasSite
-    ? eventPublicUrl(
-        event.slug,
-        guest ? `?guest=${encodeURIComponent(guest.token)}&lang=${resolvedLocale}` : '',
-        { host },
-      )
-    : null
+  const siteHomeHref = rsvpSiteHomeHref(event.config, event.slug, {
+    host,
+    guestToken: guest?.token,
+    locale: guest ? resolvedLocale : null,
+  })
 
   return (
     <div className="bg-[#0b1020] text-white">
