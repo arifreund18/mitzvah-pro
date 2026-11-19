@@ -47,6 +47,15 @@ export default async function PublicEventPage({
   const resolvedLocale = resolveGuestLocale(guest, event.config, explicitLang)
   const showPublicForm = !guest && event.config.rsvp.publicFormEnabled
   const accent = event.config.branding.accentColor || '#22d3ee'
+  const host = hostFromHeaders(await headers())
+  const hasSite = Boolean(event.config.products?.site ?? event.config.productMode !== 'invite_only')
+  const siteHomeHref = hasSite
+    ? eventPublicUrl(
+        event.slug,
+        guest ? `?guest=${encodeURIComponent(guest.token)}&lang=${resolvedLocale}` : '',
+        { host },
+      )
+    : null
 
   return (
     <div className="bg-[#0b1020] text-white">
@@ -67,11 +76,12 @@ export default async function PublicEventPage({
             rsvp={event.config.rsvp}
             locale={resolvedLocale}
             accent={accent}
+            siteHomeHref={siteHomeHref}
           />
         </section>
       ) : showPublicForm ? (
         <section className="mx-auto max-w-xl px-6 pb-24">
-          <EventRsvpForm event={event} locale={resolvedLocale} />
+          <EventRsvpForm event={event} locale={resolvedLocale} siteHomeHref={siteHomeHref} />
         </section>
       ) : null}
     </div>

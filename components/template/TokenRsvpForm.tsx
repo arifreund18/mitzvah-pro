@@ -181,12 +181,15 @@ export function TokenRsvpForm({
   rsvp,
   locale = 'pt',
   accent = '#22d3ee',
+  /** When set, successful RSVP navigates here (start of the event site). */
+  siteHomeHref,
 }: {
   token: string
   guest: Guest
   rsvp: PublicRsvpConfig
   locale?: EventLocale
   accent?: string
+  siteHomeHref?: string | null
 }) {
   const t = STRINGS[locale] || STRINGS.pt
   const openMode = Boolean(guest.openRsvp)
@@ -253,6 +256,10 @@ export function TokenRsvpForm({
     }
     if (data?.guest?.people?.length) {
       setPeople(data.guest.people.map((p) => ({ ...p, isNew: false })))
+    }
+    if (siteHomeHref) {
+      window.location.assign(siteHomeHref)
+      return
     }
     setConfirmation(data?.confirmation || rsvp.confirmationMessage || t.thanks)
   }
