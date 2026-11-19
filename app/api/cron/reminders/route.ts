@@ -2,8 +2,6 @@ import { NextRequest, NextResponse } from 'next/server'
 import { isEmailConfigured, sendEmail } from '@/lib/email/send'
 import { authorizeCron } from '@/lib/platform/cron-auth'
 import { daysUntilEventDate, eventTimeZone } from '@/lib/platform/event-tz'
-import { resolveGuestLocale } from '@/lib/platform/guest-locale'
-import { reminderCopy } from '@/lib/platform/guest-ui'
 import {
   eventHostReplyTo,
   eventMailConfigurationSet,
@@ -13,12 +11,12 @@ import {
   guestMatchesReminderAudience,
   resolveReminderAudience,
 } from '@/lib/platform/reminder-audience'
+import { mailReminderHtml, mailReminderSubject } from '@/lib/platform/reminder-mail'
 import {
   appendEmailLog,
   listEmailLogs,
   loadPlatformStoreForCron,
 } from '@/lib/platform/store'
-import { uid } from '@/lib/platform/ids'
 import type { Guest, PlatformEvent, ReminderAudience } from '@/lib/platform/types'
 
 export const dynamic = 'force-dynamic'
@@ -131,16 +129,10 @@ async function sendReminder({
     process.env.EMAIL_FROM_ADDRESS ||
     process.env.SES_FROM_EMAIL ||
     process.env.RESEND_FROM_EMAIL
-  const name = event.config.basics.honoreeName || 'Mitzvah'
-  const locale = resolveGuestLocale(guest, event.config)
-  const copy = reminderCopy(
-    locale,
-    name,
-    days,
-    guest.familyName,
-    event.config.reminders.message,
-  )
-  const dir = locale === 'he' ? 'rtl' : 'ltr'
+  const host =
+    process.env.NEXT_PUBLIC_SITE_HOST ||
+    process.env.VERCEL_PROJECT_PRODUCTION_URL ||
+    'mitzvah.pro'
   if (!emailReady || !from) {
     return { status: 'queued', messageId: null, error: 'email_unavailable' }
   }
@@ -149,11 +141,8 @@ async function sendReminder({
     to,
     replyTo: eventHostReplyTo(event.config),
     configurationSetName: eventMailConfigurationSet(event.config),
-    subject: copy.subject,
-    html: `<div dir="${dir}" style="font-family:Georgia,serif;line-height:1.5">
-      <p>${copy.body.replace(/</g, '&lt;')}</p>
-      <p style="color:#666;font-size:12px">Job ${uid()}</p>
-    </div>`,
+    subject: mailReminderSubject(event.config, guest, days),
+    html: mailReminderHtml(event.config, host, guest, days),
   })
   if (!result.ok) {
     return {
