@@ -394,6 +394,11 @@ export type EventConfig = {
     onlyConfirmedForD7D2: boolean
     message: string
   }
+  /**
+   * Host→guest follow-up broadcasts (reminder / message / update).
+   * Stored on config so relational dual-write (config JSONB) keeps them.
+   */
+  followUps: HostFollowUp[]
   faq: { items: FaqItem[] }
   legal: {
     privacyHtml: string
@@ -410,6 +415,29 @@ export type EventConfig = {
     customHostStatus: CustomHostStatus
     customHostToken: string
   }
+}
+
+/** Host broadcast email kinds (manual follow-up, not cron reminders). */
+export type HostFollowUpType = 'reminder' | 'message' | 'update'
+
+/** Who receives a follow-up send. */
+export type HostFollowUpAudience = 'all' | 'yes' | 'pending' | 'no'
+
+export type HostFollowUp = {
+  id: string
+  type: HostFollowUpType
+  /** Plain-text body written by the host. */
+  body: string
+  /** Optional subject override; empty uses the type default. */
+  subject: string
+  audience: HostFollowUpAudience
+  /** When set, only these family ids are targeted (overrides audience filter). */
+  guestIds: string[]
+  createdAt: string
+  sentAt: string | null
+  sentCount: number
+  failedCount: number
+  deferredCount: number
 }
 
 export type MailDomainStatus = 'skipped' | 'pending' | 'verified' | 'failed'

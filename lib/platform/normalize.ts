@@ -6,6 +6,7 @@ import {
 } from './guest-locale.ts'
 import { uid } from './ids'
 import { DEFAULT_ORG_ID } from './auth'
+import { normalizeFollowUps } from './follow-up.ts'
 import type {
   ContactPerson,
   EventConfig,
@@ -199,6 +200,7 @@ export function normalizeConfig(raw: EventConfig | null | undefined): EventConfi
       confirmationEmailBody: raw.rsvp?.confirmationEmailBody ?? base.rsvp.confirmationEmailBody ?? '',
     },
     reminders: { ...base.reminders, ...raw.reminders },
+    followUps: normalizeFollowUps(raw.followUps),
     faq: { items: (raw.faq?.items || []).map((item) => faqItem(item)) },
     legal: {
       ...base.legal,

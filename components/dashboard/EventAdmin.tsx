@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useMemo, useState } from 'react'
 import { EventActions } from '@/components/dashboard/EventActions'
 import { EventOptionsPanel } from '@/components/dashboard/EventOptionsPanel'
+import { FollowUpPanel } from '@/components/dashboard/FollowUpPanel'
 import { GuestAdminPanel } from '@/components/dashboard/GuestAdminPanel'
 import { GuestCsvImport } from '@/components/dashboard/GuestCsvImport'
 import { GuestManualAdd } from '@/components/dashboard/GuestManualAdd'
@@ -397,6 +398,12 @@ export function EventAdmin({
             {ui.scheduleInvitesHint}
           </p>
           <ScheduleGuestsPanel event={event} locale={locale} />
+        </div>
+      ) : null}
+
+      {(products.invitation || products.saveTheDate) ? (
+        <div id="follow-ups" className="mt-12">
+          <FollowUpPanel event={event} locale={locale} />
         </div>
       ) : null}
 

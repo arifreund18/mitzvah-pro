@@ -39,7 +39,7 @@ function rewriteToEvent(request: NextRequest, pathname: string) {
 function extractGuestToken(pathname: string, searchParams: URLSearchParams): string | null {
   const fromQuery = searchParams.get('token')?.trim()
   if (fromQuery) return fromQuery
-  const match = pathname.match(/^\/(?:rsvp|card|std|invite)\/([^/]+)\/?$/)
+  const match = pathname.match(/^\/(?:rsvp|card|std|invite|messages)\/([^/]+)\/?$/)
   return match?.[1] ? decodeURIComponent(match[1]) : null
 }
 
@@ -94,6 +94,14 @@ export default function middleware(request: NextRequest) {
       )
     }
 
+    const messagesToken = pathname.match(/^\/messages\/([^/]+)\/?$/)
+    if (messagesToken) {
+      return withGuestCookie(
+        rewriteToEvent(request, `/e/${eventSlug}/messages/${messagesToken[1]}`),
+        guestToken,
+      )
+    }
+
     // Token path takes precedence over bare /std
     const stdToken = pathname.match(/^\/std\/([^/]+)\/?$/)
     if (stdToken) {
@@ -122,6 +130,9 @@ export default function middleware(request: NextRequest) {
     }
     if (pathname === '/card' || pathname.startsWith('/card/')) {
       return withGuestCookie(rewriteToEvent(request, `/e/${eventSlug}/invite`), guestToken)
+    }
+    if (pathname === '/messages' || pathname.startsWith('/messages/')) {
+      return withGuestCookie(rewriteToEvent(request, `/e/${eventSlug}`), guestToken)
     }
     if (pathname === '/privacy' || pathname.startsWith('/privacy/')) {
       return rewriteToEvent(request, `/e/${eventSlug}/privacy`)
@@ -209,6 +220,8 @@ export const config = {
     '/rsvp/:path*',
     '/card',
     '/card/:path*',
+    '/messages',
+    '/messages/:path*',
     '/privacy',
     '/privacy/:path*',
     '/terms',
