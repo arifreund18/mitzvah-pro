@@ -31,10 +31,12 @@ export type TemplateUi = {
   parking: string
   emailPreview: string
   invitePreview: string
+  sitePreview: string
   emailStd: string
   emailInvite: string
   emailReminder: string
   emailFollowUp: string
+  emailRsvp: string
   inviteCard: string
   toGuests: string
   openEnvelope: string
@@ -78,10 +80,12 @@ const PACKS: Record<EventLocale, TemplateUi> = {
     parking: 'Estacionamento',
     emailPreview: 'Preview do email',
     invitePreview: 'Preview do convite',
+    sitePreview: 'Site',
     emailStd: 'Save the Date · email',
     emailInvite: 'Convite · email',
     emailReminder: 'Lembrete · email',
     emailFollowUp: 'Follow-up · email',
+    emailRsvp: 'Confirmação RSVP · email',
     inviteCard: 'Convite · cartão',
     toGuests: 'Para a lista de convidados',
     openEnvelope: 'Abrir envelope',
@@ -131,10 +135,12 @@ const PACKS: Record<EventLocale, TemplateUi> = {
     parking: 'Parking',
     emailPreview: 'Email preview',
     invitePreview: 'Invite preview',
+    sitePreview: 'Website',
     emailStd: 'Save the Date · email',
     emailInvite: 'Invitation · email',
     emailReminder: 'Reminder · email',
     emailFollowUp: 'Follow-up · email',
+    emailRsvp: 'RSVP confirmation · email',
     inviteCard: 'Invitation · card',
     toGuests: 'To the guest list',
     openEnvelope: 'Open envelope',
@@ -184,10 +190,12 @@ const PACKS: Record<EventLocale, TemplateUi> = {
     parking: 'Estacionamiento',
     emailPreview: 'Vista previa del email',
     invitePreview: 'Vista previa de la invitación',
+    sitePreview: 'Sitio',
     emailStd: 'Save the Date · email',
     emailInvite: 'Invitación · email',
     emailReminder: 'Recordatorio · email',
     emailFollowUp: 'Follow-up · email',
+    emailRsvp: 'Confirmación RSVP · email',
     inviteCard: 'Invitación · tarjeta',
     toGuests: 'Para la lista de invitados',
     openEnvelope: 'Abrir sobre',
@@ -237,10 +245,12 @@ const PACKS: Record<EventLocale, TemplateUi> = {
     parking: 'חניה',
     emailPreview: 'תצוגת אימייל',
     invitePreview: 'תצוגת הזמנה',
+    sitePreview: 'אתר',
     emailStd: 'שמרו את התאריך · אימייל',
     emailInvite: 'הזמנה · אימייל',
     emailReminder: 'תזכורת · אימייל',
     emailFollowUp: 'Follow-up · אימייל',
+    emailRsvp: 'אישור RSVP · אימייל',
     inviteCard: 'הזמנה · כרטיס',
     toGuests: 'לרשימת האורחים',
     openEnvelope: 'פתיחת מעטפה',

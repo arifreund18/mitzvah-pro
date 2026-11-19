@@ -11,7 +11,11 @@ import { EnvelopeClient } from '@/lib/event-cards'
 import { wizardUi } from '@/lib/platform/copy'
 import { localizedOpenLabel, primaryEventLocale } from '@/lib/platform/guest-locale'
 import { openEnvelopeLabel } from '@/lib/platform/guest-ui'
-import { mailHtml } from '@/lib/platform/mail'
+import {
+  mailHtml,
+  mailRsvpConfirmationHtml,
+  mailRsvpConfirmationSubject,
+} from '@/lib/platform/mail'
 import { normalizeGuest } from '@/lib/platform/normalize-guest'
 import {
   mailFollowUpScheduleHtml,
@@ -29,6 +33,7 @@ import type { EventConfig, WizardStepId } from '@/lib/platform/types'
 import { wizardSteps } from '@/lib/platform/wizard'
 
 type InvitePreviewTab = 'email' | 'invite'
+type RsvpPreviewTab = 'site' | 'email'
 type EmailPreviewKind = 'std' | 'invite' | 'reminder' | 'followUp'
 
 export function LivePreview({
@@ -41,12 +46,14 @@ export function LivePreview({
   const scroller = useRef<HTMLDivElement>(null)
   const [previewHost, setPreviewHost] = useState('localhost:3000')
   const [inviteTab, setInviteTab] = useState<InvitePreviewTab>('email')
+  const [rsvpTab, setRsvpTab] = useState<RsvpPreviewTab>('site')
   const locale = primaryEventLocale(config)
   const ui = wizardUi(locale)
   const mail = templateUi(locale)
   const target =
     wizardSteps(locale, config).find((item) => item.id === step)?.previewTarget ??
     'hero'
+  const isRsvpStep = step === 'rsvp'
   const emailKind: EmailPreviewKind | null =
     step === 'saveTheDate'
       ? 'std'
@@ -57,6 +64,8 @@ export function LivePreview({
           : step === 'followUpSchedule'
             ? 'followUp'
             : null
+  const showRsvpEmail = isRsvpStep && rsvpTab === 'email'
+  const skipSiteScroll = Boolean(emailKind) || showRsvpEmail
 
   const previewGuest = useMemo(
     () =>
@@ -65,6 +74,7 @@ export function LivePreview({
         email: 'preview@mitzvah.pro',
         token: 'PREVIEW',
         inviteLocale: locale,
+        status: 'yes',
       }),
     [config.basics.familyName, config.basics.honoreeName, locale],
   )
@@ -104,6 +114,16 @@ export function LivePreview({
     return mailFollowUpScheduleSubject(config, previewGuest, followUpDays)
   }, [emailKind, config, previewGuest, followUpDays])
 
+  const rsvpMailSrcDoc = useMemo(() => {
+    if (!showRsvpEmail) return ''
+    return mailRsvpConfirmationHtml(config, previewHost, previewGuest)
+  }, [showRsvpEmail, config, previewGuest, previewHost])
+
+  const rsvpSubject = useMemo(() => {
+    if (!showRsvpEmail) return ''
+    return mailRsvpConfirmationSubject(config, previewGuest)
+  }, [showRsvpEmail, config, previewGuest])
+
   const inviteDesign = config.invitation.design
   const sealUrl = inviteDesign.sealUrl || config.invitation.sealImageUrl
 
@@ -113,20 +133,26 @@ export function LivePreview({
 
   useEffect(() => {
     setInviteTab('email')
+    setRsvpTab('site')
   }, [step])
 
   useEffect(() => {
-    if (emailKind) return
+    if (skipSiteScroll) return
     const root = scroller.current
     if (!root) return
     const el = root.querySelector(`[data-preview="${target}"]`) as HTMLElement | null
     if (!el) return
     const top = el.offsetTop - 24
     root.scrollTo({ top: Math.max(0, top), behavior: 'smooth' })
-  }, [target, emailKind, config.basics.honoreeName, config.branding.theme])
+  }, [target, skipSiteScroll, config.basics.honoreeName, config.branding.theme])
 
-  const headerLabel =
-    emailKind === 'invite'
+  const headerLabel = isRsvpStep
+    ? showRsvpEmail
+      ? mail.emailRsvp
+      : config.domain.slug
+        ? eventPublicHostLabel(config.domain.slug)
+        : ui.draft
+    : emailKind === 'invite'
       ? inviteTab === 'email'
         ? mail.emailInvite
         : mail.inviteCard
@@ -143,7 +169,40 @@ export function LivePreview({
   return (
     <div className="flex h-full min-h-0 flex-col">
       <div className="flex items-center justify-between gap-3 border-b border-white/10 px-4 py-2 text-xs text-white/50">
-        {emailKind === 'invite' ? (
+        {isRsvpStep ? (
+          <div
+            role="tablist"
+            aria-label={ui.livePreview}
+            className="flex items-center gap-1 rounded-lg bg-white/5 p-0.5"
+          >
+            <button
+              type="button"
+              role="tab"
+              aria-selected={rsvpTab === 'site'}
+              className={`rounded-md px-2.5 py-1 transition ${
+                rsvpTab === 'site'
+                  ? 'bg-white/15 text-white'
+                  : 'text-white/50 hover:text-white/80'
+              }`}
+              onClick={() => setRsvpTab('site')}
+            >
+              {mail.sitePreview}
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={rsvpTab === 'email'}
+              className={`rounded-md px-2.5 py-1 transition ${
+                rsvpTab === 'email'
+                  ? 'bg-white/15 text-white'
+                  : 'text-white/50 hover:text-white/80'
+              }`}
+              onClick={() => setRsvpTab('email')}
+            >
+              {mail.emailPreview}
+            </button>
+          </div>
+        ) : emailKind === 'invite' ? (
           <div
             role="tablist"
             aria-label={mail.emailPreview}
@@ -184,7 +243,27 @@ export function LivePreview({
         </span>
       </div>
       <div ref={scroller} className="min-h-0 flex-1 overflow-auto bg-black/30">
-        {emailKind === 'std' ? (
+        {showRsvpEmail ? (
+          <div className="min-h-full bg-[#1a2033] px-4 py-8">
+            <div className="mx-auto max-w-lg overflow-hidden rounded-2xl border border-white/10 bg-[#0e1424] text-white shadow-2xl">
+              <div className="border-b border-white/10 px-4 py-3 text-xs text-white/50">
+                <p>
+                  {mail.emailPreview} · {mail.emailRsvp}
+                </p>
+                <p className="mt-1 text-white/70">{mail.toGuests}</p>
+                {rsvpSubject ? (
+                  <p className="mt-2 font-medium text-white">{rsvpSubject}</p>
+                ) : null}
+              </div>
+              <iframe
+                key={`rsvp-${rsvpMailSrcDoc.length}-${config.rsvp.confirmationEmailTitle}-${config.rsvp.confirmationEmailHosts}-${config.rsvp.confirmationEmailBody}`}
+                title={mail.emailRsvp}
+                className="block h-[760px] w-full border-0 bg-white"
+                srcDoc={rsvpMailSrcDoc}
+              />
+            </div>
+          </div>
+        ) : emailKind === 'std' ? (
           <EmailChrome kind="std" config={config}>
             <SaveTheDateCard config={config} />
           </EmailChrome>
