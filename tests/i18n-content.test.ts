@@ -60,6 +60,9 @@ function minimalConfig(partial?: {
       notifyMode: 'off',
       notifyEmails: [],
       confirmationMessage: '',
+      confirmationEmailTitle: '',
+      confirmationEmailHosts: '',
+      confirmationEmailBody: '',
     },
     reminders: {
       enabled: false,

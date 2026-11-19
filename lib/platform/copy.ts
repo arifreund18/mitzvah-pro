@@ -289,6 +289,13 @@ export type WizardUi = {
   plusOne: string
   dietary: string
   rsvpNotes: string
+  confirmationMessage: string
+  confirmationMessageHint: string
+  confirmationEmailSection: string
+  confirmationEmailHint: string
+  confirmationEmailTitle: string
+  confirmationEmailHosts: string
+  confirmationEmailBody: string
   question: string
   answer: string
   addQuestion: string
@@ -405,6 +412,14 @@ const WIZARD_UI: Record<EventLocale, WizardUi> = {
     plusOne: 'Permitir acompanhante / número de pessoas',
     dietary: 'Coletar restrições alimentares',
     rsvpNotes: 'Notas do RSVP',
+    confirmationMessage: 'Mensagem no site após confirmar',
+    confirmationMessageHint: 'Texto na página depois do RSVP (não é o email).',
+    confirmationEmailSection: 'Email de confirmação do RSVP',
+    confirmationEmailHint:
+      'Linhas abaixo do cartão no email enviado após o RSVP. Vazio = usa o texto do convite.',
+    confirmationEmailTitle: 'Título',
+    confirmationEmailHosts: 'Anfitriões',
+    confirmationEmailBody: 'Texto (ex.: “é chamada à Torah como Bat Mitzvah”)',
     question: 'Pergunta',
     answer: 'Resposta',
     addQuestion: '+ Pergunta',
@@ -432,7 +447,7 @@ const WIZARD_UI: Record<EventLocale, WizardUi> = {
       media: { title: 'Fotos', subtitle: 'Hero e galeria (URL ou upload local).' },
       faq: { title: 'FAQ', subtitle: 'Perguntas que os convidados sempre fazem.' },
       contact: { title: 'Contato', subtitle: 'Telefones, e-mails, WhatsApp e formulário.' },
-      rsvp: { title: 'RSVP', subtitle: 'Prazo, refeições e acompanhante.' },
+      rsvp: { title: 'RSVP', subtitle: 'Prazo, refeições, acompanhante e email de confirmação.' },
       saveTheDate: { title: 'Save the Date', subtitle: 'Email enviado aos convidados — não é página do site.' },
       invitation: { title: 'Convite', subtitle: 'Email do cartão com selo, enviado à lista.' },
       reminders: { title: 'Lembretes', subtitle: '30 / 7 / 2 dias antes do evento.' },
@@ -546,6 +561,14 @@ const WIZARD_UI: Record<EventLocale, WizardUi> = {
     plusOne: 'Allow plus-one / party size',
     dietary: 'Collect dietary restrictions',
     rsvpNotes: 'RSVP notes',
+    confirmationMessage: 'On-site message after confirming',
+    confirmationMessageHint: 'Shown on the page after RSVP (not the email).',
+    confirmationEmailSection: 'RSVP confirmation email',
+    confirmationEmailHint:
+      'Lines under the card in the email sent after RSVP. Leave blank to use invitation copy.',
+    confirmationEmailTitle: 'Title',
+    confirmationEmailHosts: 'Hosts',
+    confirmationEmailBody: 'Body (e.g. “is called to the Torah as a Bat Mitzvah”)',
     question: 'Question',
     answer: 'Answer',
     addQuestion: '+ Question',
@@ -573,7 +596,7 @@ const WIZARD_UI: Record<EventLocale, WizardUi> = {
       media: { title: 'Photos', subtitle: 'Hero and gallery (URL or local upload).' },
       faq: { title: 'FAQ', subtitle: 'Questions guests always ask.' },
       contact: { title: 'Contact', subtitle: 'Phones, emails, WhatsApp and form.' },
-      rsvp: { title: 'RSVP', subtitle: 'Deadline, meals, and plus-one.' },
+      rsvp: { title: 'RSVP', subtitle: 'Deadline, meals, plus-one, and confirmation email.' },
       saveTheDate: { title: 'Save the Date', subtitle: 'Email sent to guests — not a page on the site.' },
       invitation: { title: 'Invitation', subtitle: 'Email with the sealed card, sent to the list.' },
       reminders: { title: 'Reminders', subtitle: '30 / 7 / 2 days before the event.' },
@@ -687,6 +710,14 @@ const WIZARD_UI: Record<EventLocale, WizardUi> = {
     plusOne: 'Permitir acompañante / número de personas',
     dietary: 'Recoger restricciones alimentarias',
     rsvpNotes: 'Notas del RSVP',
+    confirmationMessage: 'Mensaje en el sitio tras confirmar',
+    confirmationMessageHint: 'Texto en la página después del RSVP (no es el email).',
+    confirmationEmailSection: 'Email de confirmación del RSVP',
+    confirmationEmailHint:
+      'Líneas bajo la tarjeta en el email enviado tras el RSVP. Vacío = usa el texto de la invitación.',
+    confirmationEmailTitle: 'Título',
+    confirmationEmailHosts: 'Anfitriones',
+    confirmationEmailBody: 'Texto (ej.: “es llamada a la Torá como Bat Mitzvá”)',
     question: 'Pregunta',
     answer: 'Respuesta',
     addQuestion: '+ Pregunta',
@@ -714,7 +745,7 @@ const WIZARD_UI: Record<EventLocale, WizardUi> = {
       media: { title: 'Fotos', subtitle: 'Hero y galería (URL o carga local).' },
       faq: { title: 'FAQ', subtitle: 'Preguntas frecuentes de los invitados.' },
       contact: { title: 'Contacto', subtitle: 'Teléfonos, emails, WhatsApp y formulario.' },
-      rsvp: { title: 'RSVP', subtitle: 'Fecha límite, comidas y acompañante.' },
+      rsvp: { title: 'RSVP', subtitle: 'Fecha límite, comidas, acompañante y email de confirmación.' },
       saveTheDate: { title: 'Save the Date', subtitle: 'Email a los invitados — no es una página del sitio.' },
       invitation: { title: 'Invitación', subtitle: 'Email de la tarjeta con sello, enviado a la lista.' },
       reminders: { title: 'Recordatorios', subtitle: '30 / 7 / 2 días antes del evento.' },
@@ -828,6 +859,14 @@ const WIZARD_UI: Record<EventLocale, WizardUi> = {
     plusOne: 'לאפשר מלווה / מספר אנשים',
     dietary: 'לאסוף מגבלות תזונה',
     rsvpNotes: 'הערות RSVP',
+    confirmationMessage: 'הודעה באתר אחרי אישור',
+    confirmationMessageHint: 'טקסט בעמוד אחרי ה־RSVP (לא האימייל).',
+    confirmationEmailSection: 'אימייל אישור RSVP',
+    confirmationEmailHint:
+      'שורות מתחת לכרטיס באימייל שנשלח אחרי RSVP. ריק = משתמש בטקסט ההזמנה.',
+    confirmationEmailTitle: 'כותרת',
+    confirmationEmailHosts: 'מארחים',
+    confirmationEmailBody: 'טקסט (למשל “נקראת לתורה כבת מצווה”)',
     question: 'שאלה',
     answer: 'תשובה',
     addQuestion: '+ שאלה',
@@ -855,7 +894,7 @@ const WIZARD_UI: Record<EventLocale, WizardUi> = {
       media: { title: 'תמונות', subtitle: 'הירו וגלריה.' },
       faq: { title: 'שאלות', subtitle: 'מה שהאורחים תמיד שואלים.' },
       contact: { title: 'יצירת קשר', subtitle: 'טלפונים, אימיילים, וואטסאפ וטופס.' },
-      rsvp: { title: 'RSVP', subtitle: 'דדליין, ארוחות ומלווה.' },
+      rsvp: { title: 'RSVP', subtitle: 'דדליין, ארוחות, מלווה ואימייל אישור.' },
       saveTheDate: { title: 'שמרו את התאריך', subtitle: 'אימייל לאורחים — לא עמוד באתר.' },
       invitation: { title: 'הזמנה', subtitle: 'אימייל הכרטיס עם חותם, נשלח לרשימה.' },
       reminders: { title: 'תזכורות', subtitle: '30 / 7 / 2 ימים לפני האירוע.' },

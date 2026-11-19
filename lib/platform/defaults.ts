@@ -203,6 +203,9 @@ export function createDefaultConfig(partial?: {
       notifyMode: 'instant',
       notifyEmails: [],
       confirmationMessage: '',
+      confirmationEmailTitle: '',
+      confirmationEmailHosts: '',
+      confirmationEmailBody: '',
     },
     reminders: {
       enabled: true,

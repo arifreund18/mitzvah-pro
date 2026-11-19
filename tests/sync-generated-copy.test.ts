@@ -91,6 +91,9 @@ function baseConfig(overrides: Partial<EventConfig> = {}): EventConfig {
       notifyMode: 'instant',
       notifyEmails: [],
       confirmationMessage: '',
+      confirmationEmailTitle: '',
+      confirmationEmailHosts: '',
+      confirmationEmailBody: '',
     },
     reminders: {
       enabled: true,

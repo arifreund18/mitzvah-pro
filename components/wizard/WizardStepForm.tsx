@@ -1170,6 +1170,53 @@ export const WizardStepForm = forwardRef<
             onChange={(e) => set({ ...config, rsvp: { ...config.rsvp, notes: e.target.value } })}
           />
         </Field>
+        <Field label={ui.confirmationMessage} hint={ui.confirmationMessageHint}>
+          <TextArea
+            value={config.rsvp.confirmationMessage || ''}
+            onChange={(e) =>
+              set({ ...config, rsvp: { ...config.rsvp, confirmationMessage: e.target.value } })
+            }
+          />
+        </Field>
+        <div className="space-y-3 rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+          <div>
+            <p className="text-sm font-medium text-white/90">{ui.confirmationEmailSection}</p>
+            <p className="mt-1 text-xs text-white/45">{ui.confirmationEmailHint}</p>
+          </div>
+          <Field label={ui.confirmationEmailTitle}>
+            <TextInput
+              value={config.rsvp.confirmationEmailTitle || ''}
+              onChange={(e) =>
+                set({
+                  ...config,
+                  rsvp: { ...config.rsvp, confirmationEmailTitle: e.target.value },
+                })
+              }
+            />
+          </Field>
+          <Field label={ui.confirmationEmailHosts}>
+            <TextInput
+              value={config.rsvp.confirmationEmailHosts || ''}
+              onChange={(e) =>
+                set({
+                  ...config,
+                  rsvp: { ...config.rsvp, confirmationEmailHosts: e.target.value },
+                })
+              }
+            />
+          </Field>
+          <Field label={ui.confirmationEmailBody}>
+            <TextArea
+              value={config.rsvp.confirmationEmailBody || ''}
+              onChange={(e) =>
+                set({
+                  ...config,
+                  rsvp: { ...config.rsvp, confirmationEmailBody: e.target.value },
+                })
+              }
+            />
+          </Field>
+        </div>
       </div>
     )
   }
