@@ -2,7 +2,9 @@
 
 import { useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { studioUi } from '@/lib/platform/studio-ui'
+import { guestMailRecipients } from '@/lib/platform/family-emails'
+import { normalizeProducts } from '@/lib/platform/products'
+import { fillTemplate, studioUi } from '@/lib/platform/studio-ui'
 import type { EventLocale, Guest, PlatformEvent, ScheduleInviteMode } from '@/lib/platform/types'
 
 function fmt(iso: string | null) {
@@ -21,6 +23,14 @@ export function GuestAdminPanel({ event, locale = 'en' }: { event: PlatformEvent
   const [invite, setInvite] = useState<'all' | 'yes' | 'no'>('all')
   const [sort, setSort] = useState<SortKey>('name')
   const [busyId, setBusyId] = useState('')
+  const [busyKind, setBusyKind] = useState<'std' | 'invite' | ''>('')
+  const [message, setMessage] = useState('')
+  const [messageTone, setMessageTone] = useState<'ok' | 'err'>('ok')
+  const products = normalizeProducts(
+    event.config.products,
+    event.config.productMode,
+    event.config.saveTheDate?.enabled,
+  )
 
   const counts = useMemo(() => {
     let adults = 0
@@ -90,11 +100,56 @@ export function GuestAdminPanel({ event, locale = 'en' }: { event: PlatformEvent
     if (res.ok) router.refresh()
   }
 
+  async function sendOne(guest: Guest, kind: 'std' | 'invite') {
+    if (guestMailRecipients(guest).length === 0) {
+      setMessageTone('err')
+      setMessage(ui.noGuestEmail)
+      return
+    }
+    const alreadySent = kind === 'std' ? Boolean(guest.stdSentAt) : Boolean(guest.inviteSentAt)
+    if (alreadySent) {
+      const ok = confirm(kind === 'std' ? ui.resendStdConfirm : ui.resendInviteConfirm)
+      if (!ok) return
+    }
+    setBusyId(guest.id)
+    setBusyKind(kind)
+    setMessage('')
+    const res = await fetch(`/api/platform/events/${event.id}/send`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ kind, guestIds: [guest.id] }),
+    })
+    const data = (await res.json().catch(() => null)) as {
+      error?: string
+      warning?: string
+      delivered?: number
+      sent?: number
+      local?: boolean
+    } | null
+    setBusyId('')
+    setBusyKind('')
+    if (!res.ok) {
+      setMessageTone('err')
+      setMessage(data?.error || ui.sendOneFailed)
+      return
+    }
+    setMessageTone(data?.local ? 'err' : 'ok')
+    setMessage(
+      data?.local
+        ? data.warning || fillTemplate(ui.sendOneOk, { name: guest.familyName })
+        : fillTemplate(ui.sendOneOk, { name: guest.familyName }),
+    )
+    router.refresh()
+  }
+
   return (
     <div className="mt-6 space-y-4">
       <p className="text-sm text-white/50">
         {ui.adults}: {counts.adults} · {ui.children}: {counts.children}
       </p>
+      {message ? (
+        <p className={`text-sm ${messageTone === 'err' ? 'text-rose-300' : 'text-cyan-200'}`}>{message}</p>
+      ) : null}
       <div className="flex flex-wrap gap-2 text-sm">
         <input
           value={query}
@@ -250,14 +305,38 @@ export function GuestAdminPanel({ event, locale = 'en' }: { event: PlatformEvent
                     <td className="px-4 py-3 text-white/60">{fmt(guest.stdSentAt)}</td>
                     <td className="px-4 py-3 text-white/60">{fmt(guest.inviteSentAt)}</td>
                     <td className="px-4 py-3">
-                      <button
-                        type="button"
-                        disabled={busyId === guest.id}
-                        onClick={() => void removeGuest(guest.id)}
-                        className="text-xs text-rose-300 hover:text-rose-200 disabled:opacity-40"
-                      >
-                        {ui.deleteFamily}
-                      </button>
+                      <div className="flex flex-col items-start gap-1.5">
+                        {products.saveTheDate ? (
+                          <button
+                            type="button"
+                            disabled={busyId === guest.id || guestMailRecipients(guest).length === 0}
+                            onClick={() => void sendOne(guest, 'std')}
+                            className="text-xs text-cyan-200 hover:text-cyan-100 disabled:opacity-40"
+                          >
+                            {busyId === guest.id && busyKind === 'std' ? ui.sending : ui.sendStdOne}
+                          </button>
+                        ) : null}
+                        {products.invitation ? (
+                          <button
+                            type="button"
+                            disabled={busyId === guest.id || guestMailRecipients(guest).length === 0}
+                            onClick={() => void sendOne(guest, 'invite')}
+                            className="text-xs text-cyan-200 hover:text-cyan-100 disabled:opacity-40"
+                          >
+                            {busyId === guest.id && busyKind === 'invite'
+                              ? ui.sending
+                              : ui.sendInviteOne}
+                          </button>
+                        ) : null}
+                        <button
+                          type="button"
+                          disabled={busyId === guest.id}
+                          onClick={() => void removeGuest(guest.id)}
+                          className="text-xs text-rose-300 hover:text-rose-200 disabled:opacity-40"
+                        >
+                          {ui.deleteFamily}
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 )

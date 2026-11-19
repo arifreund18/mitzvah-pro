@@ -80,6 +80,13 @@ export type StudioUi = {
   exportXlsx: string
   sendStd: string
   sendInvite: string
+  sendStdOne: string
+  sendInviteOne: string
+  resendStdConfirm: string
+  resendInviteConfirm: string
+  sendOneOk: string
+  sendOneFailed: string
+  noGuestEmail: string
   sending: string
   testEmail: string
   sendTestStd: string
@@ -436,11 +443,18 @@ function pack(
       'For each schedule moment, add all, remove all, or choose which families see it on the site.',
     guestsTitle: 'Guests',
     guestsHint:
-      'Send Save the Date and invitation by email. Without a provider on localhost, status is still marked.',
+      'Bulk send goes only to guests who have not received that email yet. Use the row actions to send (or re-send) to one family. Without a provider on localhost, status is still marked.',
     exportCsv: 'Export CSV',
     exportXlsx: 'Export XLSX',
     sendStd: 'Send Save the Date',
     sendInvite: 'Send invitations',
+    sendStdOne: 'Send STD',
+    sendInviteOne: 'Send invite',
+    resendStdConfirm: 'This family already received the Save the Date. Send again?',
+    resendInviteConfirm: 'This family already received the invitation. Send again?',
+    sendOneOk: 'Sent to {name}',
+    sendOneFailed: 'Could not send',
+    noGuestEmail: 'This family has no email',
     sending: 'Sending…',
     testEmail: 'Test email',
     sendTestStd: 'Send STD test',
@@ -573,11 +587,18 @@ const STUDIO_UI: Record<EventLocale, StudioUi> = {
       'Por cada momento do schedule, adicione todos, remova todos ou escolha quais famílias veem o evento no site.',
     guestsTitle: 'Convidados',
     guestsHint:
-      'Envie Save the Date e convite por email. Sem provedor no localhost, o status é marcado mesmo assim.',
+      'O envio em massa vai só para quem ainda não recebeu aquele email. Use as ações da linha para enviar (ou reenviar) a uma família. Sem provedor no localhost, o status é marcado mesmo assim.',
     exportCsv: 'Exportar CSV',
     exportXlsx: 'Exportar XLSX',
     sendStd: 'Enviar Save the Date',
     sendInvite: 'Enviar convites',
+    sendStdOne: 'Enviar STD',
+    sendInviteOne: 'Enviar convite',
+    resendStdConfirm: 'Esta família já recebeu o Save the Date. Enviar de novo?',
+    resendInviteConfirm: 'Esta família já recebeu o convite. Enviar de novo?',
+    sendOneOk: 'Enviado para {name}',
+    sendOneFailed: 'Não foi possível enviar',
+    noGuestEmail: 'Esta família não tem email',
     sending: 'Enviando…',
     testEmail: 'Email de teste',
     sendTestStd: 'Enviar teste STD',
