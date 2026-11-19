@@ -379,6 +379,12 @@ export type EventConfig = {
     notifyMode: NotifyMode
     notifyEmails: string[]
     confirmationMessage: string
+    /** RSVP confirmation email: title under the card (empty = invitation event name). */
+    confirmationEmailTitle: string
+    /** RSVP confirmation email: hosts line (empty = invitation hosts). */
+    confirmationEmailHosts: string
+    /** RSVP confirmation email: body under hosts (empty = invitation body/message). */
+    confirmationEmailBody: string
   }
   reminders: {
     enabled: boolean

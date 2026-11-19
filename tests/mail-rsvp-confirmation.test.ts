@@ -2,6 +2,7 @@ import { describe, it } from 'node:test'
 import assert from 'node:assert/strict'
 import {
   guestHasYesRsvp,
+  guestRsvpNames,
   mailRsvpConfirmationHtml,
   mailRsvpConfirmationSubject,
 } from '../lib/platform/mail.ts'
@@ -148,7 +149,7 @@ describe('mailRsvpConfirmationHtml', () => {
     const html = mailRsvpConfirmationHtml(inviteConfig(), 'mitzvah.pro', guest)
 
     assert.match(html, /You're attending\./)
-    assert.match(html, />Going</)
+    assert.match(html, /Going Daniela/)
     assert.match(html, /EDIT RESPONSE/)
     assert.match(html, /Daniela Nudel Freund/)
     assert.match(html, /It&#39;s Beni&#39;s Bar Mitzvah!|It's Beni's Bar Mitzvah!/)
@@ -169,6 +170,65 @@ describe('mailRsvpConfirmationHtml', () => {
     assert.match(html, /calendar\.google|\/api\/platform\/calendar\//)
   })
 
+  it('lists going and not-going names when the family is mixed', () => {
+    const guest = normalizeGuest({
+      familyName: 'Freund',
+      email: 'guest@example.com',
+      token: 'tok-mix',
+      inviteLocale: 'en',
+      people: [
+        { id: '1', name: 'Daniela', type: 'adult', status: 'yes', meal: '', dietary: '' },
+        { id: '2', name: 'Ari', type: 'adult', status: 'yes', meal: '', dietary: '' },
+        { id: '3', name: 'Melissa', type: 'adult', status: 'yes', meal: '', dietary: '' },
+        { id: '4', name: 'Beni', type: 'child', status: 'no', meal: '', dietary: '' },
+      ],
+    })
+
+    assert.deepEqual(guestRsvpNames(guest, 'yes'), ['Daniela', 'Ari', 'Melissa'])
+    assert.deepEqual(guestRsvpNames(guest, 'no'), ['Beni'])
+
+    const html = mailRsvpConfirmationHtml(inviteConfig(), 'mitzvah.pro', guest)
+    assert.match(html, /Going Daniela, Ari, Melissa/)
+    assert.match(html, /Not going Beni/)
+    assert.match(html, /You're attending\./)
+  })
+
+  it('uses confirmation email overrides for title, hosts, and body', () => {
+    const config = inviteConfig({
+      rsvp: {
+        deadline: '',
+        meals: [],
+        allowPlusOne: true,
+        collectDietary: true,
+        collectMeal: true,
+        notes: '',
+        publicFormEnabled: false,
+        openRsvpDefault: false,
+        notifyMode: 'instant',
+        notifyEmails: [],
+        confirmationMessage: '',
+        confirmationEmailTitle: "Laura Adissi's Bat Mitzvah",
+        confirmationEmailHosts: 'Tati and Rodrigo',
+        confirmationEmailBody: 'is called to the Torah as a Bat Mitzvah',
+      },
+    } as Partial<EventConfig>)
+
+    const guest = normalizeGuest({
+      familyName: 'Familia LSA',
+      email: 'guest@example.com',
+      token: 'tok-custom',
+      inviteLocale: 'en',
+      people: [{ id: '1', name: 'Daniela', type: 'adult', status: 'yes', meal: '', dietary: '' }],
+    })
+
+    const html = mailRsvpConfirmationHtml(config, 'mitzvah.pro', guest)
+    assert.match(html, /Laura Adissi/)
+    assert.match(html, /Tati and Rodrigo/)
+    assert.match(html, /is called to the Torah as a Bat Mitzvah/)
+    assert.doesNotMatch(html, /Come join us to celebrate our MVP/)
+    assert.doesNotMatch(html, /Hosted by Gen and Sam Katz/)
+  })
+
   it('changes the headline and status when nobody is going', () => {
     const guest = normalizeGuest({
       familyName: 'Katz',
@@ -180,7 +240,7 @@ describe('mailRsvpConfirmationHtml', () => {
 
     const html = mailRsvpConfirmationHtml(inviteConfig(), 'mitzvah.pro', guest)
     assert.match(html, /You're not attending\./)
-    assert.match(html, />Not going</)
+    assert.match(html, /Not going Sam/)
     assert.doesNotMatch(html, /You're attending\./)
   })
 
@@ -215,7 +275,7 @@ describe('mailRsvpConfirmationHtml', () => {
 
     const html = mailRsvpConfirmationHtml(config, 'mitzvah.pro', guest)
     assert.match(html, /Você confirmou presença\./)
-    assert.match(html, />Vai</)
+    assert.match(html, /Vai Ana/)
     assert.match(html, /EDITAR RESPOSTA/)
     assert.match(html, /Família Freund/)
     assert.match(html, /Venha celebrar conosco!/)

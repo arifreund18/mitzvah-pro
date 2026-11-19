@@ -361,6 +361,27 @@ export function guestHasYesRsvp(guest: Guest): boolean {
   return guest.status === 'yes'
 }
 
+/** Names of people with a given RSVP status (falls back to family name when no people[]). */
+export function guestRsvpNames(guest: Guest, status: 'yes' | 'no'): string[] {
+  const people = guest.people || []
+  if (people.length) {
+    return people
+      .filter((person) => person.status === status)
+      .map((person) => person.name.trim())
+      .filter(Boolean)
+  }
+  if (guest.status === status) {
+    const fallback = guest.familyName.trim()
+    return fallback ? [fallback] : []
+  }
+  return []
+}
+
+function formatRsvpStatusLine(label: string, names: string[]): string {
+  if (!names.length) return label
+  return `${label} ${names.join(', ')}`
+}
+
 export function mailRsvpConfirmationSubject(config: EventConfig, guest: Guest): string {
   const locale = localeOf(guest, config)
   const labels = RSVP_CONFIRM[locale] || RSVP_CONFIRM.pt
@@ -419,17 +440,21 @@ export function mailRsvpConfirmationHtml(
   ).toUpperCase()
   const mapLabel = chromeCtaText(config, locale, 'invite', 'ctaMap', labels.map).toUpperCase()
 
-  const title = eventTitle('invite', config, locale)
+  const inviteTitle = eventTitle('invite', config, locale)
+  const title = (config.rsvp?.confirmationEmailTitle || '').trim() || inviteTitle
   const dateLine = eventDateLine('invite', config, locale)
   const timeLine = eventTimeLine('invite', config, locale)
   const venue = design.placeLabel?.trim() || ''
   const address1 = design.address1?.trim() || ''
   const address2 = design.address2?.trim() || ''
   const familyName = guest.familyName || 'Guest'
-  const hostLine = (design.hosts?.trim() || config.invitation.hostLine || '').trim()
-  const bodyText = (design.message?.trim() || config.invitation.body || '').trim()
+  const inviteHosts = (design.hosts?.trim() || config.invitation.hostLine || '').trim()
+  const inviteBody = (design.message?.trim() || config.invitation.body || '').trim()
+  const hostLine = (config.rsvp?.confirmationEmailHosts || '').trim() || inviteHosts
+  const bodyText = (config.rsvp?.confirmationEmailBody || '').trim() || inviteBody
   const statusHeadline = attending ? labels.attending : labels.notAttending
-  const statusLabel = attending ? labels.going : labels.notGoing
+  const goingNames = guestRsvpNames(guest, 'yes')
+  const notGoingNames = guestRsvpNames(guest, 'no')
 
   const sealCell = seal
     ? `<td align="right" valign="top" style="padding:16px 16px 0 0;line-height:0;font-size:0;">
@@ -437,9 +462,8 @@ export function mailRsvpConfirmationHtml(
       </td>`
     : `<td width="72" style="padding:16px 16px 0 0;"></td>`
 
-  const iconGoing = attending
-    ? `<span style="display:inline-block;width:22px;height:22px;border:1.5px solid ${escapeHtml(textColor)};border-radius:50%;text-align:center;line-height:20px;font-size:12px;color:${escapeHtml(textColor)};">&#10003;</span>`
-    : `<span style="display:inline-block;width:22px;height:22px;border:1.5px solid ${escapeHtml(mutedColor)};border-radius:50%;text-align:center;line-height:20px;font-size:12px;color:${escapeHtml(mutedColor)};">&#10005;</span>`
+  const iconYes = `<span style="display:inline-block;width:22px;height:22px;border:1.5px solid ${escapeHtml(textColor)};border-radius:50%;text-align:center;line-height:20px;font-size:12px;color:${escapeHtml(textColor)};">&#10003;</span>`
+  const iconNo = `<span style="display:inline-block;width:22px;height:22px;border:1.5px solid ${escapeHtml(mutedColor)};border-radius:50%;text-align:center;line-height:20px;font-size:12px;color:${escapeHtml(mutedColor)};">&#10005;</span>`
   const iconClock = `<span style="display:inline-block;width:22px;height:22px;border:1.5px solid ${escapeHtml(mutedColor)};border-radius:50%;text-align:center;line-height:20px;font-size:11px;color:${escapeHtml(mutedColor)};">&#9200;</span>`
   const iconPin = `<span style="display:inline-block;width:22px;height:22px;border:1.5px solid ${escapeHtml(mutedColor)};border-radius:50%;text-align:center;line-height:20px;font-size:12px;color:${escapeHtml(mutedColor)};">&#9679;</span>`
 
@@ -478,14 +502,38 @@ export function mailRsvpConfirmationHtml(
   const locationSecondary = venue && addressLine ? addressLine : ''
 
   const rows: string[] = []
-  rows.push(
-    detailRow({
-      icon: iconGoing,
-      primary: statusLabel,
-      actionHref: rsvpHref,
-      actionLabel: labels.editResponse,
-    }),
-  )
+  const goingLine = formatRsvpStatusLine(labels.going, goingNames)
+  const notGoingLine = formatRsvpStatusLine(labels.notGoing, notGoingNames)
+  if (goingNames.length) {
+    rows.push(
+      detailRow({
+        icon: iconYes,
+        primary: goingLine,
+        actionHref: rsvpHref,
+        actionLabel: labels.editResponse,
+      }),
+    )
+  }
+  if (notGoingNames.length) {
+    rows.push(
+      detailRow({
+        icon: iconNo,
+        primary: notGoingLine,
+        actionHref: goingNames.length ? undefined : rsvpHref,
+        actionLabel: goingNames.length ? undefined : labels.editResponse,
+      }),
+    )
+  }
+  if (!goingNames.length && !notGoingNames.length) {
+    rows.push(
+      detailRow({
+        icon: attending ? iconYes : iconNo,
+        primary: attending ? labels.going : labels.notGoing,
+        actionHref: rsvpHref,
+        actionLabel: labels.editResponse,
+      }),
+    )
+  }
   if (dateLine || timeLine) {
     rows.push(
       detailRow({
