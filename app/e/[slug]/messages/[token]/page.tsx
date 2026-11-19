@@ -67,7 +67,7 @@ export default async function GuestMessagesPage({
       <div className="mx-auto max-w-lg">
         <p className="font-serif text-3xl leading-tight" style={{ color: '#4a3f32' }}>
           {messages.length
-            ? followUpHeadline('message', locale, hostName)
+            ? followUpHeadline(messages[0]!.type, locale, hostName)
             : locale === 'pt'
               ? 'Mensagens do evento'
               : locale === 'es'
