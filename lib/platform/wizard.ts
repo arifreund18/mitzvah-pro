@@ -28,6 +28,7 @@ const STEP_META: Record<WizardStepId, { required: boolean; previewTarget: string
   saveTheDate: { required: false, previewTarget: 'std' },
   invitation: { required: true, previewTarget: 'invite' },
   reminders: { required: false, previewTarget: 'reminder' },
+  followUpSchedule: { required: false, previewTarget: 'followUp' },
   guestsBootstrap: { required: false, previewTarget: 'rsvp' },
   legal: { required: false, previewTarget: 'hero' },
   domain: { required: true, previewTarget: 'hero' },

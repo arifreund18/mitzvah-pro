@@ -1340,12 +1340,16 @@ export const WizardStepForm = forwardRef<
     )
   }
 
-  if (step === 'reminders') {
+  if (step === 'reminders' || step === 'followUpSchedule') {
+    const scheduleKey = step === 'reminders' ? 'reminders' : 'followUpSchedule'
+    const schedule = config[scheduleKey]
     const audienceOptions: Array<{ value: ReminderAudience; label: string }> = [
       { value: 'all', label: ui.reminderAudienceAll },
       { value: 'yes', label: ui.reminderAudienceYes },
       { value: 'pending', label: ui.reminderAudiencePending },
     ]
+    const patchSchedule = (patch: Partial<typeof schedule>) =>
+      set({ ...config, [scheduleKey]: { ...schedule, ...patch } })
     const windowRow = (
       enabledKey: 'd30' | 'd7' | 'd2',
       audienceKey: 'audienceD30' | 'audienceD7' | 'audienceD2',
@@ -1358,13 +1362,8 @@ export const WizardStepForm = forwardRef<
         <label className="flex items-center gap-2 text-sm">
           <input
             type="checkbox"
-            checked={config.reminders[enabledKey]}
-            onChange={(e) =>
-              set({
-                ...config,
-                reminders: { ...config.reminders, [enabledKey]: e.target.checked },
-              })
-            }
+            checked={schedule[enabledKey]}
+            onChange={(e) => patchSchedule({ [enabledKey]: e.target.checked })}
           />
           {dayLabel}
         </label>
@@ -1373,16 +1372,10 @@ export const WizardStepForm = forwardRef<
             {ui.reminderAudience}
           </span>
           <select
-            value={config.reminders[audienceKey]}
-            disabled={!config.reminders[enabledKey]}
+            value={schedule[audienceKey]}
+            disabled={!schedule[enabledKey]}
             onChange={(e) =>
-              set({
-                ...config,
-                reminders: {
-                  ...config.reminders,
-                  [audienceKey]: e.target.value as ReminderAudience,
-                },
-              })
+              patchSchedule({ [audienceKey]: e.target.value as ReminderAudience })
             }
             className="w-full max-w-xs rounded-lg border border-white/15 bg-[#0b1020] px-2 py-1.5 text-sm outline-none disabled:opacity-40 sm:w-auto"
           >
@@ -1400,14 +1393,14 @@ export const WizardStepForm = forwardRef<
         <label className="flex items-center gap-2 text-sm">
           <input
             type="checkbox"
-            checked={config.reminders.enabled}
-            onChange={(e) =>
-              set({ ...config, reminders: { ...config.reminders, enabled: e.target.checked } })
-            }
+            checked={schedule.enabled}
+            onChange={(e) => patchSchedule({ enabled: e.target.checked })}
           />
-          {ui.enableReminders}
+          {step === 'reminders' ? ui.enableReminders : ui.enableFollowUpSchedule}
         </label>
-        <p className="text-xs text-white/45">{ui.reminderAudienceHint}</p>
+        <p className="text-xs text-white/45">
+          {step === 'reminders' ? ui.reminderAudienceHint : ui.followUpScheduleHint}
+        </p>
         <div className="space-y-2">
           {windowRow('d30', 'audienceD30', ui.reminderDays30)}
           {windowRow('d7', 'audienceD7', ui.reminderDays7)}
@@ -1415,10 +1408,8 @@ export const WizardStepForm = forwardRef<
         </div>
         <Field label={ui.message}>
           <TextArea
-            value={config.reminders.message}
-            onChange={(e) =>
-              set({ ...config, reminders: { ...config.reminders, message: e.target.value } })
-            }
+            value={schedule.message}
+            onChange={(e) => patchSchedule({ message: e.target.value })}
           />
         </Field>
       </div>

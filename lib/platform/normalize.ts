@@ -8,6 +8,10 @@ import { uid } from './ids'
 import { DEFAULT_ORG_ID } from './auth'
 import { normalizeFollowUps } from './follow-up.ts'
 import { isReminderAudience, resolveReminderAudience } from './reminder-audience.ts'
+import {
+  DEFAULT_FOLLOW_UP_SCHEDULE,
+  normalizeScheduledGuestMail,
+} from './scheduled-guest-mail.ts'
 import type {
   ContactPerson,
   EventConfig,
@@ -234,6 +238,10 @@ export function normalizeConfig(raw: EventConfig | null | undefined): EventConfi
       confirmationEmailBody: raw.rsvp?.confirmationEmailBody ?? base.rsvp.confirmationEmailBody ?? '',
     },
     reminders: normalizeReminders(raw.reminders, base.reminders),
+    followUpSchedule: normalizeScheduledGuestMail(
+      raw.followUpSchedule,
+      base.followUpSchedule || DEFAULT_FOLLOW_UP_SCHEDULE,
+    ),
     followUps: normalizeFollowUps(raw.followUps),
     faq: { items: (raw.faq?.items || []).map((item) => faqItem(item)) },
     legal: {
@@ -281,6 +289,7 @@ export function normalizeEvent(event: PlatformEvent): PlatformEvent {
         'saveTheDate',
         'invitation',
         'reminders',
+        'followUpSchedule',
         'guestsBootstrap',
         'legal',
         'domain',

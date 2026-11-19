@@ -305,6 +305,8 @@ export type WizardUi = {
   reminderAudienceAll: string
   reminderAudienceYes: string
   reminderAudiencePending: string
+  enableFollowUpSchedule: string
+  followUpScheduleHint: string
   question: string
   answer: string
   addQuestion: string
@@ -435,10 +437,13 @@ const WIZARD_UI: Record<EventLocale, WizardUi> = {
     reminderDays2: '2 dias antes',
     reminderAudience: 'Enviar para',
     reminderAudienceHint:
-      'Para cada data, escolha se o lembrete vai para todos, só confirmados, ou só quem ainda não respondeu o RSVP.',
+      'Independente do follow-up. Para cada data, escolha se o lembrete vai para todos, só confirmados, ou só quem ainda não respondeu o RSVP.',
     reminderAudienceAll: 'Todos com email',
     reminderAudienceYes: 'Apenas confirmados',
     reminderAudiencePending: 'Apenas sem RSVP',
+    enableFollowUpSchedule: 'Ativar emails de follow-up',
+    followUpScheduleHint:
+      'Independente dos lembretes. Use outra mensagem (novidade, pedido, atualização). Layout de mensagem, não o cartão de lembrete.',
     question: 'Pergunta',
     answer: 'Resposta',
     addQuestion: '+ Pergunta',
@@ -470,6 +475,10 @@ const WIZARD_UI: Record<EventLocale, WizardUi> = {
       saveTheDate: { title: 'Save the Date', subtitle: 'Email enviado aos convidados — não é página do site.' },
       invitation: { title: 'Convite', subtitle: 'Email do cartão com selo, enviado à lista.' },
       reminders: { title: 'Lembretes', subtitle: '30 / 7 / 2 dias antes do evento.' },
+      followUpSchedule: {
+        title: 'Follow-ups',
+        subtitle: 'Emails automáticos separados dos lembretes — 30 / 7 / 2 dias.',
+      },
       guestsBootstrap: { title: 'Convidados', subtitle: 'Lista inicial — RSVPs entram depois.' },
       legal: { title: 'Legal', subtitle: 'Privacy, Terms e coming soon.' },
       domain: { title: 'Publicação', subtitle: 'Subdomínio seu-slug.mitzvah.pro e SEO.' },
@@ -594,10 +603,13 @@ const WIZARD_UI: Record<EventLocale, WizardUi> = {
     reminderDays2: '2 days before',
     reminderAudience: 'Send to',
     reminderAudienceHint:
-      'For each date, choose whether the reminder goes to everyone, only confirmed guests, or only those who have not RSVPed yet.',
+      'Independent of follow-ups. For each date, choose whether the reminder goes to everyone, only confirmed guests, or only those who have not RSVPed yet.',
     reminderAudienceAll: 'Everyone with email',
     reminderAudienceYes: 'Confirmed only',
     reminderAudiencePending: 'No RSVP yet',
+    enableFollowUpSchedule: 'Enable follow-up emails',
+    followUpScheduleHint:
+      'Independent of reminders. Use a different message (update, ask, news). Uses the message email layout, not the reminder card.',
     question: 'Question',
     answer: 'Answer',
     addQuestion: '+ Question',
@@ -629,6 +641,10 @@ const WIZARD_UI: Record<EventLocale, WizardUi> = {
       saveTheDate: { title: 'Save the Date', subtitle: 'Email sent to guests — not a page on the site.' },
       invitation: { title: 'Invitation', subtitle: 'Email with the sealed card, sent to the list.' },
       reminders: { title: 'Reminders', subtitle: '30 / 7 / 2 days before the event.' },
+      followUpSchedule: {
+        title: 'Follow-ups',
+        subtitle: 'Automatic emails separate from reminders — 30 / 7 / 2 days.',
+      },
       guestsBootstrap: { title: 'Guests', subtitle: 'Starter list — RSVPs arrive later.' },
       legal: { title: 'Legal', subtitle: 'Privacy, Terms and coming soon.' },
       domain: { title: 'Publish', subtitle: 'Subdomain your-slug.mitzvah.pro and SEO.' },
@@ -753,10 +769,13 @@ const WIZARD_UI: Record<EventLocale, WizardUi> = {
     reminderDays2: '2 días antes',
     reminderAudience: 'Enviar a',
     reminderAudienceHint:
-      'Para cada fecha, elige si el recordatorio va a todos, solo confirmados, o solo quienes aún no respondieron el RSVP.',
+      'Independiente del follow-up. Para cada fecha, elige si el recordatorio va a todos, solo confirmados, o solo quienes aún no respondieron el RSVP.',
     reminderAudienceAll: 'Todos con email',
     reminderAudienceYes: 'Solo confirmados',
     reminderAudiencePending: 'Sin RSVP aún',
+    enableFollowUpSchedule: 'Activar emails de follow-up',
+    followUpScheduleHint:
+      'Independiente de los recordatorios. Usa otro mensaje (novedad, pedido, actualización). Diseño de mensaje, no la tarjeta de recordatorio.',
     question: 'Pregunta',
     answer: 'Respuesta',
     addQuestion: '+ Pregunta',
@@ -788,6 +807,10 @@ const WIZARD_UI: Record<EventLocale, WizardUi> = {
       saveTheDate: { title: 'Save the Date', subtitle: 'Email a los invitados — no es una página del sitio.' },
       invitation: { title: 'Invitación', subtitle: 'Email de la tarjeta con sello, enviado a la lista.' },
       reminders: { title: 'Recordatorios', subtitle: '30 / 7 / 2 días antes del evento.' },
+      followUpSchedule: {
+        title: 'Follow-ups',
+        subtitle: 'Emails automáticos separados de los recordatorios — 30 / 7 / 2 días.',
+      },
       guestsBootstrap: { title: 'Invitados', subtitle: 'Lista inicial — los RSVP llegan después.' },
       legal: { title: 'Legal', subtitle: 'Privacy, Terms y coming soon.' },
       domain: { title: 'Publicación', subtitle: 'Subdominio tu-slug.mitzvah.pro y SEO.' },
@@ -912,10 +935,13 @@ const WIZARD_UI: Record<EventLocale, WizardUi> = {
     reminderDays2: 'יומיים לפני',
     reminderAudience: 'שליחה אל',
     reminderAudienceHint:
-      'לכל תאריך בחרו אם התזכורת תישלח לכולם, רק למאשרים, או רק למי שעדיין לא ענה ל-RSVP.',
+      'בנפרד מה־follow-up. לכל תאריך בחרו אם התזכורת תישלח לכולם, רק למאשרים, או רק למי שעדיין לא ענה ל-RSVP.',
     reminderAudienceAll: 'כולם עם אימייל',
     reminderAudienceYes: 'רק מאשרים',
     reminderAudiencePending: 'עדיין ללא RSVP',
+    enableFollowUpSchedule: 'הפעלת אימיילי follow-up',
+    followUpScheduleHint:
+      'בנפרד מהתזכורות. השתמשו בהודעה אחרת (עדכון, בקשה, חידוש). עיצוב הודעה, לא כרטיס תזכורת.',
     question: 'שאלה',
     answer: 'תשובה',
     addQuestion: '+ שאלה',
@@ -947,6 +973,10 @@ const WIZARD_UI: Record<EventLocale, WizardUi> = {
       saveTheDate: { title: 'שמרו את התאריך', subtitle: 'אימייל לאורחים — לא עמוד באתר.' },
       invitation: { title: 'הזמנה', subtitle: 'אימייל הכרטיס עם חותם, נשלח לרשימה.' },
       reminders: { title: 'תזכורות', subtitle: '30 / 7 / 2 ימים לפני האירוע.' },
+      followUpSchedule: {
+        title: 'Follow-ups',
+        subtitle: 'אימיילים אוטומטיים בנפרד מהתזכורות — 30 / 7 / 2 ימים.',
+      },
       guestsBootstrap: { title: 'אורחים', subtitle: 'רשימה ראשונית — RSVP מגיע אחר כך.' },
       legal: { title: 'משפטי', subtitle: 'פרטיות, תנאים ו-coming soon.' },
       domain: { title: 'פרסום', subtitle: 'סאבדומיין your-slug.mitzvah.pro ו־SEO.' },

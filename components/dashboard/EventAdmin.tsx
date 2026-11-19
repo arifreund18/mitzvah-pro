@@ -56,7 +56,9 @@ export function EventAdmin({
     if (section === 'invitation') return products.invitation
     if (section === 'saveTheDate') return products.saveTheDate
     if (section === 'rsvp') return products.site || products.invitation
-    if (section === 'reminders') return products.invitation || products.saveTheDate
+    if (section === 'reminders' || section === 'followUpSchedule') {
+      return products.invitation || products.saveTheDate
+    }
     return true
   })
   const locale = event.config.locales.default

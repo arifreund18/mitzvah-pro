@@ -366,6 +366,7 @@ const EN_SECTIONS: Record<SectionEditorId, string> = {
   invitation: 'Invitation',
   legal: 'Legal',
   reminders: 'Reminders',
+  followUpSchedule: 'Follow-ups',
 }
 
 const PT_SECTIONS: Record<SectionEditorId, string> = {
@@ -381,6 +382,7 @@ const PT_SECTIONS: Record<SectionEditorId, string> = {
   invitation: 'Convite',
   legal: 'Legal',
   reminders: 'Lembretes',
+  followUpSchedule: 'Follow-ups',
 }
 
 const ES_SECTIONS: Record<SectionEditorId, string> = {
@@ -396,6 +398,7 @@ const ES_SECTIONS: Record<SectionEditorId, string> = {
   invitation: 'Invitación',
   legal: 'Legal',
   reminders: 'Recordatorios',
+  followUpSchedule: 'Follow-ups',
 }
 
 const HE_SECTIONS: Record<SectionEditorId, string> = {
@@ -411,6 +414,7 @@ const HE_SECTIONS: Record<SectionEditorId, string> = {
   invitation: 'הזמנה',
   legal: 'משפטי',
   reminders: 'תזכורות',
+  followUpSchedule: 'Follow-ups',
 }
 
 function pack(
@@ -485,7 +489,7 @@ function pack(
     emailNeeded: 'Enter an email for the test send',
     followUpTitle: 'Follow-up to guests',
     followUpHint:
-      'Send a reminder, a personal message, or an event update to everyone (or by RSVP status).',
+      'Manual send now. For automatic D-30/D-7/D-2 follow-ups (separate from reminders), use the Follow-ups wizard step.',
     followUpType: 'Communication type',
     followUpTypeReminder: 'Reminder',
     followUpTypeMessage: 'New message',
@@ -654,7 +658,7 @@ const STUDIO_UI: Record<EventLocale, StudioUi> = {
     emailNeeded: 'Informe um email para o envio de teste',
     followUpTitle: 'Follow-up aos convidados',
     followUpHint:
-      'Envie um lembrete, uma mensagem pessoal ou uma atualização do evento a todos (ou por status de RSVP).',
+      'Envio manual agora. Para follow-ups automáticos D-30/D-7/D-2 (separados dos lembretes), use o passo Follow-ups do wizard.',
     followUpType: 'Tipo de comunicação',
     followUpTypeReminder: 'Lembrete',
     followUpTypeMessage: 'Nova mensagem',

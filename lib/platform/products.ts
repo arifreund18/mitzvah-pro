@@ -105,7 +105,7 @@ export function wizardStepIdsForProducts(products: EventProducts): readonly Wiza
     if (id === 'saveTheDate') return p.saveTheDate
     if (id === 'invitation') return p.invitation
     if (id === 'rsvp') return p.site || p.invitation
-    if (id === 'reminders' || id === 'guestsBootstrap') return guestFlow
+    if (id === 'reminders' || id === 'followUpSchedule' || id === 'guestsBootstrap') return guestFlow
     return true
   })
 }

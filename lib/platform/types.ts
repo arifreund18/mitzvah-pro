@@ -44,6 +44,7 @@ export const WIZARD_STEP_IDS = [
   'saveTheDate',
   'invitation',
   'reminders',
+  'followUpSchedule',
   'guestsBootstrap',
   'legal',
   'domain',
@@ -405,6 +406,12 @@ export type EventConfig = {
     message: string
   }
   /**
+   * Automatic scheduled follow-up emails (D-30 / D-7 / D-2), independent of
+   * `reminders` — own enable toggle and message body. Uses the "message"
+   * follow-up email layout (not the reminder card layout).
+   */
+  followUpSchedule: ScheduledGuestMailConfig
+  /**
    * Host→guest follow-up broadcasts (reminder / message / update).
    * Stored on config so relational dual-write (config JSONB) keeps them.
    */
@@ -467,6 +474,18 @@ export type GuestRsvp = 'pending' | 'yes' | 'no'
 
 /** Audience filter for automatic reminder windows (D-30 / D-7 / D-2). */
 export type ReminderAudience = 'all' | 'yes' | 'pending'
+
+/** Shared shape for scheduled guest email campaigns (reminders / follow-up schedule). */
+export type ScheduledGuestMailConfig = {
+  enabled: boolean
+  d30: boolean
+  d7: boolean
+  d2: boolean
+  audienceD30: ReminderAudience
+  audienceD7: ReminderAudience
+  audienceD2: ReminderAudience
+  message: string
+}
 
 export type GuestPerson = {
   id: string

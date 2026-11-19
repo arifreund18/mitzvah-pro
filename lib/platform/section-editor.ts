@@ -13,6 +13,7 @@ export const SECTION_EDITOR_IDS = [
   'invitation',
   'legal',
   'reminders',
+  'followUpSchedule',
 ] as const
 
 export type SectionEditorId = (typeof SECTION_EDITOR_IDS)[number]
@@ -39,6 +40,7 @@ export const SECTION_LABELS: Record<SectionEditorId, string> = {
   invitation: 'Convite',
   legal: 'Legal',
   reminders: 'Lembretes',
+  followUpSchedule: 'Follow-ups',
 }
 
 export { sectionLabelsFor } from './studio-ui.ts'

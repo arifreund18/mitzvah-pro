@@ -75,6 +75,16 @@ function minimalConfig(overrides: Partial<EventConfig> = {}): EventConfig {
       audienceD2: 'yes',
       message: '',
     },
+    followUpSchedule: {
+      enabled: false,
+      d30: true,
+      d7: true,
+      d2: true,
+      audienceD30: 'all',
+      audienceD7: 'yes',
+      audienceD2: 'yes',
+      message: '',
+    },
     followUps: [],
     faq: { items: [] },
     legal: { privacyHtml: '', termsHtml: '', comingSoon: false, comingSoonMessage: '' },
@@ -125,6 +135,8 @@ describe('event products', () => {
     })
     assert.ok(inviteOnly.includes('invitation'))
     assert.ok(inviteOnly.includes('saveTheDate'))
+    assert.ok(inviteOnly.includes('reminders'))
+    assert.ok(inviteOnly.includes('followUpSchedule'))
     assert.equal(inviteOnly.includes('story'), false)
     assert.equal(inviteOnly.includes('schedule'), false)
 
@@ -137,6 +149,8 @@ describe('event products', () => {
     assert.ok(siteOnly.includes('branding'))
     assert.equal(siteOnly.includes('invitation'), false)
     assert.equal(siteOnly.includes('saveTheDate'), false)
+    assert.equal(siteOnly.includes('reminders'), false)
+    assert.equal(siteOnly.includes('followUpSchedule'), false)
     assert.equal(siteOnly.includes('guestsBootstrap'), false)
 
     const noSite = wizardStepIdsForProducts({

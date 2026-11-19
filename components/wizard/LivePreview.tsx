@@ -14,6 +14,11 @@ import { openEnvelopeLabel } from '@/lib/platform/guest-ui'
 import { mailHtml } from '@/lib/platform/mail'
 import { normalizeGuest } from '@/lib/platform/normalize-guest'
 import {
+  mailFollowUpScheduleHtml,
+  mailFollowUpScheduleSubject,
+  previewScheduledDays,
+} from '@/lib/platform/follow-up-schedule-mail'
+import {
   mailReminderHtml,
   mailReminderSubject,
   previewReminderDays,
@@ -24,7 +29,7 @@ import type { EventConfig, WizardStepId } from '@/lib/platform/types'
 import { wizardSteps } from '@/lib/platform/wizard'
 
 type InvitePreviewTab = 'email' | 'invite'
-type EmailPreviewKind = 'std' | 'invite' | 'reminder'
+type EmailPreviewKind = 'std' | 'invite' | 'reminder' | 'followUp'
 
 export function LivePreview({
   config,
@@ -49,7 +54,9 @@ export function LivePreview({
         ? 'invite'
         : step === 'reminders'
           ? 'reminder'
-          : null
+          : step === 'followUpSchedule'
+            ? 'followUp'
+            : null
 
   const previewGuest = useMemo(
     () =>
@@ -67,6 +74,11 @@ export function LivePreview({
     [config.reminders],
   )
 
+  const followUpDays = useMemo(
+    () => previewScheduledDays(config.followUpSchedule),
+    [config.followUpSchedule],
+  )
+
   const inviteMailSrcDoc = useMemo(() => {
     if (emailKind !== 'invite') return ''
     return mailHtml('invite', config, previewHost, previewGuest)
@@ -81,6 +93,16 @@ export function LivePreview({
     if (emailKind !== 'reminder') return ''
     return mailReminderSubject(config, previewGuest, reminderDays)
   }, [emailKind, config, previewGuest, reminderDays])
+
+  const followUpMailSrcDoc = useMemo(() => {
+    if (emailKind !== 'followUp') return ''
+    return mailFollowUpScheduleHtml(config, previewHost, previewGuest, followUpDays)
+  }, [emailKind, config, previewGuest, previewHost, followUpDays])
+
+  const followUpSubject = useMemo(() => {
+    if (emailKind !== 'followUp') return ''
+    return mailFollowUpScheduleSubject(config, previewGuest, followUpDays)
+  }, [emailKind, config, previewGuest, followUpDays])
 
   const inviteDesign = config.invitation.design
   const sealUrl = inviteDesign.sealUrl || config.invitation.sealImageUrl
@@ -112,9 +134,11 @@ export function LivePreview({
         ? mail.emailStd
         : emailKind === 'reminder'
           ? mail.emailReminder
-          : config.domain.slug
-            ? eventPublicHostLabel(config.domain.slug)
-            : ui.draft
+          : emailKind === 'followUp'
+            ? mail.emailFollowUp
+            : config.domain.slug
+              ? eventPublicHostLabel(config.domain.slug)
+              : ui.draft
 
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -181,6 +205,26 @@ export function LivePreview({
                 title={mail.emailReminder}
                 className="block h-[760px] w-full border-0 bg-white"
                 srcDoc={reminderMailSrcDoc}
+              />
+            </div>
+          </div>
+        ) : emailKind === 'followUp' ? (
+          <div className="min-h-full bg-[#1a2033] px-4 py-8">
+            <div className="mx-auto max-w-lg overflow-hidden rounded-2xl border border-white/10 bg-[#0e1424] text-white shadow-2xl">
+              <div className="border-b border-white/10 px-4 py-3 text-xs text-white/50">
+                <p>
+                  {mail.emailPreview} · {mail.emailFollowUp}
+                </p>
+                <p className="mt-1 text-white/70">{mail.toGuests}</p>
+                {followUpSubject ? (
+                  <p className="mt-2 font-medium text-white">{followUpSubject}</p>
+                ) : null}
+              </div>
+              <iframe
+                key={`followup-${followUpDays}-${followUpSubject}-${config.followUpSchedule.message}`}
+                title={mail.emailFollowUp}
+                className="block h-[760px] w-full border-0 bg-white"
+                srcDoc={followUpMailSrcDoc}
               />
             </div>
           </div>

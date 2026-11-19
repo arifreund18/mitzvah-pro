@@ -8,6 +8,10 @@
       "schedule": "0 12 * * *"
     },
     {
+      "path": "/api/cron/follow-ups",
+      "schedule": "15 12 * * *"
+    },
+    {
       "path": "/api/cron/digest",
       "schedule": "0 13 * * *"
     }
