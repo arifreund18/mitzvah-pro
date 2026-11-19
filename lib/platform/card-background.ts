@@ -52,6 +52,40 @@ export function designAssetPublicUrl(
   return `${protocolFor(apex)}://${apex}/api/platform/e/${encodeURIComponent(slug)}/design-asset?surface=${surface}&kind=${kind}`
 }
 
+/** Relative luminance of a #RRGGBB (or #RGB) color; unknown values treated as light. */
+export function hexRelativeLuminance(hex: string | undefined | null): number {
+  const raw = (hex || '').trim()
+  const short = /^#([0-9a-f]{3})$/i.exec(raw)
+  const full = /^#([0-9a-f]{6})$/i.exec(raw)
+  let n = 0xffffff
+  if (full) n = parseInt(full[1], 16)
+  else if (short) {
+    const s = short[1]
+    n = parseInt(`${s[0]}${s[0]}${s[1]}${s[1]}${s[2]}${s[2]}`, 16)
+  } else return 1
+  const channel = (v: number) => {
+    const c = v / 255
+    return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4
+  }
+  const r = channel((n >> 16) & 255)
+  const g = channel((n >> 8) & 255)
+  const b = channel(n & 255)
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b
+}
+
+export function isDarkHex(hex: string | undefined | null): boolean {
+  return hexRelativeLuminance(hex) < 0.45
+}
+
+/** Pick a readable foreground for a solid background (prefers provided light/dark). */
+export function contrastTextOn(
+  background: string | undefined | null,
+  darkText = '#1c1630',
+  lightText = '#f7f1e4',
+): string {
+  return isDarkHex(background) ? lightText : darkText
+}
+
 /** Inline CSS for HTML email body background (pageColor + tiled pageTexture). */
 export function pageBackgroundCss(
   design: Pick<CardDesign, 'pageColor' | 'pageTexture'> | undefined,

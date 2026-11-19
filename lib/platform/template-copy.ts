@@ -33,6 +33,7 @@ export type TemplateUi = {
   invitePreview: string
   emailStd: string
   emailInvite: string
+  emailReminder: string
   inviteCard: string
   toGuests: string
   openEnvelope: string
@@ -78,6 +79,7 @@ const PACKS: Record<EventLocale, TemplateUi> = {
     invitePreview: 'Preview do convite',
     emailStd: 'Save the Date · email',
     emailInvite: 'Convite · email',
+    emailReminder: 'Lembrete · email',
     inviteCard: 'Convite · cartão',
     toGuests: 'Para a lista de convidados',
     openEnvelope: 'Abrir envelope',
@@ -129,6 +131,7 @@ const PACKS: Record<EventLocale, TemplateUi> = {
     invitePreview: 'Invite preview',
     emailStd: 'Save the Date · email',
     emailInvite: 'Invitation · email',
+    emailReminder: 'Reminder · email',
     inviteCard: 'Invitation · card',
     toGuests: 'To the guest list',
     openEnvelope: 'Open envelope',
@@ -180,6 +183,7 @@ const PACKS: Record<EventLocale, TemplateUi> = {
     invitePreview: 'Vista previa de la invitación',
     emailStd: 'Save the Date · email',
     emailInvite: 'Invitación · email',
+    emailReminder: 'Recordatorio · email',
     inviteCard: 'Invitación · tarjeta',
     toGuests: 'Para la lista de invitados',
     openEnvelope: 'Abrir sobre',
@@ -231,6 +235,7 @@ const PACKS: Record<EventLocale, TemplateUi> = {
     invitePreview: 'תצוגת הזמנה',
     emailStd: 'שמרו את התאריך · אימייל',
     emailInvite: 'הזמנה · אימייל',
+    emailReminder: 'תזכורת · אימייל',
     inviteCard: 'הזמנה · כרטיס',
     toGuests: 'לרשימת האורחים',
     openEnvelope: 'פתיחת מעטפה',

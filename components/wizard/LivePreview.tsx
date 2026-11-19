@@ -13,12 +13,18 @@ import { localizedOpenLabel, primaryEventLocale } from '@/lib/platform/guest-loc
 import { openEnvelopeLabel } from '@/lib/platform/guest-ui'
 import { mailHtml } from '@/lib/platform/mail'
 import { normalizeGuest } from '@/lib/platform/normalize-guest'
+import {
+  mailReminderHtml,
+  mailReminderSubject,
+  previewReminderDays,
+} from '@/lib/platform/reminder-mail'
 import { templateUi } from '@/lib/platform/template-copy'
 import { eventPublicHostLabel } from '@/lib/platform/site-url'
 import type { EventConfig, WizardStepId } from '@/lib/platform/types'
 import { wizardSteps } from '@/lib/platform/wizard'
 
 type InvitePreviewTab = 'email' | 'invite'
+type EmailPreviewKind = 'std' | 'invite' | 'reminder'
 
 export function LivePreview({
   config,
@@ -36,7 +42,14 @@ export function LivePreview({
   const target =
     wizardSteps(locale, config).find((item) => item.id === step)?.previewTarget ??
     'hero'
-  const emailKind = step === 'saveTheDate' ? 'std' : step === 'invitation' ? 'invite' : null
+  const emailKind: EmailPreviewKind | null =
+    step === 'saveTheDate'
+      ? 'std'
+      : step === 'invitation'
+        ? 'invite'
+        : step === 'reminders'
+          ? 'reminder'
+          : null
 
   const previewGuest = useMemo(
     () =>
@@ -49,10 +62,25 @@ export function LivePreview({
     [config.basics.familyName, config.basics.honoreeName, locale],
   )
 
+  const reminderDays = useMemo(
+    () => previewReminderDays(config.reminders),
+    [config.reminders],
+  )
+
   const inviteMailSrcDoc = useMemo(() => {
     if (emailKind !== 'invite') return ''
     return mailHtml('invite', config, previewHost, previewGuest)
   }, [emailKind, config, previewGuest, previewHost])
+
+  const reminderMailSrcDoc = useMemo(() => {
+    if (emailKind !== 'reminder') return ''
+    return mailReminderHtml(config, previewHost, previewGuest, reminderDays)
+  }, [emailKind, config, previewGuest, previewHost, reminderDays])
+
+  const reminderSubject = useMemo(() => {
+    if (emailKind !== 'reminder') return ''
+    return mailReminderSubject(config, previewGuest, reminderDays)
+  }, [emailKind, config, previewGuest, reminderDays])
 
   const inviteDesign = config.invitation.design
   const sealUrl = inviteDesign.sealUrl || config.invitation.sealImageUrl
@@ -82,9 +110,11 @@ export function LivePreview({
         : mail.inviteCard
       : emailKind === 'std'
         ? mail.emailStd
-        : config.domain.slug
-          ? eventPublicHostLabel(config.domain.slug)
-          : ui.draft
+        : emailKind === 'reminder'
+          ? mail.emailReminder
+          : config.domain.slug
+            ? eventPublicHostLabel(config.domain.slug)
+            : ui.draft
 
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -134,6 +164,26 @@ export function LivePreview({
           <EmailChrome kind="std" config={config}>
             <SaveTheDateCard config={config} />
           </EmailChrome>
+        ) : emailKind === 'reminder' ? (
+          <div className="min-h-full bg-[#1a2033] px-4 py-8">
+            <div className="mx-auto max-w-lg overflow-hidden rounded-2xl border border-white/10 bg-[#0e1424] text-white shadow-2xl">
+              <div className="border-b border-white/10 px-4 py-3 text-xs text-white/50">
+                <p>
+                  {mail.emailPreview} · {mail.emailReminder}
+                </p>
+                <p className="mt-1 text-white/70">{mail.toGuests}</p>
+                {reminderSubject ? (
+                  <p className="mt-2 font-medium text-white">{reminderSubject}</p>
+                ) : null}
+              </div>
+              <iframe
+                key={`reminder-${reminderDays}-${reminderSubject}-${config.reminders.message}`}
+                title={mail.emailReminder}
+                className="block h-[760px] w-full border-0 bg-white"
+                srcDoc={reminderMailSrcDoc}
+              />
+            </div>
+          </div>
         ) : emailKind === 'invite' && inviteTab === 'email' ? (
           <div className="min-h-full bg-[#1a2033] px-4 py-8">
             <div className="mx-auto max-w-lg overflow-hidden rounded-2xl border border-white/10 bg-[#0e1424] text-white shadow-2xl">
@@ -144,6 +194,7 @@ export function LivePreview({
                 <p className="mt-1 text-white/70">{mail.toGuests}</p>
               </div>
               <iframe
+                key={`invite-${inviteMailSrcDoc.length}-${config.invitation.body}`}
                 title={mail.emailInvite}
                 className="block h-[760px] w-full border-0 bg-white"
                 srcDoc={inviteMailSrcDoc}

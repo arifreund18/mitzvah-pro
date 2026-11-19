@@ -1,6 +1,8 @@
 import { google } from './calendar.ts'
 import {
+  contrastTextOn,
   designAssetPublicUrl,
+  isDarkHex,
   isEmailSafeImageUrl,
   pageBackgroundCss,
 } from './card-background.ts'
@@ -689,6 +691,8 @@ export function mailFollowUpHtml(
     ? mailImageSrc('invite', config, host, pageTextureRaw, 'pageTexture')
     : ''
   const pageBgCss = pageBackgroundCss(design, escapeHtml, pageTextureForMail)
+  const pageColor = design.pageColor || '#1a2033'
+  const pageIsDark = isDarkHex(pageColor)
 
   const cardColor = design.cardColor || config.branding.primaryColor || '#1a2033'
   const cardTextColor = design.cardTextColor || '#ffffff'
@@ -696,7 +700,15 @@ export function mailFollowUpHtml(
   const textColor = design.bodyColor || design.headingColor || '#3d3429'
   const mutedColor = '#6b5f52'
   const titleColor = design.headingColor || design.nameColor || textColor
-  const buttonBg = design.cardColor || '#4a5a3c'
+  /** Text sitting on pageColor (not on the card). */
+  const pageText = pageIsDark ? '#f3eee6' : textColor
+  const pageTitle = pageIsDark ? '#ffffff' : titleColor
+  const pageMuted = pageIsDark ? '#c9bdb0' : mutedColor
+  const pageRule = pageIsDark ? 'rgba(255,255,255,0.18)' : '#e5e5e5'
+  const buttonBg = cardColor
+  const buttonFg = isDarkHex(cardColor)
+    ? ctaTextColor || '#ffffff'
+    : cardTextColor || contrastTextOn(cardColor)
 
   const dateLine = eventDateLine('invite', config, locale)
   const timeLine = eventTimeLine('invite', config, locale)
@@ -721,20 +733,20 @@ export function mailFollowUpHtml(
       : `<td width="72" style="padding:16px 16px 0 0;"></td>`
 
     const locationBits = [venue, addressLine].filter(Boolean).join(' · ')
-    const iconClock = `<span style="display:inline-block;width:22px;height:22px;border:1.5px solid ${escapeHtml(mutedColor)};border-radius:50%;text-align:center;line-height:20px;font-size:11px;color:${escapeHtml(mutedColor)};">&#9200;</span>`
-    const iconPin = `<span style="display:inline-block;width:22px;height:22px;border:1.5px solid ${escapeHtml(mutedColor)};border-radius:50%;text-align:center;line-height:20px;font-size:12px;color:${escapeHtml(mutedColor)};">&#9679;</span>`
+    const iconClock = `<span style="display:inline-block;width:22px;height:22px;border:1.5px solid ${escapeHtml(pageMuted)};border-radius:50%;text-align:center;line-height:20px;font-size:11px;color:${escapeHtml(pageMuted)};">&#9200;</span>`
+    const iconPin = `<span style="display:inline-block;width:22px;height:22px;border:1.5px solid ${escapeHtml(pageMuted)};border-radius:50%;text-align:center;line-height:20px;font-size:12px;color:${escapeHtml(pageMuted)};">&#9679;</span>`
 
     const detailRows: string[] = []
     if (dateLine || timeLine) {
       detailRows.push(`<tr>
         <td valign="top" style="padding:16px 10px 16px 0;width:28px;">${iconClock}</td>
         <td valign="middle" style="padding:16px 0;">
-          <div style="font-family:${font};font-size:15px;font-weight:bold;color:${escapeHtml(textColor)};">${escapeHtml([dateLine, timeLine].filter(Boolean).join(' · '))}</div>
+          <div style="font-family:${font};font-size:15px;font-weight:bold;color:${escapeHtml(pageText)};">${escapeHtml([dateLine, timeLine].filter(Boolean).join(' · '))}</div>
         </td>
         <td align="right" valign="middle" style="padding:16px 0 16px 12px;white-space:nowrap;">
           ${
             googleHref
-              ? `<a href="${escapeHtml(googleHref)}" style="font-family:${font};font-size:11px;letter-spacing:0.08em;color:#888;text-decoration:none;">${escapeHtml(calendarLabel)}</a>`
+              ? `<a href="${escapeHtml(googleHref)}" style="font-family:${font};font-size:11px;letter-spacing:0.08em;color:${escapeHtml(pageMuted)};text-decoration:none;">${escapeHtml(calendarLabel)}</a>`
               : ''
           }
         </td>
@@ -744,17 +756,17 @@ export function mailFollowUpHtml(
       detailRows.push(`<tr>
         <td valign="top" style="padding:16px 10px 16px 0;width:28px;">${iconPin}</td>
         <td valign="middle" style="padding:16px 0;">
-          <div style="font-family:${font};font-size:15px;font-weight:bold;color:${escapeHtml(textColor)};">${escapeHtml(venue || addressLine)}</div>
+          <div style="font-family:${font};font-size:15px;font-weight:bold;color:${escapeHtml(pageText)};">${escapeHtml(venue || addressLine)}</div>
           ${
             venue && addressLine
-              ? `<div style="margin:2px 0 0;font-family:${font};font-size:13px;color:${escapeHtml(mutedColor)};">${escapeHtml(addressLine)}</div>`
+              ? `<div style="margin:2px 0 0;font-family:${font};font-size:13px;color:${escapeHtml(pageMuted)};">${escapeHtml(addressLine)}</div>`
               : ''
           }
         </td>
         <td align="right" valign="middle" style="padding:16px 0 16px 12px;white-space:nowrap;">
           ${
             mapHref
-              ? `<a href="${escapeHtml(mapHref)}" style="font-family:${font};font-size:11px;letter-spacing:0.08em;color:#888;text-decoration:none;">${escapeHtml(mapLabel)}</a>`
+              ? `<a href="${escapeHtml(mapHref)}" style="font-family:${font};font-size:11px;letter-spacing:0.08em;color:${escapeHtml(pageMuted)};text-decoration:none;">${escapeHtml(mapLabel)}</a>`
               : ''
           }
         </td>
@@ -771,23 +783,23 @@ export function mailFollowUpHtml(
         <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:480px;">
           <tr>
             <td align="center" style="padding-bottom:8px;">
-              <p style="margin:0;font-family:${font};font-size:18px;color:${escapeHtml(titleColor)};">${escapeHtml(labels.greeting(familyName))}</p>
+              <p style="margin:0;font-family:${font};font-size:18px;color:${escapeHtml(pageTitle)};">${escapeHtml(labels.greeting(familyName))}</p>
             </td>
           </tr>
           <tr>
             <td align="center" style="padding:12px 8px 0;">
-              <p style="margin:0;font-family:${font};font-size:15px;line-height:1.55;color:${escapeHtml(textColor)};">${bodyHtml}</p>
+              <p style="margin:0;font-family:${font};font-size:15px;line-height:1.55;color:${escapeHtml(pageText)};">${bodyHtml}</p>
               ${
                 locationBits
-                  ? `<p style="margin:14px 0 0;font-family:${font};font-size:14px;color:${escapeHtml(mutedColor)};">&#128205; ${escapeHtml(locationBits)}</p>`
+                  ? `<p style="margin:14px 0 0;font-family:${font};font-size:14px;color:${escapeHtml(pageMuted)};">&#128205; ${escapeHtml(locationBits)}</p>`
                   : ''
               }
-              <p style="margin:14px 0 0;font-family:${font};font-size:15px;color:${escapeHtml(textColor)};">${escapeHtml(labels.lookForward)}</p>
+              <p style="margin:14px 0 0;font-family:${font};font-size:15px;color:${escapeHtml(pageText)};">${escapeHtml(labels.lookForward)}</p>
             </td>
           </tr>
           <tr>
             <td align="center" style="padding:28px 8px 0;">
-              <a href="${escapeHtml(cardHref)}" style="display:inline-block;font-family:${font};font-size:13px;font-weight:bold;letter-spacing:0.06em;color:${escapeHtml(ctaTextColor)};background-color:${escapeHtml(cardColor)};text-decoration:none;padding:14px 36px;border-radius:999px;">${escapeHtml(viewCard)}</a>
+              <a href="${escapeHtml(cardHref)}" style="display:inline-block;font-family:${font};font-size:13px;font-weight:bold;letter-spacing:0.06em;color:${escapeHtml(buttonFg)};background-color:${escapeHtml(buttonBg)};text-decoration:none;padding:14px 36px;border-radius:999px;">${escapeHtml(viewCard)}</a>
             </td>
           </tr>
           <tr>
@@ -809,17 +821,17 @@ export function mailFollowUpHtml(
           </tr>
           <tr>
             <td align="center" style="padding:28px 8px 0;">
-              <p style="margin:0;font-family:${font};font-size:20px;font-weight:bold;color:${escapeHtml(titleColor)};">${escapeHtml(title)}</p>
+              <p style="margin:0;font-family:${font};font-size:20px;font-weight:bold;color:${escapeHtml(pageTitle)};">${escapeHtml(title)}</p>
               ${
                 hostLine
-                  ? `<p style="margin:8px 0 0;font-family:${font};font-size:14px;color:${escapeHtml(mutedColor)};">${escapeHtml(hostLine)}</p>`
+                  ? `<p style="margin:8px 0 0;font-family:${font};font-size:14px;color:${escapeHtml(pageMuted)};">${escapeHtml(hostLine)}</p>`
                   : ''
               }
             </td>
           </tr>
           ${
             detailRows.length
-              ? `<tr><td style="padding:24px 0 0;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;border-top:1px solid #e5e5e5;">${detailRows.join('<tr><td colspan="3" style="border-top:1px solid #e5e5e5;font-size:0;height:1px;">&nbsp;</td></tr>')}</table></td></tr>`
+              ? `<tr><td style="padding:24px 0 0;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;border-top:1px solid ${pageRule};">${detailRows.join(`<tr><td colspan="3" style="border-top:1px solid ${pageRule};font-size:0;height:1px;">&nbsp;</td></tr>`)}</table></td></tr>`
               : ''
           }
         </table>
@@ -846,27 +858,27 @@ export function mailFollowUpHtml(
         <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:480px;">
           <tr>
             <td align="center">
-              <p style="margin:0;font-family:Georgia,'Times New Roman',serif;font-size:28px;line-height:1.3;color:${escapeHtml(titleColor)};">${escapeHtml(headline)}</p>
+              <p style="margin:0;font-family:Georgia,'Times New Roman',serif;font-size:28px;line-height:1.3;color:${escapeHtml(pageTitle)};">${escapeHtml(headline)}</p>
             </td>
           </tr>
           <tr>
             <td align="center" style="padding:18px 8px 0;">
-              <p style="margin:0;font-family:${font};font-size:16px;font-weight:bold;color:${escapeHtml(textColor)};">${escapeHtml(title)}</p>
+              <p style="margin:0;font-family:${font};font-size:16px;font-weight:bold;color:${escapeHtml(pageText)};">${escapeHtml(title)}</p>
             </td>
           </tr>
           <tr>
             <td align="center" style="padding:16px 8px 0;">
-              <p style="margin:0;font-family:${font};font-size:15px;line-height:1.5;color:${escapeHtml(mutedColor)};font-style:italic;">&ldquo;${preview}&rdquo;</p>
+              <p style="margin:0;font-family:${font};font-size:15px;line-height:1.5;color:${escapeHtml(pageMuted)};font-style:italic;">&ldquo;${preview}&rdquo;</p>
             </td>
           </tr>
           <tr>
             <td align="center" style="padding:28px 8px 0;">
-              <a href="${escapeHtml(primaryHref)}" style="display:inline-block;font-family:${font};font-size:14px;font-weight:bold;color:${escapeHtml(ctaTextColor)};background-color:${escapeHtml(buttonBg)};text-decoration:none;padding:14px 32px;border-radius:999px;">${escapeHtml(primaryLabel)}</a>
+              <a href="${escapeHtml(primaryHref)}" style="display:inline-block;font-family:${font};font-size:14px;font-weight:bold;color:${escapeHtml(buttonFg)};background-color:${escapeHtml(buttonBg)};text-decoration:none;padding:14px 32px;border-radius:999px;">${escapeHtml(primaryLabel)}</a>
             </td>
           </tr>
           <tr>
             <td align="center" style="padding:16px 8px 0;">
-              <a href="${escapeHtml(secondaryHref)}" style="font-family:${font};font-size:14px;color:${escapeHtml(textColor)};text-decoration:underline;">${escapeHtml(secondaryLabel)}</a>
+              <a href="${escapeHtml(secondaryHref)}" style="font-family:${font};font-size:14px;color:${escapeHtml(pageText)};text-decoration:underline;">${escapeHtml(secondaryLabel)}</a>
             </td>
           </tr>
         </table>
