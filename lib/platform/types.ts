@@ -391,7 +391,17 @@ export type EventConfig = {
     d30: boolean
     d7: boolean
     d2: boolean
-    onlyConfirmedForD7D2: boolean
+    /** Who receives the D-30 reminder. */
+    audienceD30: ReminderAudience
+    /** Who receives the D-7 reminder. */
+    audienceD7: ReminderAudience
+    /** Who receives the D-2 reminder. */
+    audienceD2: ReminderAudience
+    /**
+     * @deprecated Prefer audienceD7 / audienceD2. Kept for normalize migration.
+     * When true (legacy default), D-7/D-2 were confirmed-only; D-30 was always all.
+     */
+    onlyConfirmedForD7D2?: boolean
     message: string
   }
   faq: { items: FaqItem[] }
@@ -426,6 +436,9 @@ export type EventMailDomain = {
 }
 
 export type GuestRsvp = 'pending' | 'yes' | 'no'
+
+/** Audience filter for automatic reminder windows (D-30 / D-7 / D-2). */
+export type ReminderAudience = 'all' | 'yes' | 'pending'
 
 export type GuestPerson = {
   id: string

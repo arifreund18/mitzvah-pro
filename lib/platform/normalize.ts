@@ -6,6 +6,7 @@ import {
 } from './guest-locale.ts'
 import { uid } from './ids'
 import { DEFAULT_ORG_ID } from './auth'
+import { isReminderAudience, resolveReminderAudience } from './reminder-audience.ts'
 import type {
   ContactPerson,
   EventConfig,
@@ -15,6 +16,7 @@ import type {
   LocalPlace,
   PlaceCategory,
   PlatformEvent,
+  ReminderAudience,
   ScheduleItem,
 } from './types'
 import { PLACE_CATEGORIES } from './types'
@@ -81,6 +83,38 @@ function faqItem(row: Partial<FaqItem>): FaqItem {
     question: row.question || '',
     answer: row.answer || '',
     published: row.published !== false,
+  }
+}
+
+function normalizeReminders(
+  raw: EventConfig['reminders'] | null | undefined,
+  base: EventConfig['reminders'],
+): EventConfig['reminders'] {
+  const merged = { ...base, ...(raw || {}) }
+  const legacy = {
+    audienceD30: raw?.audienceD30,
+    audienceD7: raw?.audienceD7,
+    audienceD2: raw?.audienceD2,
+    onlyConfirmedForD7D2: raw?.onlyConfirmedForD7D2 ?? base.onlyConfirmedForD7D2,
+  }
+  const audienceD30: ReminderAudience = isReminderAudience(raw?.audienceD30)
+    ? raw!.audienceD30
+    : resolveReminderAudience(30, legacy)
+  const audienceD7: ReminderAudience = isReminderAudience(raw?.audienceD7)
+    ? raw!.audienceD7
+    : resolveReminderAudience(7, legacy)
+  const audienceD2: ReminderAudience = isReminderAudience(raw?.audienceD2)
+    ? raw!.audienceD2
+    : resolveReminderAudience(2, legacy)
+  return {
+    enabled: Boolean(merged.enabled),
+    d30: Boolean(merged.d30),
+    d7: Boolean(merged.d7),
+    d2: Boolean(merged.d2),
+    audienceD30,
+    audienceD7,
+    audienceD2,
+    message: String(merged.message || ''),
   }
 }
 
@@ -198,7 +232,7 @@ export function normalizeConfig(raw: EventConfig | null | undefined): EventConfi
       confirmationEmailHosts: raw.rsvp?.confirmationEmailHosts ?? base.rsvp.confirmationEmailHosts ?? '',
       confirmationEmailBody: raw.rsvp?.confirmationEmailBody ?? base.rsvp.confirmationEmailBody ?? '',
     },
-    reminders: { ...base.reminders, ...raw.reminders },
+    reminders: normalizeReminders(raw.reminders, base.reminders),
     faq: { items: (raw.faq?.items || []).map((item) => faqItem(item)) },
     legal: {
       ...base.legal,

@@ -16,6 +16,7 @@ import {
   type EventLocale,
   type Guest,
   type NotifyMode,
+  type ReminderAudience,
 } from '@/lib/platform/types'
 import { LOCALE_OPTIONS } from '@/lib/platform/locales'
 import { normalizeGuest } from '@/lib/platform/normalize'
@@ -1340,6 +1341,60 @@ export const WizardStepForm = forwardRef<
   }
 
   if (step === 'reminders') {
+    const audienceOptions: Array<{ value: ReminderAudience; label: string }> = [
+      { value: 'all', label: ui.reminderAudienceAll },
+      { value: 'yes', label: ui.reminderAudienceYes },
+      { value: 'pending', label: ui.reminderAudiencePending },
+    ]
+    const windowRow = (
+      enabledKey: 'd30' | 'd7' | 'd2',
+      audienceKey: 'audienceD30' | 'audienceD7' | 'audienceD2',
+      dayLabel: string,
+    ) => (
+      <div
+        key={enabledKey}
+        className="flex flex-col gap-2 rounded-xl border border-white/10 bg-white/5 px-3 py-3 sm:flex-row sm:items-center sm:justify-between"
+      >
+        <label className="flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={config.reminders[enabledKey]}
+            onChange={(e) =>
+              set({
+                ...config,
+                reminders: { ...config.reminders, [enabledKey]: e.target.checked },
+              })
+            }
+          />
+          {dayLabel}
+        </label>
+        <label className="flex min-w-0 flex-1 items-center gap-2 text-sm sm:justify-end">
+          <span className="shrink-0 text-xs uppercase tracking-wide text-white/40">
+            {ui.reminderAudience}
+          </span>
+          <select
+            value={config.reminders[audienceKey]}
+            disabled={!config.reminders[enabledKey]}
+            onChange={(e) =>
+              set({
+                ...config,
+                reminders: {
+                  ...config.reminders,
+                  [audienceKey]: e.target.value as ReminderAudience,
+                },
+              })
+            }
+            className="w-full max-w-xs rounded-lg border border-white/15 bg-[#0b1020] px-2 py-1.5 text-sm outline-none disabled:opacity-40 sm:w-auto"
+          >
+            {audienceOptions.map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
+    )
     return (
       <div className="space-y-4">
         <label className="flex items-center gap-2 text-sm">
@@ -1350,51 +1405,14 @@ export const WizardStepForm = forwardRef<
               set({ ...config, reminders: { ...config.reminders, enabled: e.target.checked } })
             }
           />
-          Enable reminder emails
+          {ui.enableReminders}
         </label>
-        <label className="flex items-center gap-2 text-sm">
-          <input
-            type="checkbox"
-            checked={config.reminders.d30}
-            onChange={(e) =>
-              set({ ...config, reminders: { ...config.reminders, d30: e.target.checked } })
-            }
-          />
-          30 days before
-        </label>
-        <label className="flex items-center gap-2 text-sm">
-          <input
-            type="checkbox"
-            checked={config.reminders.d7}
-            onChange={(e) =>
-              set({ ...config, reminders: { ...config.reminders, d7: e.target.checked } })
-            }
-          />
-          7 days before
-        </label>
-        <label className="flex items-center gap-2 text-sm">
-          <input
-            type="checkbox"
-            checked={config.reminders.d2}
-            onChange={(e) =>
-              set({ ...config, reminders: { ...config.reminders, d2: e.target.checked } })
-            }
-          />
-          2 days before
-        </label>
-        <label className="flex items-center gap-2 text-sm">
-          <input
-            type="checkbox"
-            checked={config.reminders.onlyConfirmedForD7D2}
-            onChange={(e) =>
-              set({
-                ...config,
-                reminders: { ...config.reminders, onlyConfirmedForD7D2: e.target.checked },
-              })
-            }
-          />
-          Only confirmed guests for D-7 / D-2
-        </label>
+        <p className="text-xs text-white/45">{ui.reminderAudienceHint}</p>
+        <div className="space-y-2">
+          {windowRow('d30', 'audienceD30', ui.reminderDays30)}
+          {windowRow('d7', 'audienceD7', ui.reminderDays7)}
+          {windowRow('d2', 'audienceD2', ui.reminderDays2)}
+        </div>
         <Field label={ui.message}>
           <TextArea
             value={config.reminders.message}

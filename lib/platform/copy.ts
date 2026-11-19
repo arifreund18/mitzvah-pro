@@ -296,6 +296,15 @@ export type WizardUi = {
   confirmationEmailTitle: string
   confirmationEmailHosts: string
   confirmationEmailBody: string
+  enableReminders: string
+  reminderDays30: string
+  reminderDays7: string
+  reminderDays2: string
+  reminderAudience: string
+  reminderAudienceHint: string
+  reminderAudienceAll: string
+  reminderAudienceYes: string
+  reminderAudiencePending: string
   question: string
   answer: string
   addQuestion: string
@@ -420,6 +429,16 @@ const WIZARD_UI: Record<EventLocale, WizardUi> = {
     confirmationEmailTitle: 'Título',
     confirmationEmailHosts: 'Anfitriões',
     confirmationEmailBody: 'Texto (ex.: “é chamada à Torah como Bat Mitzvah”)',
+    enableReminders: 'Ativar emails de lembrete',
+    reminderDays30: '30 dias antes',
+    reminderDays7: '7 dias antes',
+    reminderDays2: '2 dias antes',
+    reminderAudience: 'Enviar para',
+    reminderAudienceHint:
+      'Para cada data, escolha se o lembrete vai para todos, só confirmados, ou só quem ainda não respondeu o RSVP.',
+    reminderAudienceAll: 'Todos com email',
+    reminderAudienceYes: 'Apenas confirmados',
+    reminderAudiencePending: 'Apenas sem RSVP',
     question: 'Pergunta',
     answer: 'Resposta',
     addQuestion: '+ Pergunta',
@@ -569,6 +588,16 @@ const WIZARD_UI: Record<EventLocale, WizardUi> = {
     confirmationEmailTitle: 'Title',
     confirmationEmailHosts: 'Hosts',
     confirmationEmailBody: 'Body (e.g. “is called to the Torah as a Bat Mitzvah”)',
+    enableReminders: 'Enable reminder emails',
+    reminderDays30: '30 days before',
+    reminderDays7: '7 days before',
+    reminderDays2: '2 days before',
+    reminderAudience: 'Send to',
+    reminderAudienceHint:
+      'For each date, choose whether the reminder goes to everyone, only confirmed guests, or only those who have not RSVPed yet.',
+    reminderAudienceAll: 'Everyone with email',
+    reminderAudienceYes: 'Confirmed only',
+    reminderAudiencePending: 'No RSVP yet',
     question: 'Question',
     answer: 'Answer',
     addQuestion: '+ Question',
@@ -718,6 +747,16 @@ const WIZARD_UI: Record<EventLocale, WizardUi> = {
     confirmationEmailTitle: 'Título',
     confirmationEmailHosts: 'Anfitriones',
     confirmationEmailBody: 'Texto (ej.: “es llamada a la Torá como Bat Mitzvá”)',
+    enableReminders: 'Activar emails de recordatorio',
+    reminderDays30: '30 días antes',
+    reminderDays7: '7 días antes',
+    reminderDays2: '2 días antes',
+    reminderAudience: 'Enviar a',
+    reminderAudienceHint:
+      'Para cada fecha, elige si el recordatorio va a todos, solo confirmados, o solo quienes aún no respondieron el RSVP.',
+    reminderAudienceAll: 'Todos con email',
+    reminderAudienceYes: 'Solo confirmados',
+    reminderAudiencePending: 'Sin RSVP aún',
     question: 'Pregunta',
     answer: 'Respuesta',
     addQuestion: '+ Pregunta',
@@ -867,6 +906,16 @@ const WIZARD_UI: Record<EventLocale, WizardUi> = {
     confirmationEmailTitle: 'כותרת',
     confirmationEmailHosts: 'מארחים',
     confirmationEmailBody: 'טקסט (למשל “נקראת לתורה כבת מצווה”)',
+    enableReminders: 'הפעלת תזכורות במייל',
+    reminderDays30: '30 ימים לפני',
+    reminderDays7: '7 ימים לפני',
+    reminderDays2: 'יומיים לפני',
+    reminderAudience: 'שליחה אל',
+    reminderAudienceHint:
+      'לכל תאריך בחרו אם התזכורת תישלח לכולם, רק למאשרים, או רק למי שעדיין לא ענה ל-RSVP.',
+    reminderAudienceAll: 'כולם עם אימייל',
+    reminderAudienceYes: 'רק מאשרים',
+    reminderAudiencePending: 'עדיין ללא RSVP',
     question: 'שאלה',
     answer: 'תשובה',
     addQuestion: '+ שאלה',

@@ -10,12 +10,16 @@ import {
   eventSendFrom,
 } from '@/lib/platform/mail-domain'
 import {
+  guestMatchesReminderAudience,
+  resolveReminderAudience,
+} from '@/lib/platform/reminder-audience'
+import {
   appendEmailLog,
   listEmailLogs,
   loadPlatformStoreForCron,
 } from '@/lib/platform/store'
 import { uid } from '@/lib/platform/ids'
-import type { Guest, PlatformEvent } from '@/lib/platform/types'
+import type { Guest, PlatformEvent, ReminderAudience } from '@/lib/platform/types'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
@@ -48,16 +52,28 @@ export async function GET(request: NextRequest) {
     const days = daysUntilEventDate(event.config.basics.date)
     if (days === null) continue
 
-    const windows: Array<{ days: number; enabled: boolean }> = [
-      { days: 30, enabled: reminders.d30 },
-      { days: 7, enabled: reminders.d7 },
-      { days: 2, enabled: reminders.d2 },
+    const windows: Array<{ days: 30 | 7 | 2; enabled: boolean; audience: ReminderAudience }> = [
+      {
+        days: 30,
+        enabled: reminders.d30,
+        audience: resolveReminderAudience(30, reminders),
+      },
+      {
+        days: 7,
+        enabled: reminders.d7,
+        audience: resolveReminderAudience(7, reminders),
+      },
+      {
+        days: 2,
+        enabled: reminders.d2,
+        audience: resolveReminderAudience(2, reminders),
+      },
     ]
     const hit = windows.find((w) => w.enabled && w.days === days)
     if (!hit) continue
 
     for (const guest of event.guests) {
-      if (hit.days !== 30 && reminders.onlyConfirmedForD7D2 && guest.status !== 'yes') continue
+      if (!guestMatchesReminderAudience(guest, hit.audience)) continue
       const emails = guestEmails(guest)
       if (!emails.length) continue
 
