@@ -9,9 +9,12 @@ import type { EventConfig, EventLocale, PlatformEvent } from '@/lib/platform/typ
 export function EventRsvpForm({
   event,
   locale,
+  siteHomeHref,
 }: {
   event: PlatformEvent
   locale?: EventLocale
+  /** When set, successful RSVP navigates to the start of the site. */
+  siteHomeHref?: string | null
 }) {
   const config: EventConfig = event.config
   const lang = locale || config.locales.default || 'pt'
@@ -70,6 +73,10 @@ export function EventRsvpForm({
     if (!res.ok) {
       const data = (await res.json().catch(() => null)) as { error?: string } | null
       setError(data?.error || ui.error)
+      return
+    }
+    if (siteHomeHref) {
+      window.location.assign(siteHomeHref)
       return
     }
     setSent(true)

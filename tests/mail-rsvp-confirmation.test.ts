@@ -90,7 +90,7 @@ function inviteConfig(partial: Partial<EventConfig> = {}): EventConfig {
     story: { headline: '', subtitle: '' },
     invitation: {
       greeting: '',
-      body: 'Come join us to celebrate our MVP, Beni!',
+      body: 'Invitation body should not appear in confirmation email.',
       hostLine: 'Hosted by Gen and Sam Katz',
       sealLabel: '',
       sealImageUrl: '',
@@ -99,6 +99,7 @@ function inviteConfig(partial: Partial<EventConfig> = {}): EventConfig {
         cardColor: '#1a2033',
         cardTextColor: '#ffffff',
         eventName: "It's Beni's Bar Mitzvah!",
+        message: 'Come join us to celebrate our MVP, Beni!',
         dateLabel: 'Sat. Oct. 10',
         timeLabel: '5:00pm - 10:30pm EDT',
         placeLabel: 'Temple Emanu-El of Atlanta',
@@ -155,6 +156,7 @@ describe('mailRsvpConfirmationHtml', () => {
     assert.match(html, /It&#39;s Beni&#39;s Bar Mitzvah!|It's Beni's Bar Mitzvah!/)
     assert.match(html, /Hosted by Gen and Sam Katz/)
     assert.match(html, /Come join us to celebrate our MVP, Beni!/)
+    assert.doesNotMatch(html, /Invitation body should not appear/)
     assert.match(html, /Sat\. Oct\. 10/)
     assert.match(html, /5:00pm - 10:30pm EDT/)
     assert.match(html, /ADD TO CALENDAR/)
@@ -168,6 +170,23 @@ describe('mailRsvpConfirmationHtml', () => {
     assert.match(html, /\/rsvp\/tok123/)
     assert.match(html, /maps\.example\/venue/)
     assert.match(html, /calendar\.google|\/api\/platform\/calendar\//)
+  })
+
+  it('omits the body line when design.message is empty', () => {
+    const guest = normalizeGuest({
+      familyName: 'Katz',
+      email: 'guest@example.com',
+      token: 'tok-empty',
+      inviteLocale: 'en',
+      people: [{ id: '1', name: 'Sam', type: 'adult', status: 'yes', meal: '', dietary: '' }],
+    })
+    const config = inviteConfig()
+    config.invitation.design.message = ''
+    config.invitation.body = 'Should stay out of the email'
+
+    const html = mailRsvpConfirmationHtml(config, 'mitzvah.pro', guest)
+    assert.doesNotMatch(html, /Should stay out of the email/)
+    assert.match(html, /Hosted by Gen and Sam Katz/)
   })
 
   it('lists going and not-going names when the family is mixed', () => {
@@ -249,13 +268,14 @@ describe('mailRsvpConfirmationHtml', () => {
       locales: { default: 'pt', enabled: ['pt', 'en'] },
       invitation: {
         greeting: '',
-        body: 'Venha celebrar conosco!',
+        body: '',
         hostLine: 'Família Freund',
         sealLabel: '',
         sealImageUrl: '',
         intro: '',
         design: sampleDesign({
           eventName: 'Bar Mitzvah do Beni',
+          message: 'Venha celebrar conosco!',
           dateLabel: 'Sáb. 10 de out.',
           timeLabel: '17:00 - 22:30',
           placeLabel: 'Templo',

@@ -462,7 +462,8 @@ export function mailRsvpConfirmationHtml(
   const address2 = design.address2?.trim() || ''
   const familyName = guest.familyName || 'Guest'
   const inviteHosts = (design.hosts?.trim() || config.invitation.hostLine || '').trim()
-  const inviteBody = (design.message?.trim() || config.invitation.body || '').trim()
+  // Card message only — never fall back to invitation.body (site copy).
+  const inviteBody = (design.message || '').trim()
   const hostLine = (config.rsvp?.confirmationEmailHosts || '').trim() || inviteHosts
   const bodyText = (config.rsvp?.confirmationEmailBody || '').trim() || inviteBody
   const statusHeadline = attending ? labels.attending : labels.notAttending

@@ -6,6 +6,7 @@ import { EventRsvpForm } from '@/components/template/EventRsvpForm'
 import { TokenRsvpForm } from '@/components/template/TokenRsvpForm'
 import { resolveGuestLocale } from '@/lib/platform/guest-locale'
 import { isEventLocale } from '@/lib/platform/locales'
+import { rsvpSiteHomeHref } from '@/lib/platform/rsvp-site-home'
 import { eventPublicUrl, hostFromHeaders } from '@/lib/platform/site-url'
 import { getEventBySlug } from '@/lib/platform/store'
 
@@ -47,6 +48,12 @@ export default async function PublicEventPage({
   const resolvedLocale = resolveGuestLocale(guest, event.config, explicitLang)
   const showPublicForm = !guest && event.config.rsvp.publicFormEnabled
   const accent = event.config.branding.accentColor || '#22d3ee'
+  const host = hostFromHeaders(await headers())
+  const siteHomeHref = rsvpSiteHomeHref(event.config, event.slug, {
+    host,
+    guestToken: guest?.token,
+    locale: guest ? resolvedLocale : null,
+  })
 
   return (
     <div className="bg-[#0b1020] text-white">
@@ -67,11 +74,12 @@ export default async function PublicEventPage({
             rsvp={event.config.rsvp}
             locale={resolvedLocale}
             accent={accent}
+            siteHomeHref={siteHomeHref}
           />
         </section>
       ) : showPublicForm ? (
         <section className="mx-auto max-w-xl px-6 pb-24">
-          <EventRsvpForm event={event} locale={resolvedLocale} />
+          <EventRsvpForm event={event} locale={resolvedLocale} siteHomeHref={siteHomeHref} />
         </section>
       ) : null}
     </div>
