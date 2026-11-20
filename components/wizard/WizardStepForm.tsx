@@ -999,25 +999,37 @@ export const WizardStepForm = forwardRef<
         <Field label={ui.greeting}>
           <TextInput
             value={config.invitation.greeting}
-            onChange={(e) =>
-              set({ ...config, invitation: { ...config.invitation, greeting: e.target.value } })
-            }
+            onChange={(e) => {
+              const value = e.target.value
+              set((prev) => ({
+                ...prev,
+                invitation: { ...prev.invitation, greeting: value },
+              }))
+            }}
           />
         </Field>
         <Field label={ui.inviteBody}>
           <TextArea
             value={config.invitation.body}
-            onChange={(e) =>
-              set({ ...config, invitation: { ...config.invitation, body: e.target.value } })
-            }
+            onChange={(e) => {
+              const value = e.target.value
+              set((prev) => ({
+                ...prev,
+                invitation: { ...prev.invitation, body: value },
+              }))
+            }}
           />
         </Field>
         <Field label={ui.hostLine}>
           <TextInput
             value={config.invitation.hostLine}
-            onChange={(e) =>
-              set({ ...config, invitation: { ...config.invitation, hostLine: e.target.value } })
-            }
+            onChange={(e) => {
+              const value = e.target.value
+              set((prev) => ({
+                ...prev,
+                invitation: { ...prev.invitation, hostLine: value },
+              }))
+            }}
           />
         </Field>
         <Field label={ui.seal} hint={ui.sealHint}>
@@ -1077,6 +1089,19 @@ export const WizardStepForm = forwardRef<
   }
 
   if (step === 'rsvp') {
+    const inviteDesign = config.invitation.design
+    const confirmationTitleSuggestion =
+      (inviteDesign.eventName || inviteDesign.title || '').trim() ||
+      (config.basics.honoreeName
+        ? `${config.basics.honoreeName}'s ${typeLabel(config.basics.type, locale)}`
+        : '')
+    const confirmationHostsSuggestion = (
+      inviteDesign.hosts?.trim() ||
+      config.invitation.hostLine ||
+      ''
+    ).trim()
+    const confirmationBodySuggestion = (inviteDesign.message || '').trim()
+
     return (
       <div className="space-y-4">
         <Field label={ui.deadline}>
@@ -1208,34 +1233,40 @@ export const WizardStepForm = forwardRef<
           <Field label={ui.confirmationEmailTitle}>
             <TextInput
               value={config.rsvp.confirmationEmailTitle || ''}
-              onChange={(e) =>
-                set({
-                  ...config,
-                  rsvp: { ...config.rsvp, confirmationEmailTitle: e.target.value },
-                })
-              }
+              placeholder={confirmationTitleSuggestion || undefined}
+              onChange={(e) => {
+                const value = e.target.value
+                set((prev) => ({
+                  ...prev,
+                  rsvp: { ...prev.rsvp, confirmationEmailTitle: value },
+                }))
+              }}
             />
           </Field>
           <Field label={ui.confirmationEmailHosts}>
             <TextInput
               value={config.rsvp.confirmationEmailHosts || ''}
-              onChange={(e) =>
-                set({
-                  ...config,
-                  rsvp: { ...config.rsvp, confirmationEmailHosts: e.target.value },
-                })
-              }
+              placeholder={confirmationHostsSuggestion || undefined}
+              onChange={(e) => {
+                const value = e.target.value
+                set((prev) => ({
+                  ...prev,
+                  rsvp: { ...prev.rsvp, confirmationEmailHosts: value },
+                }))
+              }}
             />
           </Field>
           <Field label={ui.confirmationEmailBody}>
             <TextArea
               value={config.rsvp.confirmationEmailBody || ''}
-              onChange={(e) =>
-                set({
-                  ...config,
-                  rsvp: { ...config.rsvp, confirmationEmailBody: e.target.value },
-                })
-              }
+              placeholder={confirmationBodySuggestion || undefined}
+              onChange={(e) => {
+                const value = e.target.value
+                set((prev) => ({
+                  ...prev,
+                  rsvp: { ...prev.rsvp, confirmationEmailBody: value },
+                }))
+              }}
             />
           </Field>
         </div>

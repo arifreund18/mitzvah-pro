@@ -471,19 +471,16 @@ export function mailRsvpConfirmationHtml(
   ).toUpperCase()
   const mapLabel = chromeCtaText(config, locale, 'invite', 'ctaMap', labels.map).toUpperCase()
 
-  const inviteTitle = eventTitle('invite', config, locale)
-  const title = (config.rsvp?.confirmationEmailTitle || '').trim() || inviteTitle
+  // Empty confirmation fields stay blank — no invitation-copy fallback.
+  const title = (config.rsvp?.confirmationEmailTitle || '').trim()
   const dateLine = eventDateLine('invite', config, locale)
   const timeLine = eventTimeLine('invite', config, locale)
   const venue = design.placeLabel?.trim() || ''
   const address1 = design.address1?.trim() || ''
   const address2 = design.address2?.trim() || ''
   const familyName = guest.familyName || 'Guest'
-  const inviteHosts = (design.hosts?.trim() || config.invitation.hostLine || '').trim()
-  // Card message only — never fall back to invitation.body (site copy).
-  const inviteBody = (design.message || '').trim()
-  const hostLine = (config.rsvp?.confirmationEmailHosts || '').trim() || inviteHosts
-  const bodyText = (config.rsvp?.confirmationEmailBody || '').trim() || inviteBody
+  const hostLine = (config.rsvp?.confirmationEmailHosts || '').trim()
+  const bodyText = (config.rsvp?.confirmationEmailBody || '').trim()
   const statusHeadline = attending ? labels.attending : labels.notAttending
   const goingNames = guestRsvpNames(guest, 'yes')
   const notGoingNames = guestRsvpNames(guest, 'no')
@@ -629,21 +626,29 @@ export function mailRsvpConfirmationHtml(
               </a>
             </td>
           </tr>
-          <tr>
+          ${
+            title || hostLine || bodyText
+              ? `<tr>
             <td align="center" style="padding:28px 8px 0;">
-              <p style="margin:0;font-family:${font};font-size:22px;font-weight:bold;color:${escapeHtml(titleColor)};line-height:1.35;">${escapeHtml(title)}</p>
+              ${
+                title
+                  ? `<p style="margin:0;font-family:${font};font-size:22px;font-weight:bold;color:${escapeHtml(titleColor)};line-height:1.35;">${escapeHtml(title)}</p>`
+                  : ''
+              }
               ${
                 hostLine
-                  ? `<p style="margin:10px 0 0;font-family:${font};font-size:14px;color:${escapeHtml(mutedColor)};">${escapeHtml(hostLine)}</p>`
+                  ? `<p style="margin:${title ? '10px' : '0'} 0 0;font-family:${font};font-size:14px;color:${escapeHtml(mutedColor)};">${escapeHtml(hostLine)}</p>`
                   : ''
               }
               ${
                 bodyText
-                  ? `<p style="margin:14px 0 0;font-family:${font};font-size:15px;color:${escapeHtml(textColor)};line-height:1.5;">${escapeHtml(bodyText).replace(/\n/g, '<br>')}</p>`
+                  ? `<p style="margin:${title || hostLine ? '14px' : '0'} 0 0;font-family:${font};font-size:15px;color:${escapeHtml(textColor)};line-height:1.5;">${escapeHtml(bodyText).replace(/\n/g, '<br>')}</p>`
                   : ''
               }
             </td>
-          </tr>
+          </tr>`
+              : ''
+          }
           <tr>
             <td style="padding:28px 0 0;">
               ${detailsTable}
