@@ -7,6 +7,7 @@ import { WizardStepForm, type WizardStepFormHandle } from '@/components/wizard/W
 import { applyGeneratedPatch, wizardUi } from '@/lib/platform/copy'
 import { LOCALE_OPTIONS } from '@/lib/platform/locales'
 import { eventApexPathUrl } from '@/lib/platform/site-url'
+import { useEventConfigAutosave } from '@/lib/platform/use-event-config-autosave'
 import {
   adjacentStep,
   normalizeWizardStep,
@@ -22,7 +23,6 @@ export function WizardStudio({ event }: { event: PlatformEvent }) {
   const [step, setStep] = useState<WizardStepId>(() =>
     normalizeWizardStep(event.wizard.currentStep, event.config),
   )
-  const [saveState, setSaveState] = useState<'saved' | 'saving' | 'error'>('saved')
   const [mobileTab, setMobileTab] = useState<'form' | 'preview'>('form')
   const [publishError, setPublishError] = useState('')
   const [publishing, setPublishing] = useState(false)
@@ -31,9 +31,21 @@ export function WizardStudio({ event }: { event: PlatformEvent }) {
       event.wizard.completedSteps.map((id) => normalizeWizardStep(id, event.config)),
     ),
   )
-  const skipFirst = useRef(true)
   const stepForm = useRef<WizardStepFormHandle>(null)
-  const updatedAtRef = useRef(event.updatedAt)
+
+  const { saveState, updatedAtRef } = useEventConfigAutosave({
+    eventId: event.id,
+    config,
+    initialUpdatedAt: event.updatedAt,
+    wizard: {
+      currentStep: step,
+      completedSteps: () => {
+        completed.current.add(step)
+        return [...completed.current]
+      },
+    },
+    onGuestsFromServer: setGuests,
+  })
 
   const ui = wizardUi(config.locales.default)
   const steps = wizardSteps(config.locales.default, config)
@@ -49,41 +61,6 @@ export function WizardStudio({ event }: { event: PlatformEvent }) {
       setStep(steps[0]?.id || 'basics')
     }
   }, [steps, step])
-
-  useEffect(() => {
-    if (skipFirst.current) {
-      skipFirst.current = false
-      return
-    }
-    setSaveState('saving')
-    const handle = window.setTimeout(async () => {
-      completed.current.add(step)
-      const res = await fetch(`/api/platform/events/${event.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          config,
-          wizard: { currentStep: step, completedSteps: [...completed.current] },
-          expectedUpdatedAt: updatedAtRef.current,
-        }),
-      })
-      const data = (await res.json().catch(() => null)) as
-        | { event?: PlatformEvent; code?: string }
-        | null
-      if (!res.ok) {
-        if (res.status === 409 && data?.event) {
-          setConfig(data.event.config)
-          updatedAtRef.current = data.event.updatedAt
-          setGuests(data.event.guests)
-        }
-        setSaveState('error')
-        return
-      }
-      if (data?.event?.updatedAt) updatedAtRef.current = data.event.updatedAt
-      setSaveState('saved')
-    }, 450)
-    return () => window.clearTimeout(handle)
-  }, [config, step, event.id])
 
   function goToStep(nextStep: WizardStepId) {
     stepForm.current?.flushPending()
@@ -115,26 +92,40 @@ export function WizardStudio({ event }: { event: PlatformEvent }) {
   async function publish() {
     setPublishing(true)
     setPublishError('')
-    const patchRes = await fetch(`/api/platform/events/${event.id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        config,
-        wizard: { currentStep: 'review', completedSteps: [...completed.current, 'review'] },
-        expectedUpdatedAt: updatedAtRef.current,
-      }),
-    })
-    const patchData = (await patchRes.json().catch(() => null)) as
-      | { event?: PlatformEvent; error?: string }
-      | null
-    if (patchRes.ok && patchData?.event?.updatedAt) {
-      updatedAtRef.current = patchData.event.updatedAt
-    } else if (patchRes.status === 409 && patchData?.event) {
-      setConfig(patchData.event.config)
-      updatedAtRef.current = patchData.event.updatedAt
-      setGuests(patchData.event.guests)
+    completed.current.add('review')
+    const completedSteps = [...completed.current]
+    let patchOk = false
+    for (let attempt = 0; attempt < 3 && !patchOk; attempt++) {
+      const patchRes = await fetch(`/api/platform/events/${event.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          config,
+          wizard: { currentStep: 'review', completedSteps },
+          expectedUpdatedAt: updatedAtRef.current,
+        }),
+      })
+      const patchData = (await patchRes.json().catch(() => null)) as
+        | { event?: PlatformEvent; error?: string }
+        | null
+      if (patchRes.ok) {
+        if (patchData?.event?.updatedAt) updatedAtRef.current = patchData.event.updatedAt
+        patchOk = true
+        break
+      }
+      if (patchRes.status === 409 && patchData?.event) {
+        // Keep local config; refresh token and retry so publish does not wipe edits.
+        updatedAtRef.current = patchData.event.updatedAt
+        if (Array.isArray(patchData.event.guests)) setGuests(patchData.event.guests)
+        continue
+      }
       setPublishing(false)
-      setPublishError(patchData.error || 'Conflito ao guardar — recarregue e tente de novo')
+      setPublishError(patchData?.error || 'Não foi possível guardar antes de publicar')
+      return
+    }
+    if (!patchOk) {
+      setPublishing(false)
+      setPublishError('Conflito ao guardar — tente de novo')
       return
     }
     const res = await fetch(`/api/platform/events/${event.id}/publish`, { method: 'POST' })

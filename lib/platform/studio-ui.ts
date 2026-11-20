@@ -25,6 +25,8 @@ export type CardDesignUi = {
   cardMessage: string
   intro: string
   tip: string
+  /** Hint under Subject (email): blank keeps the field empty; send uses the default. */
+  subjectHint: string
   colors: Record<string, string>
   texts: Record<string, string>
   images: Record<string, string>
@@ -242,6 +244,7 @@ const EN_CARD: CardDesignUi = {
   cardMessage: 'Card message',
   intro: 'Intro',
   tip: 'Tip',
+  subjectHint: 'Leave blank to use the default subject when sending. Placeholder is only a suggestion.',
   colors: {
     pageColor: 'Page color',
     envelopeColor: 'Envelope color',
@@ -317,6 +320,8 @@ const PT_CARD: CardDesignUi = card(
     cardMessage: 'Mensagem no cartão',
     intro: 'Intro',
     tip: 'Dica / tip',
+    subjectHint:
+      'Deixe em branco para usar o assunto padrão no envio. O placeholder é só uma sugestão.',
     colors: {
       pageColor: 'Cor da página',
       envelopeColor: 'Cor do envelope',
@@ -825,6 +830,8 @@ const STUDIO_UI: Record<EventLocale, StudioUi> = {
     cardMessage: 'Mensaje en la tarjeta',
     intro: 'Intro',
     tip: 'Consejo',
+    subjectHint:
+      'Déjalo vacío para usar el asunto predeterminado al enviar. El placeholder es solo una sugerencia.',
   }, EN_CARD), {
     events: 'Eventos',
     team: 'Equipo',
@@ -878,6 +885,7 @@ const STUDIO_UI: Record<EventLocale, StudioUi> = {
     cardMessage: 'הודעה בכרטיס',
     intro: 'Intro',
     tip: 'טיפ',
+    subjectHint: 'השאירו ריק כדי להשתמש בנושא ברירת המחדל בשליחה. ה־placeholder הוא רק הצעה.',
   }, EN_CARD), {
     events: 'אירועים',
     team: 'צוות',

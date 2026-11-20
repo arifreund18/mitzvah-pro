@@ -15,6 +15,7 @@ import {
   mailHtml,
   mailRsvpConfirmationHtml,
   mailRsvpConfirmationSubject,
+  mailSubject,
 } from '@/lib/platform/mail'
 import { normalizeGuest } from '@/lib/platform/normalize-guest'
 import {
@@ -93,6 +94,11 @@ export function LivePreview({
     if (emailKind !== 'invite') return ''
     return mailHtml('invite', config, previewHost, previewGuest)
   }, [emailKind, config, previewGuest, previewHost])
+
+  const inviteSubject = useMemo(() => {
+    if (emailKind !== 'invite') return ''
+    return mailSubject('invite', config, previewGuest)
+  }, [emailKind, config, previewGuest])
 
   const reminderMailSrcDoc = useMemo(() => {
     if (emailKind !== 'reminder') return ''
@@ -315,9 +321,12 @@ export function LivePreview({
                   {mail.emailPreview} · {mail.emailInvite}
                 </p>
                 <p className="mt-1 text-white/70">{mail.toGuests}</p>
+                {inviteSubject ? (
+                  <p className="mt-2 font-medium text-white">{inviteSubject}</p>
+                ) : null}
               </div>
               <iframe
-                key={`invite-${inviteMailSrcDoc.length}-${config.invitation.body}`}
+                key={`invite-${inviteMailSrcDoc.length}-${config.invitation.body}-${config.invitation.design.subject}`}
                 title={mail.emailInvite}
                 className="block h-[760px] w-full border-0 bg-white"
                 srcDoc={inviteMailSrcDoc}

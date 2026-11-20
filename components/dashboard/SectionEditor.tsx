@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from 'react'
 import { WizardStepForm, type WizardStepFormHandle } from '@/components/wizard/WizardStepForm'
 import type { SectionEditorId } from '@/lib/platform/section-editor'
 import { fillTemplate, sectionLabelsFor, studioUi } from '@/lib/platform/studio-ui'
+import { useEventConfigAutosave } from '@/lib/platform/use-event-config-autosave'
 import type { EventConfig, Guest, PlatformEvent } from '@/lib/platform/types'
 
 export function SectionEditor({
@@ -19,40 +20,14 @@ export function SectionEditor({
   const label = sectionLabelsFor(locale)[section]
   const [config, setConfig] = useState<EventConfig>(event.config)
   const [guests, setGuests] = useState<Guest[]>(event.guests)
-  const [saveState, setSaveState] = useState<'saved' | 'saving' | 'error' | 'dirty'>('saved')
-  const skipFirst = useRef(true)
   const formRef = useRef<WizardStepFormHandle>(null)
-  const updatedAtRef = useRef(event.updatedAt)
 
-  useEffect(() => {
-    if (skipFirst.current) {
-      skipFirst.current = false
-      return
-    }
-    setSaveState('saving')
-    const handle = window.setTimeout(async () => {
-      const res = await fetch(`/api/platform/events/${event.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ config, expectedUpdatedAt: updatedAtRef.current }),
-      })
-      const data = (await res.json().catch(() => null)) as
-        | { event?: PlatformEvent }
-        | null
-      if (!res.ok) {
-        if (res.status === 409 && data?.event) {
-          setConfig(data.event.config)
-          updatedAtRef.current = data.event.updatedAt
-          setGuests(data.event.guests)
-        }
-        setSaveState('error')
-        return
-      }
-      if (data?.event?.updatedAt) updatedAtRef.current = data.event.updatedAt
-      setSaveState('saved')
-    }, 450)
-    return () => window.clearTimeout(handle)
-  }, [config, event.id])
+  const { saveState, setSaveState } = useEventConfigAutosave({
+    eventId: event.id,
+    config,
+    initialUpdatedAt: event.updatedAt,
+    onGuestsFromServer: setGuests,
+  })
 
   useEffect(() => {
     function onBeforeUnload(e: BeforeUnloadEvent) {

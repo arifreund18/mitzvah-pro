@@ -7,11 +7,13 @@ import { Field, TextArea, TextInput } from '@/components/wizard/fields'
 import { applyGeneratedPatch, typeLabel, wizardUi } from '@/lib/platform/copy'
 import { getLocalized } from '@/lib/platform/i18n-content'
 import { uid } from '@/lib/platform/ids'
+import { defaultMailSubject } from '@/lib/platform/mail'
 import {
   EVENT_TYPES,
   NOTIFY_MODES,
   PLACE_CATEGORIES,
   THEMES,
+  type CardDesign,
   type EventConfig,
   type EventLocale,
   type Guest,
@@ -51,7 +53,7 @@ export const WizardStepForm = forwardRef<
     step: string
     config: EventConfig
     guests: Guest[]
-    onChange: (next: EventConfig) => void
+    onChange: (next: EventConfig | ((prev: EventConfig) => EventConfig)) => void
     onGuests: (next: Guest[], opts?: { persist?: boolean }) => void
     /** After server-side import: reload guests without a full PUT replace. */
     onGuestsReload?: () => void | Promise<void>
@@ -61,8 +63,27 @@ export const WizardStepForm = forwardRef<
   const ui = wizardUi(config.locales.default)
   const studio = studioUi(config.locales.default)
   const locale = config.locales.default
-  const set = (next: EventConfig) => onChange(next)
-  const patch = (fn: (draft: EventConfig) => EventConfig) => onChange(applyGeneratedPatch(config, fn))
+  const set = (next: EventConfig | ((prev: EventConfig) => EventConfig)) => onChange(next)
+  const patch = (fn: (draft: EventConfig) => EventConfig) =>
+    onChange((prev) => applyGeneratedPatch(prev, fn))
+  const patchDesign = (surface: 'invitation' | 'saveTheDate', partial: Partial<CardDesign>) =>
+    set((prev) =>
+      surface === 'invitation'
+        ? {
+            ...prev,
+            invitation: {
+              ...prev.invitation,
+              design: { ...prev.invitation.design, ...partial },
+            },
+          }
+        : {
+            ...prev,
+            saveTheDate: {
+              ...prev.saveTheDate,
+              design: { ...prev.saveTheDate.design, ...partial },
+            },
+          },
+    )
   const draftGuestForm = useRef<HTMLFormElement>(null)
 
   function commitDraftGuest(form: HTMLFormElement) {
@@ -964,9 +985,8 @@ export const WizardStepForm = forwardRef<
           design={config.saveTheDate.design}
           eventId={eventId}
           locale={locale}
-          onChange={(design) =>
-            set({ ...config, saveTheDate: { ...config.saveTheDate, design } })
-          }
+          subjectPlaceholder={defaultMailSubject('std', config, locale)}
+          onChange={(partial) => patchDesign('saveTheDate', partial)}
         />
       </div>
     )
@@ -979,25 +999,37 @@ export const WizardStepForm = forwardRef<
         <Field label={ui.greeting}>
           <TextInput
             value={config.invitation.greeting}
-            onChange={(e) =>
-              set({ ...config, invitation: { ...config.invitation, greeting: e.target.value } })
-            }
+            onChange={(e) => {
+              const value = e.target.value
+              set((prev) => ({
+                ...prev,
+                invitation: { ...prev.invitation, greeting: value },
+              }))
+            }}
           />
         </Field>
         <Field label={ui.inviteBody}>
           <TextArea
             value={config.invitation.body}
-            onChange={(e) =>
-              set({ ...config, invitation: { ...config.invitation, body: e.target.value } })
-            }
+            onChange={(e) => {
+              const value = e.target.value
+              set((prev) => ({
+                ...prev,
+                invitation: { ...prev.invitation, body: value },
+              }))
+            }}
           />
         </Field>
         <Field label={ui.hostLine}>
           <TextInput
             value={config.invitation.hostLine}
-            onChange={(e) =>
-              set({ ...config, invitation: { ...config.invitation, hostLine: e.target.value } })
-            }
+            onChange={(e) => {
+              const value = e.target.value
+              set((prev) => ({
+                ...prev,
+                invitation: { ...prev.invitation, hostLine: value },
+              }))
+            }}
           />
         </Field>
         <Field label={ui.seal} hint={ui.sealHint}>
@@ -1049,15 +1081,27 @@ export const WizardStepForm = forwardRef<
           design={config.invitation.design}
           eventId={eventId}
           locale={locale}
-          onChange={(design) =>
-            set({ ...config, invitation: { ...config.invitation, design } })
-          }
+          subjectPlaceholder={defaultMailSubject('invite', config, locale)}
+          onChange={(partial) => patchDesign('invitation', partial)}
         />
       </div>
     )
   }
 
   if (step === 'rsvp') {
+    const inviteDesign = config.invitation.design
+    const confirmationTitleSuggestion =
+      (inviteDesign.eventName || inviteDesign.title || '').trim() ||
+      (config.basics.honoreeName
+        ? `${config.basics.honoreeName}'s ${typeLabel(config.basics.type, locale)}`
+        : '')
+    const confirmationHostsSuggestion = (
+      inviteDesign.hosts?.trim() ||
+      config.invitation.hostLine ||
+      ''
+    ).trim()
+    const confirmationBodySuggestion = (inviteDesign.message || '').trim()
+
     return (
       <div className="space-y-4">
         <Field label={ui.deadline}>
@@ -1189,34 +1233,40 @@ export const WizardStepForm = forwardRef<
           <Field label={ui.confirmationEmailTitle}>
             <TextInput
               value={config.rsvp.confirmationEmailTitle || ''}
-              onChange={(e) =>
-                set({
-                  ...config,
-                  rsvp: { ...config.rsvp, confirmationEmailTitle: e.target.value },
-                })
-              }
+              placeholder={confirmationTitleSuggestion || undefined}
+              onChange={(e) => {
+                const value = e.target.value
+                set((prev) => ({
+                  ...prev,
+                  rsvp: { ...prev.rsvp, confirmationEmailTitle: value },
+                }))
+              }}
             />
           </Field>
           <Field label={ui.confirmationEmailHosts}>
             <TextInput
               value={config.rsvp.confirmationEmailHosts || ''}
-              onChange={(e) =>
-                set({
-                  ...config,
-                  rsvp: { ...config.rsvp, confirmationEmailHosts: e.target.value },
-                })
-              }
+              placeholder={confirmationHostsSuggestion || undefined}
+              onChange={(e) => {
+                const value = e.target.value
+                set((prev) => ({
+                  ...prev,
+                  rsvp: { ...prev.rsvp, confirmationEmailHosts: value },
+                }))
+              }}
             />
           </Field>
           <Field label={ui.confirmationEmailBody}>
             <TextArea
               value={config.rsvp.confirmationEmailBody || ''}
-              onChange={(e) =>
-                set({
-                  ...config,
-                  rsvp: { ...config.rsvp, confirmationEmailBody: e.target.value },
-                })
-              }
+              placeholder={confirmationBodySuggestion || undefined}
+              onChange={(e) => {
+                const value = e.target.value
+                set((prev) => ({
+                  ...prev,
+                  rsvp: { ...prev.rsvp, confirmationEmailBody: value },
+                }))
+              }}
             />
           </Field>
         </div>

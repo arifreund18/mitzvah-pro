@@ -138,7 +138,7 @@ describe('guestHasYesRsvp', () => {
 })
 
 describe('mailRsvpConfirmationHtml', () => {
-  it('renders attending layout with invite card, hosts/body, and token links', () => {
+  it('renders attending layout with invite card and token links', () => {
     const guest = normalizeGuest({
       familyName: 'Daniela Nudel Freund',
       email: 'guest@example.com',
@@ -153,9 +153,10 @@ describe('mailRsvpConfirmationHtml', () => {
     assert.match(html, /Going Daniela/)
     assert.match(html, /EDIT RESPONSE/)
     assert.match(html, /Daniela Nudel Freund/)
-    assert.match(html, /It&#39;s Beni&#39;s Bar Mitzvah!|It's Beni's Bar Mitzvah!/)
-    assert.match(html, /Hosted by Gen and Sam Katz/)
-    assert.match(html, /Come join us to celebrate our MVP, Beni!/)
+    // Empty confirmation fields stay blank — no invitation-copy fallback under the card.
+    assert.doesNotMatch(html, /It&#39;s Beni&#39;s Bar Mitzvah!|It's Beni's Bar Mitzvah!/)
+    assert.doesNotMatch(html, /Hosted by Gen and Sam Katz/)
+    assert.doesNotMatch(html, /Come join us to celebrate our MVP, Beni!/)
     assert.doesNotMatch(html, /Invitation body should not appear/)
     assert.match(html, /Sat\. Oct\. 10/)
     assert.match(html, /5:00pm - 10:30pm EDT/)
@@ -172,7 +173,7 @@ describe('mailRsvpConfirmationHtml', () => {
     assert.match(html, /calendar\.google|\/api\/platform\/calendar\//)
   })
 
-  it('omits the body line when design.message is empty', () => {
+  it('omits title, hosts, and body when confirmation email fields are blank', () => {
     const guest = normalizeGuest({
       familyName: 'Katz',
       email: 'guest@example.com',
@@ -181,12 +182,13 @@ describe('mailRsvpConfirmationHtml', () => {
       people: [{ id: '1', name: 'Sam', type: 'adult', status: 'yes', meal: '', dietary: '' }],
     })
     const config = inviteConfig()
-    config.invitation.design.message = ''
     config.invitation.body = 'Should stay out of the email'
 
     const html = mailRsvpConfirmationHtml(config, 'mitzvah.pro', guest)
     assert.doesNotMatch(html, /Should stay out of the email/)
-    assert.match(html, /Hosted by Gen and Sam Katz/)
+    assert.doesNotMatch(html, /Hosted by Gen and Sam Katz/)
+    assert.doesNotMatch(html, /Come join us to celebrate our MVP/)
+    assert.doesNotMatch(html, /It&#39;s Beni&#39;s Bar Mitzvah!|It's Beni's Bar Mitzvah!/)
   })
 
   it('lists going and not-going names when the family is mixed', () => {
@@ -297,8 +299,8 @@ describe('mailRsvpConfirmationHtml', () => {
     assert.match(html, /Você confirmou presença\./)
     assert.match(html, /Vai Ana/)
     assert.match(html, /EDITAR RESPOSTA/)
-    assert.match(html, /Família Freund/)
-    assert.match(html, /Venha celebrar conosco!/)
+    assert.doesNotMatch(html, /Família Freund/)
+    assert.doesNotMatch(html, /Venha celebrar conosco!/)
     assert.match(html, /\/rsvp\/pt-tok/)
     assert.match(html, /\/card\/pt-tok/)
     assert.equal(mailRsvpConfirmationSubject(config, guest), 'RSVP confirmado — Beni Freund')

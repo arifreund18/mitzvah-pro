@@ -190,14 +190,18 @@ export function CardDesignFields({
   onChange,
   eventId,
   locale = 'en',
+  subjectPlaceholder,
 }: {
   design: CardDesign
-  onChange: (next: CardDesign) => void
+  /** Merge a partial into the latest design (parent should use a functional state update). */
+  onChange: (patch: Partial<CardDesign>) => void
   eventId?: string
   locale?: EventLocale
+  /** Shown only when Subject (email) is blank — never written into the field. */
+  subjectPlaceholder?: string
 }) {
   const ui = studioUi(locale).card
-  const patch = (partial: Partial<CardDesign>) => onChange({ ...design, ...partial })
+  const patch = (partial: Partial<CardDesign>) => onChange(partial)
 
   return (
     <details className="rounded-2xl border border-white/10 bg-white/5 p-4" open>
@@ -359,10 +363,16 @@ export function CardDesignFields({
 
         <div className="grid gap-3 sm:grid-cols-2">
           {TEXT_KEYS.map(({ key, placeholder }) => (
-            <Field key={key} label={ui.texts[String(key)] || String(key)}>
+            <Field
+              key={key}
+              label={ui.texts[String(key)] || String(key)}
+              hint={key === 'subject' ? ui.subjectHint : undefined}
+            >
               <TextInput
                 value={String(design[key] || '')}
-                placeholder={placeholder}
+                placeholder={
+                  key === 'subject' ? subjectPlaceholder || placeholder : placeholder
+                }
                 onChange={(e) => patch({ [key]: e.target.value })}
               />
             </Field>
