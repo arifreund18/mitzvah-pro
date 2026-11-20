@@ -189,7 +189,7 @@ export type CardDesign = {
   tip: string
   greeting: string
   intro: string
-  // Email / CTA
+  /** Email subject override. Empty keeps the field blank in the editor; send uses the type default. */
   subject: string
   ctaView: string
   ctaCalendar: string

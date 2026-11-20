@@ -180,7 +180,8 @@ export function createDefaultConfig(partial?: {
       enabled: true,
       message: copy.stdMessage,
       envelopeLabel: copy.envelopeLabel,
-      design: { ...design, subject: copy.stdMessage },
+      // Subject stays blank — mailSubject falls back to the default; placeholder shows the suggestion.
+      design: { ...design },
     },
     invitation: {
       greeting: copy.greeting,

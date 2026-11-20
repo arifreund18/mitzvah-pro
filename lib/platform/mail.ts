@@ -151,17 +151,24 @@ function eventTimeLine(kind: 'std' | 'invite', config: EventConfig, locale: Even
   return config.basics.startTime || ''
 }
 
+/** Default subject when design.subject is blank (used for send + placeholders). */
+export function defaultMailSubject(
+  kind: 'std' | 'invite',
+  config: EventConfig,
+  locale?: EventLocale,
+): string {
+  const name = config.basics.honoreeName || 'Mitzvah.pro'
+  const loc = locale || config.locales.default
+  if (kind === 'std') return `Save the Date — ${name}`
+  return `${typeLabel(config.basics.type, loc)} — ${name}`
+}
+
 export function mailSubject(kind: 'std' | 'invite', config: EventConfig, guest?: Guest): string {
   const name = config.basics.honoreeName || 'Mitzvah.pro'
   const locale = guest ? localeOf(guest, config) : config.locales.default
-  if (kind === 'std') {
-    const custom = designOf('std', config, locale).subject?.trim()
-    if (custom) return custom.includes('{name}') ? custom.replaceAll('{name}', name) : custom
-    return `Save the Date — ${name}`
-  }
-  const custom = designOf('invite', config, locale).subject?.trim()
+  const custom = designOf(kind, config, locale).subject?.trim()
   if (custom) return custom.includes('{name}') ? custom.replaceAll('{name}', name) : custom
-  return `${typeLabel(config.basics.type, locale)} — ${name}`
+  return defaultMailSubject(kind, config, locale)
 }
 
 /** Bar-Beni–style invitation email: view-card link, colored card+seal, details, RSVP. */

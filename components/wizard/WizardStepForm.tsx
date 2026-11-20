@@ -7,11 +7,13 @@ import { Field, TextArea, TextInput } from '@/components/wizard/fields'
 import { applyGeneratedPatch, typeLabel, wizardUi } from '@/lib/platform/copy'
 import { getLocalized } from '@/lib/platform/i18n-content'
 import { uid } from '@/lib/platform/ids'
+import { defaultMailSubject } from '@/lib/platform/mail'
 import {
   EVENT_TYPES,
   NOTIFY_MODES,
   PLACE_CATEGORIES,
   THEMES,
+  type CardDesign,
   type EventConfig,
   type EventLocale,
   type Guest,
@@ -51,7 +53,7 @@ export const WizardStepForm = forwardRef<
     step: string
     config: EventConfig
     guests: Guest[]
-    onChange: (next: EventConfig) => void
+    onChange: (next: EventConfig | ((prev: EventConfig) => EventConfig)) => void
     onGuests: (next: Guest[], opts?: { persist?: boolean }) => void
     /** After server-side import: reload guests without a full PUT replace. */
     onGuestsReload?: () => void | Promise<void>
@@ -61,8 +63,27 @@ export const WizardStepForm = forwardRef<
   const ui = wizardUi(config.locales.default)
   const studio = studioUi(config.locales.default)
   const locale = config.locales.default
-  const set = (next: EventConfig) => onChange(next)
-  const patch = (fn: (draft: EventConfig) => EventConfig) => onChange(applyGeneratedPatch(config, fn))
+  const set = (next: EventConfig | ((prev: EventConfig) => EventConfig)) => onChange(next)
+  const patch = (fn: (draft: EventConfig) => EventConfig) =>
+    onChange((prev) => applyGeneratedPatch(prev, fn))
+  const patchDesign = (surface: 'invitation' | 'saveTheDate', partial: Partial<CardDesign>) =>
+    set((prev) =>
+      surface === 'invitation'
+        ? {
+            ...prev,
+            invitation: {
+              ...prev.invitation,
+              design: { ...prev.invitation.design, ...partial },
+            },
+          }
+        : {
+            ...prev,
+            saveTheDate: {
+              ...prev.saveTheDate,
+              design: { ...prev.saveTheDate.design, ...partial },
+            },
+          },
+    )
   const draftGuestForm = useRef<HTMLFormElement>(null)
 
   function commitDraftGuest(form: HTMLFormElement) {
@@ -964,9 +985,8 @@ export const WizardStepForm = forwardRef<
           design={config.saveTheDate.design}
           eventId={eventId}
           locale={locale}
-          onChange={(design) =>
-            set({ ...config, saveTheDate: { ...config.saveTheDate, design } })
-          }
+          subjectPlaceholder={defaultMailSubject('std', config, locale)}
+          onChange={(partial) => patchDesign('saveTheDate', partial)}
         />
       </div>
     )
@@ -1049,9 +1069,8 @@ export const WizardStepForm = forwardRef<
           design={config.invitation.design}
           eventId={eventId}
           locale={locale}
-          onChange={(design) =>
-            set({ ...config, invitation: { ...config.invitation, design } })
-          }
+          subjectPlaceholder={defaultMailSubject('invite', config, locale)}
+          onChange={(partial) => patchDesign('invitation', partial)}
         />
       </div>
     )
