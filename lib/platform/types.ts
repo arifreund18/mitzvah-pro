@@ -450,6 +450,8 @@ export type HostFollowUp = {
   audience: HostFollowUpAudience
   /** When set, only these family ids are targeted (overrides audience filter). */
   guestIds: string[]
+  /** Client idempotency key — duplicate POSTs replay the same campaign. */
+  clientRequestId?: string
   createdAt: string
   sentAt: string | null
   sentCount: number

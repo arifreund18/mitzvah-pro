@@ -1,81 +1,16 @@
 import { NextResponse } from 'next/server'
 import { getEvent, markMailSent, updateEvent, appendEmailLog } from '@/lib/platform/store'
 import { requireEventAccess } from '@/lib/platform/session'
-import { isEmailConfigured, sendEmail } from '@/lib/email/send'
+import { isEmailConfigured } from '@/lib/email/send'
 import { provisionEventMailDomain, refreshEventMailDomain } from '@/lib/email/provision-domain'
 import { guestMailRecipients } from '@/lib/platform/family-emails'
-import {
-  eventHostReplyTo,
-  eventMailConfigurationSet,
-  eventSendFrom,
-} from '@/lib/platform/mail-domain'
-import { mailHtml, mailSubject } from '@/lib/platform/mail'
-import {
-  createMailJob,
-  getActiveMailJobForEvent,
-  MAIL_BATCH_SIZE,
-} from '@/lib/platform/mail-queue'
+import { eventMailConfigurationSet, eventSendFrom } from '@/lib/platform/mail-domain'
+import { createMailJobExclusive } from '@/lib/platform/mail-queue'
 import { mailTargetsEmptyReason, selectMailTargets } from '@/lib/platform/mail-targets'
-import type { EventConfig, Guest } from '@/lib/platform/types'
 
 type Ctx = { params: Promise<{ id: string }> }
 
 export const maxDuration = 30
-
-async function sendOne(opts: {
-  from: string
-  replyTo?: string
-  configurationSetName?: string
-  kind: 'std' | 'invite'
-  config: EventConfig
-  host: string
-  guest: Guest
-}): Promise<{
-  ok: boolean
-  messageId: string | null
-  error: string
-  retryable: boolean
-  errorKind: string | null
-  recipients: string[]
-}> {
-  const recipients = guestMailRecipients(opts.guest)
-  if (recipients.length === 0) {
-    return {
-      ok: false,
-      messageId: null,
-      error: 'sem email',
-      retryable: false,
-      errorKind: null,
-      recipients: [],
-    }
-  }
-  const result = await sendEmail({
-    from: opts.from,
-    to: recipients,
-    replyTo: opts.replyTo,
-    configurationSetName: opts.configurationSetName,
-    subject: mailSubject(opts.kind, opts.config, opts.guest),
-    html: mailHtml(opts.kind, opts.config, opts.host, opts.guest),
-  })
-  if (!result.ok) {
-    return {
-      ok: false,
-      messageId: null,
-      error: result.error || 'send_failed',
-      retryable: result.retryable,
-      errorKind: result.errorKind,
-      recipients,
-    }
-  }
-  return {
-    ok: true,
-    messageId: result.messageId,
-    error: '',
-    retryable: false,
-    errorKind: null,
-    recipients,
-  }
-}
 
 export async function POST(request: Request, ctx: Ctx) {
   const { id } = await ctx.params
@@ -138,7 +73,6 @@ export async function POST(request: Request, ctx: Ctx) {
   }
 
   const from = eventSendFrom(config)
-  const replyTo = eventHostReplyTo(config)
   const configurationSetName = eventMailConfigurationSet(config)
   if (!emailReady) {
     const marked = await markMailSent(
@@ -177,127 +111,47 @@ export async function POST(request: Request, ctx: Ctx) {
     )
   }
 
-  // Large sends: enqueue and kick background processor (rate-limited in process).
-  if (targets.length > MAIL_BATCH_SIZE) {
-    // Double-click / second tab must not open a parallel job for the same kind
-    // (claim is per-job; two jobs would both email the same guests).
-    const active = await getActiveMailJobForEvent(id, kind)
-    if (active) {
-      return NextResponse.json(
-        {
-          error: 'Já existe um envio em curso para este evento. Aguarde terminar ou cancele a fila.',
-          queued: true,
-          jobId: active.id,
-          total: active.guestIds.length,
-          from,
-          mail: config.domain.mail,
-        },
-        { status: 409 },
-      )
-    }
-    const job = await createMailJob({
-      eventId: id,
-      kind,
-      guestIds: targets.map((guest) => guest.id),
-      host,
-      from,
-      configurationSetName,
-    })
-    const processUrl = new URL(`/api/platform/events/${id}/send/process`, request.url)
-    const cookie = request.headers.get('cookie') || ''
-    void fetch(processUrl.toString(), {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(cookie ? { cookie } : {}),
-      },
-      body: JSON.stringify({ jobId: job.id }),
-    }).catch(() => undefined)
-
-    return NextResponse.json({
-      queued: true,
-      jobId: job.id,
-      total: targets.length,
-      from,
-      mail: config.domain.mail,
-    })
-  }
-
-  const deliveredIds: string[] = []
-  const deferredIds: string[] = []
-  const errors: string[] = []
-  for (const guest of targets) {
-    const result = await sendOne({ from, replyTo, configurationSetName, kind, config, host, guest })
-    const toEmail = result.recipients.join(', ') || guest.email
-    if (result.ok) {
-      deliveredIds.push(guest.id)
-      await appendEmailLog({
-        eventId: id,
-        familyId: guest.id,
-        type: kind,
-        status: 'sent',
-        toEmail,
-        messageId: result.messageId,
-      })
-    } else if (result.retryable) {
-      deferredIds.push(guest.id)
-      await appendEmailLog({
-        eventId: id,
-        familyId: guest.id,
-        type: kind,
-        status: 'deferred',
-        toEmail,
-        error: `${result.errorKind || 'retryable'}: ${result.error}`,
-      })
-      errors.push(`${toEmail || guest.id}: deferred (${result.errorKind})`)
-    } else {
-      errors.push(`${toEmail || guest.id}: ${result.error}`)
-      await appendEmailLog({
-        eventId: id,
-        familyId: guest.id,
-        type: kind,
-        status: 'failed',
-        toEmail,
-        error: result.error,
-      })
-    }
-  }
-
-  if (deliveredIds.length === 0 && deferredIds.length === 0) {
+  // Always enqueue (even 1 guest): claimed batches + exclusive job prevent
+  // double-click / two-tab duplicate SES sends (Adissi-class flood).
+  const exclusive = await createMailJobExclusive({
+    eventId: id,
+    kind,
+    guestIds: targets.map((guest) => guest.id),
+    host,
+    from,
+    configurationSetName,
+  })
+  if (!exclusive.created) {
     return NextResponse.json(
       {
-        error: errors[0] || 'Provedor de email recusou o envio',
-        errors,
-        delivered: 0,
+        error: 'Já existe um envio em curso para este evento. Aguarde terminar ou cancele a fila.',
+        queued: true,
+        jobId: exclusive.job.id,
+        total: exclusive.job.guestIds.length,
         from,
         mail: config.domain.mail,
       },
-      { status: 502 },
+      { status: 409 },
     )
   }
 
-  // Persist deferred guests in a job so they are not lost.
-  if (deferredIds.length) {
-    await createMailJob({
-      eventId: id,
-      kind,
-      guestIds: deferredIds,
-      host,
-      from,
-      configurationSetName,
-    })
-  }
+  const job = exclusive.job
+  const processUrl = new URL(`/api/platform/events/${id}/send/process`, request.url)
+  const cookie = request.headers.get('cookie') || ''
+  void fetch(processUrl.toString(), {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(cookie ? { cookie } : {}),
+    },
+    body: JSON.stringify({ jobId: job.id }),
+  }).catch(() => undefined)
 
-  const marked = deliveredIds.length ? await markMailSent(id, kind, deliveredIds) : null
   return NextResponse.json({
-    event: marked?.event || event,
-    sent: marked?.sent || 0,
-    delivered: deliveredIds.length,
-    deferred: deferredIds.length,
-    failed: errors.length - deferredIds.length,
-    errors: errors.length ? errors : undefined,
+    queued: true,
+    jobId: job.id,
+    total: targets.length,
     from,
-    local: false,
     mail: config.domain.mail,
   })
 }

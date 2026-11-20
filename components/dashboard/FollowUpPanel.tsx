@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { studioUi } from '@/lib/platform/studio-ui'
 import type {
@@ -14,12 +14,22 @@ import type {
 const TYPES: HostFollowUpType[] = ['reminder', 'message', 'update']
 const AUDIENCES: HostFollowUpAudience[] = ['all', 'yes', 'pending', 'no']
 
+function newClientRequestId(): string {
+  if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
+    return crypto.randomUUID()
+  }
+  return `fu-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`
+}
+
 export function FollowUpPanel({
   event,
   locale = 'en',
+  sendLocked = false,
 }: {
   event: PlatformEvent
   locale?: EventLocale
+  /** When parent is running STD/invite bulk send, lock this panel too. */
+  sendLocked?: boolean
 }) {
   const router = useRouter()
   const ui = studioUi(locale)
@@ -30,12 +40,16 @@ export function FollowUpPanel({
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState('')
   const [tone, setTone] = useState<'ok' | 'err'>('ok')
+  const inFlight = useRef(false)
 
   const history = useMemo(
     () =>
       [...(event.config.followUps || [])].sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
     [event.config.followUps],
   )
+
+  const bodyReady = body.trim().length >= 3
+  const canSend = bodyReady && !busy && !sendLocked
 
   const typeLabel = (value: HostFollowUpType) => {
     if (value === 'reminder') return ui.followUpTypeReminder
@@ -51,17 +65,29 @@ export function FollowUpPanel({
   }
 
   async function send() {
-    if (busy) return
+    if (!canSend || inFlight.current) return
+    if (!bodyReady) {
+      setTone('err')
+      setMessage(ui.followUpBodyRequired)
+      return
+    }
+    inFlight.current = true
     setBusy(true)
     setMessage('')
+    const clientRequestId = newClientRequestId()
+    const outgoingBody = body
     const res = await fetch(`/api/platform/events/${event.id}/follow-ups`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'Idempotency-Key': clientRequestId,
+      },
       body: JSON.stringify({
         type,
         audience,
         subject: subject.trim() || undefined,
-        body,
+        body: outgoingBody,
+        clientRequestId,
       }),
     })
     const data = (await res.json().catch(() => null)) as {
@@ -75,7 +101,9 @@ export function FollowUpPanel({
       recipients?: number
       from?: string
       followUp?: HostFollowUp
+      replayed?: boolean
     } | null
+    inFlight.current = false
     setBusy(false)
     if (!res.ok) {
       setTone('err')
@@ -94,6 +122,7 @@ export function FollowUpPanel({
         }`,
       )
     }
+    // Clear the message that was just sent so a second click cannot re-fire it.
     setBody('')
     setSubject('')
     router.refresh()
@@ -110,7 +139,8 @@ export function FollowUpPanel({
           <select
             value={type}
             onChange={(e) => setType(e.target.value as HostFollowUpType)}
-            className="mt-1 w-full rounded-xl border border-white/15 bg-[#0b1020] px-3 py-2 outline-none"
+            disabled={busy || sendLocked}
+            className="mt-1 w-full rounded-xl border border-white/15 bg-[#0b1020] px-3 py-2 outline-none disabled:opacity-40"
           >
             {TYPES.map((item) => (
               <option key={item} value={item}>
@@ -124,7 +154,8 @@ export function FollowUpPanel({
           <select
             value={audience}
             onChange={(e) => setAudience(e.target.value as HostFollowUpAudience)}
-            className="mt-1 w-full rounded-xl border border-white/15 bg-[#0b1020] px-3 py-2 outline-none"
+            disabled={busy || sendLocked}
+            className="mt-1 w-full rounded-xl border border-white/15 bg-[#0b1020] px-3 py-2 outline-none disabled:opacity-40"
           >
             {AUDIENCES.map((item) => (
               <option key={item} value={item}>
@@ -141,7 +172,8 @@ export function FollowUpPanel({
           value={subject}
           onChange={(e) => setSubject(e.target.value)}
           placeholder={ui.followUpSubjectPlaceholder}
-          className="mt-1 w-full rounded-xl border border-white/15 bg-white/5 px-3 py-2 outline-none"
+          disabled={busy || sendLocked}
+          className="mt-1 w-full rounded-xl border border-white/15 bg-white/5 px-3 py-2 outline-none disabled:opacity-40"
         />
       </label>
 
@@ -152,24 +184,28 @@ export function FollowUpPanel({
           onChange={(e) => setBody(e.target.value)}
           rows={5}
           placeholder={ui.followUpBodyPlaceholder}
-          className="mt-1 w-full rounded-xl border border-white/15 bg-white/5 px-3 py-2 outline-none"
+          disabled={busy || sendLocked}
+          className="mt-1 w-full rounded-xl border border-white/15 bg-white/5 px-3 py-2 outline-none disabled:opacity-40"
         />
       </label>
 
       <div className="mt-4 flex flex-wrap items-center gap-3">
         <button
           type="button"
-          disabled={busy || body.trim().length < 3}
+          disabled={!canSend}
           aria-busy={busy}
+          title={!bodyReady ? ui.followUpBodyRequired : undefined}
           onClick={() => {
-            if (busy) return
+            if (!canSend) return
             void send()
           }}
           className="rounded-full bg-cyan-400 px-5 py-2 text-sm font-semibold text-[#0b1020] disabled:pointer-events-none disabled:opacity-40"
         >
           {busy ? ui.sending : ui.followUpSend}
         </button>
-        <p className="text-xs text-white/40">{ui.followUpSendHint}</p>
+        <p className="text-xs text-white/40">
+          {!bodyReady ? ui.followUpBodyRequired : ui.followUpSendHint}
+        </p>
       </div>
 
       {message ? (

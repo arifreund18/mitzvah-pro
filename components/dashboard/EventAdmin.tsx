@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useMemo, useState } from 'react'
 import { EventActions } from '@/components/dashboard/EventActions'
 import { EventOptionsPanel } from '@/components/dashboard/EventOptionsPanel'
+import { EmailLogPanel } from '@/components/dashboard/EmailLogPanel'
 import { FollowUpPanel } from '@/components/dashboard/FollowUpPanel'
 import { GuestAdminPanel } from '@/components/dashboard/GuestAdminPanel'
 import { GuestCsvImport } from '@/components/dashboard/GuestCsvImport'
@@ -160,17 +161,22 @@ export function EventAdmin({
       jobId?: string
       total?: number
     } | null
+    if (data?.queued && data.jobId) {
+      // 409 with an existing job — attach to that queue instead of failing hard.
+      setMessageTone(res.status === 409 ? 'err' : 'ok')
+      setMessage(
+        res.status === 409
+          ? data.error || 'Envio já em curso — a acompanhar a fila…'
+          : `Fila criada: 0/${data.total || 0} — a processar…`,
+      )
+      await pollSendJob(data.jobId, kind)
+      return
+    }
     if (!res.ok) {
       setBusy('')
       setMessageTone('err')
       setMessage(data?.error || 'Não foi possível enviar')
       router.refresh()
-      return
-    }
-    if (data?.queued && data.jobId) {
-      setMessageTone('ok')
-      setMessage(`Fila criada: 0/${data.total || 0} — a processar…`)
-      await pollSendJob(data.jobId, kind)
       return
     }
     setBusy('')
@@ -423,9 +429,13 @@ export function EventAdmin({
 
       {(products.invitation || products.saveTheDate) ? (
         <div id="follow-ups" className="mt-12">
-          <FollowUpPanel event={event} locale={locale} />
+          <FollowUpPanel event={event} locale={locale} sendLocked={!!busy} />
         </div>
       ) : null}
+
+      <div id="email-log" className="mt-12">
+        <EmailLogPanel eventId={event.id} locale={locale} />
+      </div>
 
       <h2 id="guests" className="font-display mt-12 text-2xl">
         {ui.guestsTitle}

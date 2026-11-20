@@ -139,16 +139,16 @@ function payloadOf(job: MailJob): MailJobPayload {
   }
 }
 
-export async function createMailJob(input: {
+function buildMailJob(input: {
   eventId: string
   kind: 'std' | 'invite'
   guestIds: string[]
   host: string
   from: string
   configurationSetName?: string
-}): Promise<MailJob> {
+}): MailJob {
   const now = new Date().toISOString()
-  const job: MailJob = {
+  return {
     id: uid(),
     eventId: input.eventId,
     kind: input.kind,
@@ -170,6 +170,26 @@ export async function createMailJob(input: {
     attempts: 0,
     lastError: '',
   }
+}
+
+function jobHasRemainingWork(job: MailJob): boolean {
+  return (
+    job.pendingGuestIds.length +
+      (job.inFlightGuestIds?.length || 0) +
+      (job.deferredGuestIds?.length || 0) >
+      0 || job.status === 'processing'
+  )
+}
+
+export async function createMailJob(input: {
+  eventId: string
+  kind: 'std' | 'invite'
+  guestIds: string[]
+  host: string
+  from: string
+  configurationSetName?: string
+}): Promise<MailJob> {
+  const job = buildMailJob(input)
 
   if (usePostgresTable()) {
     await ensureMailJobsTable()
@@ -197,6 +217,76 @@ export async function createMailJob(input: {
     store.mailJobs.push(job)
     await savePlatformStore(store)
     return job
+  })
+}
+
+/**
+ * Create a job only if no active job exists for the same event+kind.
+ * Prevents double-click / two-tab from opening parallel queues.
+ */
+export async function createMailJobExclusive(input: {
+  eventId: string
+  kind: 'std' | 'invite'
+  guestIds: string[]
+  host: string
+  from: string
+  configurationSetName?: string
+}): Promise<{ job: MailJob; created: true } | { job: MailJob; created: false }> {
+  if (usePostgresTable()) {
+    await ensureMailJobsTable()
+    const db = pg()!
+    return db.begin(async (tx) => {
+      const rows = (await tx`
+        SELECT id, event_id, kind, payload, status, attempts, last_error, created_at, updated_at
+        FROM mail_jobs
+        WHERE event_id = ${input.eventId}
+          AND kind = ${input.kind}
+          AND status IN ('pending', 'processing')
+        ORDER BY created_at DESC
+        LIMIT 20
+        FOR UPDATE
+      `) as unknown as Parameters<typeof jobFromRow>[0][]
+      for (const row of rows) {
+        const existing = jobFromRow(row)
+        if (jobHasRemainingWork(existing)) {
+          return { job: existing, created: false as const }
+        }
+      }
+      const job = buildMailJob(input)
+      await tx`
+        INSERT INTO mail_jobs (id, event_id, kind, payload, status, attempts, last_error, created_at, updated_at)
+        VALUES (
+          ${job.id},
+          ${job.eventId},
+          ${job.kind},
+          ${tx.json(payloadOf(job) as never)},
+          ${job.status},
+          ${job.attempts},
+          ${job.lastError || null},
+          ${job.createdAt},
+          ${job.updatedAt}
+        )
+      `
+      return { job, created: true as const }
+    })
+  }
+
+  return withLock(async () => {
+    const store = await loadPlatformStore()
+    if (!store.mailJobs) store.mailJobs = []
+    const active = store.mailJobs
+      .filter(
+        (item) =>
+          item.eventId === input.eventId &&
+          item.kind === input.kind &&
+          (item.status === 'pending' || item.status === 'processing'),
+      )
+      .find(jobHasRemainingWork)
+    if (active) return { job: active, created: false as const }
+    const job = buildMailJob(input)
+    store.mailJobs.push(job)
+    await savePlatformStore(store)
+    return { job, created: true as const }
   })
 }
 

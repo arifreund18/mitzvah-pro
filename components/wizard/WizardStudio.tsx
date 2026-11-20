@@ -82,11 +82,15 @@ export function WizardStudio({ event }: { event: PlatformEvent }) {
   async function persistGuests(nextGuests: Guest[], opts?: { persist?: boolean }) {
     setGuests(nextGuests)
     if (opts?.persist === false) return
-    await fetch(`/api/platform/events/${event.id}/guests`, {
+    const res = await fetch(`/api/platform/events/${event.id}/guests`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ guests: nextGuests }),
     })
+    if (!res.ok) {
+      // Stale local list (empty wipe / dropped ids) — resync from server.
+      await reloadGuestsFromServer()
+    }
   }
 
   async function reloadGuestsFromServer() {

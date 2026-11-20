@@ -54,11 +54,15 @@ export function SectionEditor({
   async function persistGuests(next: Guest[], opts?: { persist?: boolean }) {
     setGuests(next)
     if (opts?.persist === false) return
-    await fetch(`/api/platform/events/${event.id}/guests`, {
+    const res = await fetch(`/api/platform/events/${event.id}/guests`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ guests: next }),
     })
+    if (!res.ok) {
+      await reloadGuestsFromServer()
+      setSaveState('error')
+    }
   }
 
   async function reloadGuestsFromServer() {

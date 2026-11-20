@@ -21,4 +21,11 @@ describe('replaceGuests empty wipe guard', () => {
     const shouldBlock = !allowEmpty && incoming.length === 0 && existingCount > 0
     assert.equal(shouldBlock, false)
   })
+
+  it('rejects stale PUT that drops existing guest ids', () => {
+    const existingIds = ['a', 'b', 'c']
+    const incomingIds = new Set(['a', 'b'])
+    const dropped = existingIds.filter((id) => !incomingIds.has(id))
+    assert.equal(dropped.length, 1)
+  })
 })

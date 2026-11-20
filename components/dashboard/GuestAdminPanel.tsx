@@ -135,9 +135,21 @@ export function GuestAdminPanel({
       delivered?: number
       sent?: number
       local?: boolean
+      queued?: boolean
+      jobId?: string
     } | null
     setBusyId('')
     setBusyKind('')
+    if (data?.queued && data.jobId) {
+      setMessageTone(res.status === 409 ? 'err' : 'ok')
+      setMessage(
+        res.status === 409
+          ? data.error || ui.sendOneFailed
+          : fillTemplate(ui.sendOneOk, { name: guest.familyName }),
+      )
+      router.refresh()
+      return
+    }
     if (!res.ok) {
       setMessageTone('err')
       setMessage(data?.error || ui.sendOneFailed)
