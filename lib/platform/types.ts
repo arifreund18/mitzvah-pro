@@ -602,6 +602,8 @@ export type PlatformStore = {
   events: PlatformEvent[]
   emailLogs?: EmailLog[]
   mailJobs?: MailJob[]
+  /** E8: slugs of deleted/renamed events — not reusable (mail identity / config set). */
+  retiredSlugs?: string[]
 }
 
 export type EmailLog = {

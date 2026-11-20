@@ -1,5 +1,10 @@
 import { NextResponse } from 'next/server'
-import { fetchBlobContent, isPrivateBlobUrl, isVercelBlobUrl } from '@/lib/platform/media-blob'
+import {
+  fetchBlobContent,
+  isEventBlobPath,
+  isPrivateBlobUrl,
+  isVercelBlobUrl,
+} from '@/lib/platform/media-blob'
 import { getEventBySlug } from '@/lib/platform/store'
 import type { CardDesign } from '@/lib/platform/types'
 
@@ -68,13 +73,18 @@ export async function GET(request: Request, ctx: Ctx) {
       const parsed = new URL(asset)
       if (parsed.pathname.includes('/api/platform/media/proxy')) {
         blobTarget = parsed.searchParams.get('url') || ''
-      } else if (isPrivateBlobUrl(asset)) {
+      } else if (isPrivateBlobUrl(asset) || isVercelBlobUrl(asset)) {
         blobTarget = asset
       }
     } catch {
       blobTarget = ''
     }
-    if (blobTarget && isVercelBlobUrl(blobTarget)) {
+    // E9: only serve this event's blobs — no open redirect to arbitrary HTTPS.
+    if (
+      blobTarget &&
+      isVercelBlobUrl(blobTarget) &&
+      isEventBlobPath(blobTarget, event.id)
+    ) {
       const content = await fetchBlobContent(blobTarget)
       if (!content) {
         return NextResponse.json({ error: 'Blob ausente' }, { status: 404 })
@@ -87,7 +97,7 @@ export async function GET(request: Request, ctx: Ctx) {
         },
       })
     }
-    return NextResponse.redirect(asset, 302)
+    return NextResponse.json({ error: 'Asset fora do escopo do evento' }, { status: 400 })
   }
 
   if (asset.startsWith('data:')) {

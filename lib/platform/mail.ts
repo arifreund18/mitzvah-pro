@@ -302,6 +302,15 @@ export function mailHtml(
             </td>
           </tr>
         </table>
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:480px;">
+          <tr>
+            <td align="center" style="padding:28px 8px 0;">
+              <p style="margin:0;font-family:${font};font-size:11px;line-height:1.4;color:${escapeHtml(mutedColor)};">
+                <a href="${escapeHtml(`${protocolFor(apex)}://${apex}/api/platform/unsub/${encodeURIComponent(token)}`)}" style="color:${escapeHtml(mutedColor)};text-decoration:underline;">Unsubscribe / descadastrar</a>
+              </p>
+            </td>
+          </tr>
+        </table>
       </td>
     </tr>
   </table>

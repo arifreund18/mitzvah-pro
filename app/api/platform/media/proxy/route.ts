@@ -1,13 +1,14 @@
 import { NextResponse } from 'next/server'
-import { fetchBlobContent, isVercelBlobUrl } from '@/lib/platform/media-blob'
+import { fetchBlobContent, isEventBlobPath, isVercelBlobUrl } from '@/lib/platform/media-blob'
 
 /**
  * Serves private Vercel Blob objects with long-lived cache so email/site <img>
- * tags work without a public store. Only allows *.blob.vercel-storage.com URLs.
+ * tags work without a public store. Only allows *.blob.vercel-storage.com URLs
+ * under events/… (E9).
  */
 export async function GET(request: Request) {
   const url = new URL(request.url).searchParams.get('url')?.trim() || ''
-  if (!url || !isVercelBlobUrl(url)) {
+  if (!url || !isVercelBlobUrl(url) || !isEventBlobPath(url)) {
     return NextResponse.json({ error: 'URL de blob inválida' }, { status: 400 })
   }
 

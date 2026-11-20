@@ -11,7 +11,7 @@ No **publish** (e em “Verificar email”), o app provisiona por slug:
 | Recurso | Nome |
 |---------|------|
 | Domínio de envio | `mail.{slug}.mitzvah.pro` → `convites@mail.{slug}.mitzvah.pro` |
-| Configuration set | `mitzvah-{slug}` (métricas de reputação ON) |
+| Configuration set | `mitzvah-{slug}` (legado) ou `mitzvah-{slug}-{id8}` (E8, novos) |
 
 1. Cria **configuration set** com `ReputationMetricsEnabled` e `SendingEnabled`
 2. Cria identidade SES (Easy DKIM) e associa o configuration set
@@ -19,7 +19,9 @@ No **publish** (e em “Verificar email”), o app provisiona por slug:
 4. Cada `SendEmail` passa `ConfigurationSetName`
 5. Enquanto `pending`, o envio usa o fallback `EMAIL_FROM_ADDRESS`
 
-**Pausar um evento:** `pauseEventSending(slug)` / `setEventSendingEnabled(slug, false)` em `lib/email/ses-config-set.ts` (desliga `SendingEnabled` no configuration set).
+**Pausar um evento:** `POST /api/platform/events/{id}/pause-mail` com `{ "pause": true|false }` (owner/admin), ou `pauseEventSending(slug, opts)` / `setEventSendingEnabled` em `lib/email/ses-config-set.ts` (desliga `SendingEnabled` no configuration set).
+
+**Alarmes CloudWatch (E7 — configurar na conta AWS):** bounce rate **> 5%** e complaint rate **> 0.1%** no configuration set / conta. Quando disparar, pause o evento afetado via a API acima. Monitoramento automático a partir do stream de bounce fica fora deste PR.
 
 ## IAM obrigatório
 
@@ -93,12 +95,16 @@ Throttling / destinatário rejeitado → status `deferred` (mensagem permanece n
 3. Publicar evento de teste → conferir identidade `mail.{slug}.mitzvah.pro` verificada no SES e DNS Vercel
 4. Enviar convite de teste e conferir From / DKIM
 
+## Event destination
+
+Configuration sets usam reputação por evento (`mitzvah-{slug}` legados; novos sets: `mitzvah-{slug}-{eventId8}` — E8). Destino CloudWatch / EventBridge: `/aws/events/ses-mitzvah` (quando provisionado na conta).
+
 ## Pendências (fora de escopo até pedido)
 
-- Webhook SNS bounce/complaint + supressão
-- Link de descadastro
+- Webhook SNS / EventBridge bounce+complaint → tabela de supressão (M6 completo)
+- Opt-out automático que remova o email da família (hoje há só landing stub em `/api/platform/unsub/{token}` + link no rodapé do email)
 
-Não afirme no formulário AWS que opt-out ou webhook SNS existem enquanto não estiverem no código.
+Não afirme no formulário AWS que webhook SNS de supressão automática existe enquanto a tabela de bounce não estiver no código.
 
 ## Referências
 

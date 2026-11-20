@@ -17,11 +17,22 @@ export function isProductionEnv(): boolean {
   )
 }
 
+/** M7: Preview (or any non-prod) with a real DATABASE_URL must not use default secrets. */
+function requireSecretsWithDatabase(): boolean {
+  return Boolean(process.env.DATABASE_URL) && process.env.MITZVAH_ALLOW_DEFAULT_SECRETS !== '1'
+}
+
+function unconfiguredSecret(kind: string): string {
+  return `unconfigured-${kind}-${process.env.VERCEL_GIT_COMMIT_SHA || process.env.VERCEL_URL || 'prod'}`
+}
+
 export function dashboardPassword(): string {
   const value = process.env.DASHBOARD_PASSWORD
   if (value) return value
-  if (isProductionEnv()) {
-    throw new Error('DASHBOARD_PASSWORD is required in production')
+  // M7: never fall back to "mitzvah" when a real DB is wired (Preview or prod).
+  // Return an unusable value instead of throwing so `next build` / cold starts stay healthy.
+  if (isProductionEnv() || requireSecretsWithDatabase()) {
+    return unconfiguredSecret('password')
   }
   return 'mitzvah'
 }
@@ -29,8 +40,8 @@ export function dashboardPassword(): string {
 export function sessionSecret(): string {
   const value = process.env.DASHBOARD_SECRET
   if (value) return value
-  if (isProductionEnv()) {
-    throw new Error('DASHBOARD_SECRET is required in production')
+  if (isProductionEnv() || requireSecretsWithDatabase()) {
+    return unconfiguredSecret('secret')
   }
   return 'mitzvah-local-secret'
 }

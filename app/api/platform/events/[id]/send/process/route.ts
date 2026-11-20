@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getEvent, markMailSent, appendEmailLog } from '@/lib/platform/store'
 import { requireEventAccess } from '@/lib/platform/session'
+import { isCronBearer } from '@/lib/platform/cron-auth'
 import { isEmailConfigured, sendEmail } from '@/lib/email/send'
 import { guestMailRecipients } from '@/lib/platform/family-emails'
 import { eventHostReplyTo, eventMailConfigurationSet } from '@/lib/platform/mail-domain'
@@ -23,8 +24,13 @@ const BATCH_TIME_BUDGET_MS = 40_000
 
 export async function POST(request: Request, ctx: Ctx) {
   const { id } = await ctx.params
-  const denied = await requireEventAccess(id)
-  if (denied) return denied
+  // M3: cron resume needs a configured Bearer CRON_SECRET (never open-by-default).
+  const cronSecret = process.env.CRON_SECRET?.trim()
+  const cronAuth = Boolean(cronSecret) && isCronBearer(request)
+  if (!cronAuth) {
+    const denied = await requireEventAccess(id)
+    if (denied) return denied
+  }
 
   const event = await getEvent(id)
   if (!event) return NextResponse.json({ error: 'Evento não encontrado' }, { status: 404 })
@@ -197,11 +203,13 @@ export async function POST(request: Request, ctx: Ctx) {
   if (job.pendingGuestIds.length > 0 && !stopEarly) {
     const processUrl = new URL(`/api/platform/events/${id}/send/process`, request.url)
     const cookie = request.headers.get('cookie') || ''
+    const authorization = request.headers.get('authorization') || ''
     void fetch(processUrl.toString(), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         ...(cookie ? { cookie } : {}),
+        ...(authorization.startsWith('Bearer ') ? { authorization } : {}),
       },
       body: JSON.stringify({ jobId: job.id }),
     }).catch(() => undefined)

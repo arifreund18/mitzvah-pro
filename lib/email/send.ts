@@ -157,8 +157,8 @@ async function resolveSesConfigurationSet(
   try {
     // Dynamic import avoids circular dependency with ses-config-set → send.
     const { ensureEventConfigurationSet } = await import('@/lib/email/ses-config-set')
-    const slug = name.replace(/^mitzvah-/i, '') || 'event'
-    const ensured = await ensureEventConfigurationSet(slug)
+    // Use the exact stored name (E8 may include event-id suffix) — do not re-derive from slug.
+    const ensured = await ensureEventConfigurationSet('event', { name })
     if (ensured.exists) {
       CONFIG_SET_CACHE.set(name, { name: ensured.name, at: Date.now() })
       return { name: ensured.name }

@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { canManageEventOptions } from '@/lib/platform/auth'
 import { platformApiError } from '@/lib/platform/api-error'
 import { currentActor, requireEventAccess } from '@/lib/platform/session'
-import { getEvent, updateEvent, deleteEvent } from '@/lib/platform/store'
+import { getEvent, updateEvent, deleteEvent, StaleWriteError } from '@/lib/platform/store'
 import type { EventConfig, WizardProgress } from '@/lib/platform/types'
 
 type Ctx = { params: Promise<{ id: string }> }
@@ -63,6 +63,7 @@ export async function PATCH(request: Request, ctx: Ctx) {
     config?: EventConfig
     wizard?: Partial<WizardProgress>
     slug?: string
+    expectedUpdatedAt?: string
   } | null
   if (!body) return NextResponse.json({ error: 'JSON inválido' }, { status: 400 })
   try {
@@ -79,6 +80,16 @@ export async function PATCH(request: Request, ctx: Ctx) {
     if (!event) return NextResponse.json({ error: 'Evento não encontrado' }, { status: 404 })
     return NextResponse.json({ event })
   } catch (error) {
+    if (error instanceof StaleWriteError) {
+      return NextResponse.json(
+        {
+          error: 'Conflito: o evento foi alterado noutro separador. Recarregue e tente de novo.',
+          code: 'stale_write',
+          event: error.current,
+        },
+        { status: 409 },
+      )
+    }
     return platformApiError(error, 'Não foi possível atualizar o evento')
   }
 }

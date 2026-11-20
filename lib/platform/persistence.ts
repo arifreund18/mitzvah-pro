@@ -50,8 +50,11 @@ function defaultOrg(): Organization {
 function ownerPassword(): string {
   const value = process.env.PLATFORM_OWNER_PASSWORD
   if (value) return value
-  // Never throw during seed/build — production without env gets an unusable random hash.
-  if (isProductionEnv()) {
+  // Never throw during seed/build — production/Preview-with-DB without env gets an unusable random hash.
+  const lockDefaults =
+    isProductionEnv() ||
+    (Boolean(process.env.DATABASE_URL) && process.env.MITZVAH_ALLOW_DEFAULT_SECRETS !== '1')
+  if (lockDefaults) {
     return `unconfigured-${process.env.VERCEL_GIT_COMMIT_SHA || process.env.VERCEL_URL || 'prod'}`
   }
   return 'mitzvah'

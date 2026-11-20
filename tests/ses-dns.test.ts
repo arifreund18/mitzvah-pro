@@ -40,4 +40,11 @@ describe('eventConfigurationSetName', () => {
     assert.equal(eventConfigurationSetName('adissi'), 'mitzvah-adissi')
     assert.equal(eventConfigurationSetName('Família Beni!'), 'mitzvah-fam-lia-beni')
   })
+
+  it('suffixes a short event id when provided (E8)', () => {
+    assert.equal(
+      eventConfigurationSetName('adissi', 'abcdef12-3456-7890-abcd-ef1234567890'),
+      'mitzvah-adissi-abcdef12',
+    )
+  })
 })

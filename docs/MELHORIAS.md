@@ -1,19 +1,19 @@
 # Melhorias — Mitzvah.pro
 
 Documento vivo de planos e estratégias de produto/engenharia.
-Atualizado em: 2026-08-13
+Atualizado em: 2026-11-20
 
 ---
 
 ## 0. Lista priorizada (só o que falta)
 
-Conferido no código em 2026-08-13. Itens já entregues **saíram desta tabela**.
+Conferido no código em 2026-11-20. Itens já entregues **saíram desta tabela**.
 
 ### Já entregue (não repetir)
 
-Auth do studio + CRUD de eventos; wizard com preview ao vivo; template BarBeni config-driven (site: hero, countdown, welcome, about, programação, FAQ, hotéis, o que fazer, galeria, RSVP, contato); publish em `{slug}.mitzvah.pro`; RSVP público + lista de convidados; emails STD/convite (Resend + `mail.{slug}.mitzvah.pro` via DNS Vercel); dashboard do evento; duplicar/arquivar; upload de logo/hero; datepicker; isolamento BarBeni em `/BarBeni/*`; `/admin` no apex removido; landing `en`/`pt`/`es`/`he` (RTL no he); check autenticado `/api/platform/email-setup`; persistência durável (Postgres `DATABASE_URL` ou Vercel Blob; ficheiro em local); import/export CSV de convidados; formulário da landing em `/api/contact`; preview público do rascunho em `/p/{token}`; fluxo boutique de aprovação em `/approve/{token}`; domínio custom Signature (CNAME + verificação); multi-tenant (orgs, papéis org_owner/org_member, admin plataforma, isolamento por orgId).
+Auth do studio + CRUD de eventos; wizard com preview ao vivo; template BarBeni config-driven (site: hero, countdown, welcome, about, programação, FAQ, hotéis, o que fazer, galeria, RSVP, contato); publish em `{slug}.mitzvah.pro`; RSVP público + lista de convidados; emails STD/convite (**SES** + `mail.{slug}.mitzvah.pro` via DNS Vercel; Resend só legado); dashboard do evento; duplicar/arquivar; upload de logo/hero; datepicker; isolamento BarBeni em `/BarBeni/*`; `/admin` no apex removido; landing `en`/`pt`/`es`/`he` (RTL no he); check autenticado `/api/platform/email-setup`; persistência durável (Postgres `DATABASE_URL` ou Vercel Blob; ficheiro em local); import/export CSV de convidados; formulário da landing em `/api/contact`; preview público do rascunho em `/p/{token}`; fluxo boutique de aprovação em `/approve/{token}`; domínio custom Signature (TXT `mitzvah-site=` + CNAME); multi-tenant (orgs, papéis org_owner/org_member, admin plataforma, isolamento por orgId); fila de mail com claim exclusivo + cron de retomada; PATCH com `expectedUpdatedAt` (409); hard delete com slug retirado (não soft-delete).
 
-**Como usar:** `/dashboard/login` — admin plataforma: só senha `mitzvah` (`DASHBOARD_PASSWORD`); utilizador org: `owner@mitzvah.pro` + `mitzvah` → Novo evento → wizard. Publicar abre `{slug}.localhost:3000`. Landing: `/` e `/en`. Evento Beni (outro repo): `/BarBeni/en`. Admin Beni: `/BarBeni/admin/dashboard`. Demo do studio: `/e/beni`. **Não existe** `/admin` no apex.
+**Notas operacionais:** eventos **published** editam o site ao vivo (não há staging separado). Preview Vercel com `DATABASE_URL` exige `DASHBOARD_PASSWORD` / `DASHBOARD_SECRET` reais (M7). **Como usar (local sem DB):** `/dashboard/login` — admin: `DASHBOARD_PASSWORD` (default local `mitzvah`); org: `owner@mitzvah.pro` + `PLATFORM_OWNER_PASSWORD` (default local `mitzvah`). Landing: `/` e `/en`. **Não existe** `/admin` no apex.
 
 ### Pendente
 

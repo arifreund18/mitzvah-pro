@@ -22,6 +22,7 @@ export function SectionEditor({
   const [saveState, setSaveState] = useState<'saved' | 'saving' | 'error' | 'dirty'>('saved')
   const skipFirst = useRef(true)
   const formRef = useRef<WizardStepFormHandle>(null)
+  const updatedAtRef = useRef(event.updatedAt)
 
   useEffect(() => {
     if (skipFirst.current) {
@@ -33,9 +34,22 @@ export function SectionEditor({
       const res = await fetch(`/api/platform/events/${event.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ config }),
+        body: JSON.stringify({ config, expectedUpdatedAt: updatedAtRef.current }),
       })
-      setSaveState(res.ok ? 'saved' : 'error')
+      const data = (await res.json().catch(() => null)) as
+        | { event?: PlatformEvent }
+        | null
+      if (!res.ok) {
+        if (res.status === 409 && data?.event) {
+          setConfig(data.event.config)
+          updatedAtRef.current = data.event.updatedAt
+          setGuests(data.event.guests)
+        }
+        setSaveState('error')
+        return
+      }
+      if (data?.event?.updatedAt) updatedAtRef.current = data.event.updatedAt
+      setSaveState('saved')
     }, 450)
     return () => window.clearTimeout(handle)
   }, [config, event.id])

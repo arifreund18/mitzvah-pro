@@ -351,17 +351,25 @@ export async function approveEventByToken(token: string): Promise<PlatformEvent 
 function uniqueSlug(store: PlatformStore, desired: string, ignoreId?: string): string {
   let base = slugify(desired) || `evento-${uid().slice(0, 6)}`
   const current = ignoreId ? store.events.find((event) => event.id === ignoreId)?.slug : undefined
+  const retired = new Set(store.retiredSlugs || [])
   if (isReservedSlug(base) && base !== current) base = `evento-${base}`
   let candidate = base
   let n = 2
   while (
     (isReservedSlug(candidate) && candidate !== current) ||
+    (retired.has(candidate) && candidate !== current) ||
     store.events.some((event) => event.slug === candidate && event.id !== ignoreId)
   ) {
     candidate = `${base}-${n}`
     n += 1
   }
   return candidate
+}
+
+function retireSlug(store: PlatformStore, slug: string | undefined) {
+  if (!slug) return
+  if (!store.retiredSlugs) store.retiredSlugs = []
+  if (!store.retiredSlugs.includes(slug)) store.retiredSlugs.push(slug)
 }
 
 export async function createEvent(input: {
@@ -413,6 +421,16 @@ export async function createEvent(input: {
   })
 }
 
+export class StaleWriteError extends Error {
+  readonly code = 'stale_write' as const
+  readonly current: PlatformEvent
+  constructor(current: PlatformEvent) {
+    super('stale_write')
+    this.name = 'StaleWriteError'
+    this.current = current
+  }
+}
+
 export async function updateEvent(
   id: string,
   patch: {
@@ -420,12 +438,17 @@ export async function updateEvent(
     wizard?: Partial<WizardProgress>
     status?: PlatformEvent['status']
     slug?: string
+    /** M4: client must echo last known updatedAt; mismatch → StaleWriteError. */
+    expectedUpdatedAt?: string
   },
 ): Promise<PlatformEvent | null> {
   return withLock(async () => {
     const store = await loadStore()
     const event = store.events.find((item) => item.id === id)
     if (!event) return null
+    if (patch.expectedUpdatedAt && patch.expectedUpdatedAt !== event.updatedAt) {
+      throw new StaleWriteError(structuredClone(event))
+    }
     if (patch.config) {
       let nextConfig = normalizeConfig(patch.config)
       // Phase 2: move any remaining data: uploads to public Blob before persisting.
@@ -447,7 +470,10 @@ export async function updateEvent(
     }
     if (patch.slug || patch.config?.domain.slug) {
       const desired = patch.slug || patch.config?.domain.slug || event.slug
-      event.slug = uniqueSlug(store, desired, event.id)
+      const previousSlug = event.slug
+      const nextSlug = uniqueSlug(store, desired, event.id)
+      if (previousSlug && nextSlug !== previousSlug) retireSlug(store, previousSlug)
+      event.slug = nextSlug
       event.config.domain.slug = event.slug
     }
     if (patch.status) {
@@ -497,9 +523,11 @@ export async function duplicateEvent(id: string): Promise<PlatformEvent | null> 
 export async function deleteEvent(id: string): Promise<boolean> {
   return withLock(async () => {
     const store = await loadStore()
-    const before = store.events.length
+    const existing = store.events.find((item) => item.id === id)
+    if (!existing) return false
+    // E8: keep slug retired so mail identity / config set names are not reused.
+    retireSlug(store, existing.slug)
     store.events = store.events.filter((item) => item.id !== id)
-    if (store.events.length === before) return false
     await saveStore(store)
     return true
   })
@@ -697,6 +725,52 @@ export async function addGuests(
   })
 }
 
+/** M5/E10: keep server ids/tokens for known families; mint new ones for newcomers. */
+function reconcileGuestList(existing: Guest[], incoming: Guest[], config: EventConfig): Guest[] {
+  const byId = new Map(existing.map((guest) => [guest.id, guest]))
+  return incoming.map((raw) => {
+    const prev = raw.id?.trim() ? byId.get(raw.id.trim()) : undefined
+    if (prev) {
+      const existingPersonIds = new Set(prev.people.map((person) => person.id))
+      const people = (raw.people || []).map((person) => {
+        if (person.id && existingPersonIds.has(person.id)) return person
+        // Drop foreign / client-invented person ids (E10: avoid cross-family ON CONFLICT).
+        return { ...person, id: '' }
+      })
+      return coerceGuestInviteLocale(
+        normalizeGuest(
+          {
+            ...raw,
+            id: prev.id,
+            token: prev.token,
+            createdAt: prev.createdAt,
+            people,
+            stdSentAt: raw.stdSentAt ?? prev.stdSentAt,
+            inviteSentAt: raw.inviteSentAt ?? prev.inviteSentAt,
+            stdOpenedAt: raw.stdOpenedAt ?? prev.stdOpenedAt,
+            invitationOpenedAt: raw.invitationOpenedAt ?? prev.invitationOpenedAt,
+          },
+          { inviteLocale: prev.inviteLocale },
+        ),
+        config,
+      )
+    }
+    // New family: never trust client id/token (global token lookup is first-match).
+    return coerceGuestInviteLocale(
+      normalizeGuest(
+        {
+          ...raw,
+          id: '',
+          token: '',
+          people: (raw.people || []).map((person) => ({ ...person, id: '' })),
+        },
+        { inviteLocale: config.locales.default },
+      ),
+      config,
+    )
+  })
+}
+
 export async function replaceGuests(
   eventId: string,
   guests: Guest[],
@@ -722,9 +796,7 @@ export async function replaceGuests(
         return { error: 'stale_drop' as const, dropped: dropped.length }
       }
     }
-    event.guests = guests.map((guest) =>
-      coerceGuestInviteLocale(normalizeGuest(guest), event.config),
-    )
+    event.guests = reconcileGuestList(event.guests, guests, event.config)
     event.updatedAt = new Date().toISOString()
     await saveStore(store)
     return event

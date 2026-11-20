@@ -48,6 +48,14 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
   }
 
+  // M3: also nudge stale mail jobs (no extra Vercel cron entry — plan limits).
+  const secret = process.env.CRON_SECRET?.trim() || ''
+  const mailJobsUrl = new URL('/api/cron/mail-jobs', request.url)
+  void fetch(mailJobsUrl.toString(), {
+    method: 'GET',
+    headers: secret ? { Authorization: `Bearer ${secret}` } : {},
+  }).catch(() => undefined)
+
   const store = await loadPlatformStoreForCron()
   const emailReady = isEmailConfigured()
   const jobs: Array<{

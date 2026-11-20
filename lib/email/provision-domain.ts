@@ -102,13 +102,21 @@ async function ensureResendDomain(name: string): Promise<{
  * DNS via Vercel (same pattern as the old Resend flow). Reputation stays per event.
  * Falls back to EMAIL_FROM_ADDRESS while pending / if DNS ou AWS incompletos.
  */
-async function provisionSesIsolatedMail(config: EventConfig): Promise<EventMailDomain> {
+async function provisionSesIsolatedMail(
+  config: EventConfig,
+  eventId?: string,
+): Promise<EventMailDomain> {
   const slug = config.domain.slug
   const sendingDomain = eventMailDomainName(slug)
   const display = eventFromDisplayName(config)
   const fromEmail = formatFromAddress(display, `${MAIL_FROM_LOCAL}@${sendingDomain}`)
   const previous = config.domain.mail
   const sharedFallback = sharedFromEmail()
+  // E8: keep an already-stored set name; only mint id-suffixed names for new sets.
+  const configSetOpts = {
+    eventId,
+    name: previous?.configurationSetName || undefined,
+  }
 
   if (!process.env.AWS_ACCESS_KEY_ID || !process.env.AWS_SECRET_ACCESS_KEY) {
     return {
@@ -143,7 +151,7 @@ async function provisionSesIsolatedMail(config: EventConfig): Promise<EventMailD
   ) {
     const current = await getSesIdentityStatus(sendingDomain)
     if (current.verified) {
-      const configSet = await ensureEventConfigurationSet(slug)
+      const configSet = await ensureEventConfigurationSet(slug, configSetOpts)
       if (configSet.exists) {
         try {
           await attachConfigurationSetToIdentity(sendingDomain, configSet.name)
@@ -157,7 +165,7 @@ async function provisionSesIsolatedMail(config: EventConfig): Promise<EventMailD
         configurationSetName:
           (configSet.exists && configSet.name) ||
           previous.configurationSetName ||
-          eventConfigurationSetName(slug),
+          eventConfigurationSetName(slug, eventId),
         status: 'verified',
         lastError: configSet.exists
           ? ''
@@ -167,7 +175,7 @@ async function provisionSesIsolatedMail(config: EventConfig): Promise<EventMailD
   }
 
   try {
-    const configSet = await ensureEventConfigurationSet(slug)
+    const configSet = await ensureEventConfigurationSet(slug, configSetOpts)
     if (!configSet.exists) {
       throw new Error(configSet.error || `Falha ao criar configuration set ${configSet.name}`)
     }
@@ -214,7 +222,8 @@ async function provisionSesIsolatedMail(config: EventConfig): Promise<EventMailD
         ? formatFromAddress(display, sharedFallback)
         : fromEmail,
       resendDomainId: previous?.resendDomainId || '',
-      configurationSetName: previous?.configurationSetName || eventConfigurationSetName(slug),
+      configurationSetName:
+        previous?.configurationSetName || eventConfigurationSetName(slug, eventId),
       status: 'failed',
       lastError: error instanceof Error ? error.message : 'Falha ao provisionar identidade SES',
       verifiedAt: null,
@@ -291,9 +300,12 @@ async function provisionResendIsolatedMail(config: EventConfig): Promise<EventMa
   }
 }
 
-export async function provisionEventMailDomain(config: EventConfig): Promise<EventMailDomain> {
+export async function provisionEventMailDomain(
+  config: EventConfig,
+  eventId?: string,
+): Promise<EventMailDomain> {
   const provider = resolveEmailProvider()
-  if (provider === 'ses') return provisionSesIsolatedMail(config)
+  if (provider === 'ses') return provisionSesIsolatedMail(config, eventId)
   if (provider === 'resend') return provisionResendIsolatedMail(config)
   return {
     ...emptyMailDomain(),
