@@ -22,17 +22,15 @@ function requireSecretsWithDatabase(): boolean {
   return Boolean(process.env.DATABASE_URL) && process.env.MITZVAH_ALLOW_DEFAULT_SECRETS !== '1'
 }
 
-function unconfiguredSecret(kind: string): string {
-  return `unconfigured-${kind}-${process.env.VERCEL_GIT_COMMIT_SHA || process.env.VERCEL_URL || 'prod'}`
-}
-
+/**
+ * N7: refuse predictable fallbacks. Login catches and returns 503.
+ * Do not derive admin passwords from commit SHA / VERCEL_URL.
+ */
 export function dashboardPassword(): string {
   const value = process.env.DASHBOARD_PASSWORD
   if (value) return value
-  // M7: never fall back to "mitzvah" when a real DB is wired (Preview or prod).
-  // Return an unusable value instead of throwing so `next build` / cold starts stay healthy.
   if (isProductionEnv() || requireSecretsWithDatabase()) {
-    return unconfiguredSecret('password')
+    throw new Error('DASHBOARD_PASSWORD is required in production (and Preview with DATABASE_URL)')
   }
   return 'mitzvah'
 }
@@ -41,9 +39,14 @@ export function sessionSecret(): string {
   const value = process.env.DASHBOARD_SECRET
   if (value) return value
   if (isProductionEnv() || requireSecretsWithDatabase()) {
-    return unconfiguredSecret('secret')
+    throw new Error('DASHBOARD_SECRET is required in production (and Preview with DATABASE_URL)')
   }
   return 'mitzvah-local-secret'
+}
+
+/** True when admin login secrets are present (ops check / health). */
+export function dashboardSecretsConfigured(): boolean {
+  return Boolean(process.env.DASHBOARD_PASSWORD?.trim() && process.env.DASHBOARD_SECRET?.trim())
 }
 
 /** Safe for build/seed paths — never throws. */

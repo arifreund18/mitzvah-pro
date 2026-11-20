@@ -3,8 +3,11 @@
  * Does not touch Bar-Beni. File/blob drivers skip this layer.
  */
 import type { PlatformStore, PlatformEvent, Guest, EmailLog } from './types'
+import { emailSendClaimId } from './email-claim'
 import { normalizeEvent, normalizeGuest } from './normalize'
 import { oncePerProcess } from './once'
+
+export { emailSendClaimId }
 
 type Sql = ReturnType<typeof import('postgres')>
 
@@ -110,6 +113,10 @@ export async function ensureRelationalSchema(db: Sql): Promise<void> {
       created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
       updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
     );
+    CREATE TABLE IF NOT EXISTS retired_slugs (
+      slug TEXT PRIMARY KEY,
+      retired_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
   `)
       // Upgrade older families tables created without people JSONB columns.
       await active.unsafe(`
@@ -135,10 +142,117 @@ export async function relationalEventCount(db: Sql): Promise<number> {
   return Number(rows[0]?.n || 0)
 }
 
+async function upsertEventRow(tx: Sql, event: PlatformEvent): Promise<void> {
+  await tx`
+    INSERT INTO events (
+      id, org_id, slug, status, template_id, config, wizard,
+      preview_token, approval_token, published_at, created_at, updated_at
+    ) VALUES (
+      ${event.id}, ${event.orgId}, ${event.slug}, ${event.status}, ${event.templateId},
+      ${tx.json(event.config as never)}, ${tx.json(event.wizard as never)},
+      ${event.previewToken}, ${event.approvalToken}, ${event.publishedAt},
+      ${event.createdAt}, ${event.updatedAt}
+    )
+    ON CONFLICT (id) DO UPDATE SET
+      org_id = EXCLUDED.org_id,
+      slug = EXCLUDED.slug,
+      status = EXCLUDED.status,
+      config = EXCLUDED.config,
+      wizard = EXCLUDED.wizard,
+      preview_token = EXCLUDED.preview_token,
+      approval_token = EXCLUDED.approval_token,
+      published_at = EXCLUDED.published_at,
+      updated_at = EXCLUDED.updated_at
+  `
+}
+
+async function syncEventFamilies(tx: Sql, event: PlatformEvent, usedTokens: Set<string>): Promise<void> {
+  const keepFamilyIds = event.guests.map((guest) => guest.id)
+  if (keepFamilyIds.length) {
+    await tx`
+      DELETE FROM families
+      WHERE event_id = ${event.id}
+        AND id <> ALL(${keepFamilyIds}::text[])
+    `
+  } else {
+    await tx`DELETE FROM families WHERE event_id = ${event.id}`
+  }
+
+  for (const guest of event.guests) {
+    let token = String(guest.token || '').trim()
+    if (!token || usedTokens.has(token)) {
+      token = `t${guest.id.replace(/-/g, '').slice(0, 10)}${Math.random().toString(36).slice(2, 8)}`
+      guest.token = token
+    }
+    const clash = (await tx`
+      SELECT id FROM families WHERE token = ${token} AND id <> ${guest.id} LIMIT 1
+    `) as unknown as { id: string }[]
+    if (clash.length) {
+      token = `t${guest.id.replace(/-/g, '').slice(0, 10)}${Date.now().toString(36)}`
+      guest.token = token
+    }
+    usedTokens.add(token)
+    await upsertFamilyToRelational(tx as unknown as Sql, event.id, { ...guest, token })
+  }
+}
+
+/**
+ * N2: sync one event only. `syncFamilies: false` updates the events row without
+ * touching families (safe for wizard autosave). `true` reconciles that event's guests.
+ */
+export async function syncEventToRelational(
+  db: Sql,
+  event: PlatformEvent,
+  opts?: { syncFamilies?: boolean },
+): Promise<void> {
+  await ensureRelationalSchema(db)
+  await db.begin(async (tx) => {
+    await tx`SELECT pg_advisory_xact_lock(${879_314_201})`
+    await upsertEventRow(tx as unknown as Sql, event)
+    if (opts?.syncFamilies) {
+      await syncEventFamilies(tx as unknown as Sql, event, new Set())
+    }
+  })
+}
+
+/** N1: hard-delete event (+ cascade families/guests). */
+export async function deleteEventFromRelational(db: Sql, eventId: string): Promise<void> {
+  await ensureRelationalSchema(db)
+  await db`DELETE FROM events WHERE id = ${eventId}`
+}
+
+/** N1: hard-delete user so revoked accounts cannot log in. */
+export async function deleteUserFromRelational(db: Sql, userId: string): Promise<void> {
+  await ensureRelationalSchema(db)
+  await db`DELETE FROM users WHERE id = ${userId}`
+}
+
+/** N3: persist retired slugs so E8 survives relational reads. */
+export async function retireSlugInRelational(db: Sql, slug: string): Promise<void> {
+  if (!slug) return
+  await ensureRelationalSchema(db)
+  await db`
+    INSERT INTO retired_slugs (slug, retired_at)
+    VALUES (${slug}, now())
+    ON CONFLICT (slug) DO NOTHING
+  `
+}
+
+export async function loadRetiredSlugs(db: Sql): Promise<string[]> {
+  await ensureRelationalSchema(db)
+  const rows = (await db`SELECT slug FROM retired_slugs`) as unknown as { slug: string }[]
+  return rows.map((row) => row.slug)
+}
+
+/**
+ * Full-store sync for migrate / rare paths.
+ * N2: never DELETE families from a whole-store snapshot (stale writers wipe other
+ * instances' guests). Family reconcile goes through syncEventToRelational.
+ * Hard deletes of events/users go through delete*FromRelational.
+ */
 export async function syncStoreToRelational(db: Sql, store: PlatformStore): Promise<void> {
   await ensureRelationalSchema(db)
 
-  // E4: wrap in a transaction + advisory lock so concurrent saves cannot wipe each other.
   await db.begin(async (tx) => {
     await tx`SELECT pg_advisory_xact_lock(${879_314_201})`
 
@@ -167,60 +281,20 @@ export async function syncStoreToRelational(db: Sql, store: PlatformStore): Prom
       `
     }
 
-    // E4: never DELETE events missing from this snapshot — stale writers must not erase
-    // events created on another instance. Hard deletes go through deleteEvent only.
-    const usedTokens = new Set<string>()
-
     for (const event of store.events) {
-      await tx`
-        INSERT INTO events (
-          id, org_id, slug, status, template_id, config, wizard,
-          preview_token, approval_token, published_at, created_at, updated_at
-        ) VALUES (
-          ${event.id}, ${event.orgId}, ${event.slug}, ${event.status}, ${event.templateId},
-          ${tx.json(event.config as never)}, ${tx.json(event.wizard as never)},
-          ${event.previewToken}, ${event.approvalToken}, ${event.publishedAt},
-          ${event.createdAt}, ${event.updatedAt}
-        )
-        ON CONFLICT (id) DO UPDATE SET
-          org_id = EXCLUDED.org_id,
-          slug = EXCLUDED.slug,
-          status = EXCLUDED.status,
-          config = EXCLUDED.config,
-          wizard = EXCLUDED.wizard,
-          preview_token = EXCLUDED.preview_token,
-          approval_token = EXCLUDED.approval_token,
-          published_at = EXCLUDED.published_at,
-          updated_at = EXCLUDED.updated_at
-      `
-
-      const keepFamilyIds = event.guests.map((guest) => guest.id)
-      if (keepFamilyIds.length) {
-        await tx`
-          DELETE FROM families
-          WHERE event_id = ${event.id}
-            AND id <> ALL(${keepFamilyIds}::text[])
-        `
-      } else {
-        await tx`DELETE FROM families WHERE event_id = ${event.id}`
-      }
-
+      await upsertEventRow(tx as unknown as Sql, event)
+      // Upsert families without deleting unknowns (N2).
       for (const guest of event.guests) {
-        let token = String(guest.token || '').trim()
-        if (!token || usedTokens.has(token)) {
-          token = `t${guest.id.replace(/-/g, '').slice(0, 10)}${Math.random().toString(36).slice(2, 8)}`
-          guest.token = token
-        }
-        const clash = (await tx`
-          SELECT id FROM families WHERE token = ${token} AND id <> ${guest.id} LIMIT 1
-        `) as unknown as { id: string }[]
-        if (clash.length) {
-          token = `t${guest.id.replace(/-/g, '').slice(0, 10)}${Date.now().toString(36)}`
-          guest.token = token
-        }
-        usedTokens.add(token)
-        await upsertFamilyToRelational(tx as unknown as Sql, event.id, { ...guest, token })
+        await upsertFamilyToRelational(tx as unknown as Sql, event.id, guest)
       }
+    }
+
+    for (const slug of store.retiredSlugs || []) {
+      await tx`
+        INSERT INTO retired_slugs (slug, retired_at)
+        VALUES (${slug}, now())
+        ON CONFLICT (slug) DO NOTHING
+      `
     }
 
     for (const log of store.emailLogs || []) {
@@ -261,6 +335,49 @@ export async function insertEmailLogRow(
   `
 }
 
+/**
+ * N4: insert a claim row before sending. Returns false if already claimed/sent.
+ */
+export async function claimEmailSendRow(
+  db: Sql,
+  input: { eventId: string; familyId: string; type: string; toEmail: string },
+): Promise<{ claimed: boolean; id: string }> {
+  await ensureRelationalSchema(db)
+  const id = emailSendClaimId(input)
+  const to = input.toEmail.trim().toLowerCase()
+  const inserted = (await db`
+    INSERT INTO email_logs (id, event_id, family_id, type, status, resend_id, to_email, error, sent_at)
+    VALUES (
+      ${id}, ${input.eventId}, ${input.familyId}, ${input.type}, 'claimed',
+      null, ${to}, '', ${new Date().toISOString()}
+    )
+    ON CONFLICT (id) DO NOTHING
+    RETURNING id
+  `) as unknown as { id: string }[]
+  return { claimed: inserted.length > 0, id }
+}
+
+export async function finalizeEmailSendClaim(
+  db: Sql,
+  claimId: string,
+  result: {
+    status: string
+    messageId?: string | null
+    error?: string
+  },
+): Promise<void> {
+  await ensureRelationalSchema(db)
+  await db`
+    UPDATE email_logs
+    SET
+      status = ${result.status},
+      resend_id = ${result.messageId ?? null},
+      error = ${result.error || ''},
+      sent_at = ${new Date().toISOString()}
+    WHERE id = ${claimId}
+  `
+}
+
 export async function hasSentEmailLogRow(
   db: Sql,
   input: { eventId: string; familyId: string; type: string; toEmail: string },
@@ -274,7 +391,7 @@ export async function hasSentEmailLogRow(
       AND family_id = ${input.familyId}
       AND type = ${input.type}
       AND lower(to_email) = ${to}
-      AND status = 'sent'
+      AND status IN ('sent', 'claimed')
     LIMIT 1
   `) as unknown as { '?column?'?: number }[]
   return rows.length > 0
@@ -400,6 +517,8 @@ export async function loadStoreFromRelational(db: Sql): Promise<PlatformStore | 
     }
   })
 
+  const retiredSlugs = await loadRetiredSlugs(db)
+
   return {
     orgs: orgs.map((o) => ({ id: o.id, name: o.name, createdAt: String(o.created_at) })),
     users: users.map((u) => ({
@@ -414,6 +533,7 @@ export async function loadStoreFromRelational(db: Sql): Promise<PlatformStore | 
     })),
     events,
     emailLogs,
+    retiredSlugs,
   }
 }
 

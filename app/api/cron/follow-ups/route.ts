@@ -16,8 +16,8 @@ import {
   mailFollowUpScheduleSubject,
 } from '@/lib/platform/follow-up-schedule-mail'
 import {
-  appendEmailLog,
-  hasSentEmailLog,
+  claimOutboundEmail,
+  finalizeOutboundEmail,
   loadPlatformStoreForCron,
 } from '@/lib/platform/store'
 import type { Guest, PlatformEvent, ReminderAudience } from '@/lib/platform/types'
@@ -106,13 +106,14 @@ export async function GET(request: NextRequest) {
             break
           }
           const type = `followup-auto-d${hit.days}`
-          const already = await hasSentEmailLog({
+          // N4: claim before send (idempotent under double cron delivery).
+          const claim = await claimOutboundEmail({
             eventId: event.id,
             familyId: guest.id,
             type,
             toEmail: to,
           })
-          if (already) continue
+          if (!claim) continue
 
           const sent = await sendFollowUpSchedule({
             event,
@@ -128,12 +129,8 @@ export async function GET(request: NextRequest) {
             to,
             status: sent.status,
           })
-          await appendEmailLog({
-            eventId: event.id,
-            familyId: guest.id,
-            type,
+          await finalizeOutboundEmail(claim.id, {
             status: sent.status,
-            toEmail: to,
             messageId: sent.messageId,
             error: sent.error,
           })
