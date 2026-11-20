@@ -31,7 +31,12 @@ export function EmailLogPanel({
       setError(data?.error || ui.emailLogLoadFailed)
       return
     }
-    setLogs(data?.logs || [])
+    const next = (data?.logs || []).slice().sort((a, b) => {
+      const ta = Date.parse(a.sentAt) || 0
+      const tb = Date.parse(b.sentAt) || 0
+      return tb - ta
+    })
+    setLogs(next)
     setLoaded(true)
   }, [eventId, ui.emailLogLoadFailed])
 

@@ -503,6 +503,12 @@ export async function loadStoreFromRelational(db: Sql): Promise<PlatformStore | 
 
   const emailLogs: EmailLog[] = logRows.map((row) => {
     const messageId = row.resend_id ? String(row.resend_id) : null
+    // Always ISO — String(Date) from the driver breaks localeCompare sorts in the UI.
+    const sentRaw = row.sent_at
+    const sentAt =
+      sentRaw instanceof Date
+        ? sentRaw.toISOString()
+        : new Date(String(sentRaw || '')).toISOString()
     return {
       id: String(row.id),
       eventId: String(row.event_id),
@@ -513,7 +519,7 @@ export async function loadStoreFromRelational(db: Sql): Promise<PlatformStore | 
       resendId: messageId,
       toEmail: String(row.to_email || ''),
       error: String(row.error || ''),
-      sentAt: String(row.sent_at),
+      sentAt: Number.isNaN(Date.parse(sentAt)) ? new Date().toISOString() : sentAt,
     }
   })
 
