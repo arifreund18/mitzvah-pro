@@ -33,6 +33,7 @@ export function WizardStudio({ event }: { event: PlatformEvent }) {
   )
   const skipFirst = useRef(true)
   const stepForm = useRef<WizardStepFormHandle>(null)
+  const updatedAtRef = useRef(event.updatedAt)
 
   const ui = wizardUi(config.locales.default)
   const steps = wizardSteps(config.locales.default, config)
@@ -63,12 +64,22 @@ export function WizardStudio({ event }: { event: PlatformEvent }) {
         body: JSON.stringify({
           config,
           wizard: { currentStep: step, completedSteps: [...completed.current] },
+          expectedUpdatedAt: updatedAtRef.current,
         }),
       })
+      const data = (await res.json().catch(() => null)) as
+        | { event?: PlatformEvent; code?: string }
+        | null
       if (!res.ok) {
+        if (res.status === 409 && data?.event) {
+          setConfig(data.event.config)
+          updatedAtRef.current = data.event.updatedAt
+          setGuests(data.event.guests)
+        }
         setSaveState('error')
         return
       }
+      if (data?.event?.updatedAt) updatedAtRef.current = data.event.updatedAt
       setSaveState('saved')
     }, 450)
     return () => window.clearTimeout(handle)
@@ -104,14 +115,28 @@ export function WizardStudio({ event }: { event: PlatformEvent }) {
   async function publish() {
     setPublishing(true)
     setPublishError('')
-    await fetch(`/api/platform/events/${event.id}`, {
+    const patchRes = await fetch(`/api/platform/events/${event.id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         config,
         wizard: { currentStep: 'review', completedSteps: [...completed.current, 'review'] },
+        expectedUpdatedAt: updatedAtRef.current,
       }),
     })
+    const patchData = (await patchRes.json().catch(() => null)) as
+      | { event?: PlatformEvent; error?: string }
+      | null
+    if (patchRes.ok && patchData?.event?.updatedAt) {
+      updatedAtRef.current = patchData.event.updatedAt
+    } else if (patchRes.status === 409 && patchData?.event) {
+      setConfig(patchData.event.config)
+      updatedAtRef.current = patchData.event.updatedAt
+      setGuests(patchData.event.guests)
+      setPublishing(false)
+      setPublishError(patchData.error || 'Conflito ao guardar — recarregue e tente de novo')
+      return
+    }
     const res = await fetch(`/api/platform/events/${event.id}/publish`, { method: 'POST' })
     const data = (await res.json().catch(() => null)) as { error?: string; event?: PlatformEvent } | null
     setPublishing(false)

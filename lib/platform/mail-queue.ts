@@ -474,6 +474,40 @@ export type MailJobBatchResult = MailJobBatchResultInput
  * Persist counters/errors after a claimed batch was sent.
  * Never rewrites `pendingGuestIds` from a stale in-memory snapshot.
  */
+/**
+ * M3: jobs stuck in pending/processing with remaining work and no recent update
+ * (dashboard tab closed mid-chain). Cron resumes these via /api/cron/mail-jobs.
+ */
+export async function listResumableMailJobs(
+  staleMs: number = 120_000,
+): Promise<MailJob[]> {
+  const cutoff = Date.now() - staleMs
+  const pick = (jobs: MailJob[]) =>
+    jobs.filter((job) => {
+      if (job.status !== 'pending' && job.status !== 'processing') return false
+      if (!jobHasRemainingWork(job)) return false
+      const updated = Date.parse(job.updatedAt)
+      if (!Number.isFinite(updated)) return true
+      return updated <= cutoff
+    })
+
+  if (usePostgresTable()) {
+    await ensureMailJobsTable()
+    const db = pg()!
+    const rows = (await db`
+      SELECT id, event_id, kind, payload, status, attempts, last_error, created_at, updated_at
+      FROM mail_jobs
+      WHERE status IN ('pending', 'processing')
+      ORDER BY updated_at ASC
+      LIMIT 50
+    `) as unknown as Parameters<typeof jobFromRow>[0][]
+    return pick(rows.map(jobFromRow))
+  }
+
+  const store = await loadPlatformStore()
+  return pick(store.mailJobs || [])
+}
+
 export async function recordMailJobBatchResult(
   jobId: string,
   result: MailJobBatchResult,

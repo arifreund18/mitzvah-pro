@@ -627,7 +627,14 @@ export async function upsertFamilyToRelational(
   await db`DELETE FROM guests WHERE family_id = ${guest.id}`
   for (let i = 0; i < guest.people.length; i += 1) {
     const person = guest.people[i]
-    const personId = person.id || `${guest.id}-p${i}`
+    let personId = person.id || `${guest.id}-p${i}`
+    // E10: never ON CONFLICT-update a person that belongs to another family.
+    const clash = (await db`
+      SELECT family_id FROM guests WHERE id = ${personId} AND family_id <> ${guest.id} LIMIT 1
+    `) as unknown as Array<{ family_id: string }>
+    if (clash[0]) {
+      personId = `${guest.id}-p${i}`
+    }
     await db`
       INSERT INTO guests (
         id, family_id, event_id, name, type, meal_choice, dietary_restrictions,
@@ -643,6 +650,7 @@ export async function upsertFamilyToRelational(
         dietary_restrictions = EXCLUDED.dietary_restrictions,
         rsvp_status = EXCLUDED.rsvp_status,
         sort_order = EXCLUDED.sort_order
+      WHERE guests.family_id = ${guest.id}
     `
   }
   await db`UPDATE events SET updated_at = ${new Date().toISOString()} WHERE id = ${eventId}`

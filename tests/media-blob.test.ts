@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import {
   configHasDataUrl,
   isDataUrl,
+  isEventBlobPath,
   isPrivateBlobUrl,
   isVercelBlobUrl,
   parseDataUrl,
@@ -47,5 +48,14 @@ describe('media-blob helpers', () => {
     assert.ok(delivered.includes(encodeURIComponent(privateUrl)))
     if (prev === undefined) delete process.env.BLOB_ACCESS
     else process.env.BLOB_ACCESS = prev
+  })
+
+  it('only allows events/ blob paths (E9)', () => {
+    const ok = 'https://abc123.private.blob.vercel-storage.com/events/e1/seal.png'
+    const other = 'https://abc123.private.blob.vercel-storage.com/secrets/key.txt'
+    assert.equal(isEventBlobPath(ok), true)
+    assert.equal(isEventBlobPath(ok, 'e1'), true)
+    assert.equal(isEventBlobPath(ok, 'e2'), false)
+    assert.equal(isEventBlobPath(other), false)
   })
 })

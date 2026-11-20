@@ -40,6 +40,23 @@ export function isPrivateBlobUrl(value: string): boolean {
   }
 }
 
+/** Pathname inside the blob store (no leading slash). */
+export function blobStorePathname(value: string): string | null {
+  try {
+    return decodeURIComponent(new URL(value).pathname.replace(/^\//, ''))
+  } catch {
+    return null
+  }
+}
+
+/** E9: only serve blobs under events/… (never arbitrary store keys). */
+export function isEventBlobPath(value: string, eventId?: string): boolean {
+  const path = blobStorePathname(value)
+  if (!path || !path.startsWith('events/')) return false
+  if (!eventId) return true
+  return path.startsWith(`events/${eventId}/`)
+}
+
 export function parseDataUrl(dataUrl: string): { contentType: string; body: Buffer } | null {
   const match = dataUrl.match(DATA_URL_RE)
   if (!match) return null

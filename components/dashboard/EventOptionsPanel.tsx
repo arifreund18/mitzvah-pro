@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { LOCALE_OPTIONS } from '@/lib/platform/locales'
 import { applyProducts, normalizeProducts, toggleProduct } from '@/lib/platform/products'
@@ -20,6 +20,7 @@ export function EventOptionsPanel({
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState('')
   const [tone, setTone] = useState<'ok' | 'err'>('ok')
+  const updatedAtRef = useRef(event.updatedAt)
 
   const products = normalizeProducts(
     config.products,
@@ -43,14 +44,22 @@ export function EventOptionsPanel({
     const res = await fetch(`/api/platform/events/${event.id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ config: next }),
+      body: JSON.stringify({ config: next, expectedUpdatedAt: updatedAtRef.current }),
     })
+    const data = (await res.json().catch(() => null)) as
+      | { event?: PlatformEvent; error?: string }
+      | null
     setBusy(false)
     if (!res.ok) {
+      if (res.status === 409 && data?.event) {
+        setConfig(data.event.config)
+        updatedAtRef.current = data.event.updatedAt
+      }
       setTone('err')
-      setMessage(ui.optionsSaveFailed)
+      setMessage(data?.error || ui.optionsSaveFailed)
       return
     }
+    if (data?.event?.updatedAt) updatedAtRef.current = data.event.updatedAt
     setTone('ok')
     setMessage(ui.optionsSaved)
     router.refresh()

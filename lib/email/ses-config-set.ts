@@ -68,9 +68,13 @@ async function getConfigurationSetStatus(name: string): Promise<ConfigurationSet
 
 /**
  * Ensure per-event configuration set exists with reputation metrics on and sending enabled.
+ * E8: pass eventId (or an explicit name) so new sets do not collide on reused slugs.
  */
-export async function ensureEventConfigurationSet(slug: string): Promise<ConfigurationSetStatus> {
-  const name = eventConfigurationSetName(slug)
+export async function ensureEventConfigurationSet(
+  slug: string,
+  opts?: { eventId?: string; name?: string },
+): Promise<ConfigurationSetStatus> {
+  const name = opts?.name || eventConfigurationSetName(slug, opts?.eventId)
   const client = getSesClient()
   if (!client) {
     return {
@@ -111,6 +115,7 @@ export async function ensureEventConfigurationSet(slug: string): Promise<Configu
         Tags: [
           { Key: 'app', Value: 'mitzvah-pro' },
           { Key: 'slug', Value: slug.slice(0, 128) },
+          ...(opts?.eventId ? [{ Key: 'eventId', Value: opts.eventId.slice(0, 128) }] : []),
           { Key: 'region', Value: awsRegion() },
         ],
       }),
@@ -158,8 +163,9 @@ export async function attachConfigurationSetToIdentity(
 export async function setEventSendingEnabled(
   slug: string,
   enabled: boolean,
+  opts?: { eventId?: string; configurationSetName?: string },
 ): Promise<ConfigurationSetStatus> {
-  const name = eventConfigurationSetName(slug)
+  const name = opts?.configurationSetName || eventConfigurationSetName(slug, opts?.eventId)
   const client = getSesClient()
   if (!client) {
     return {
@@ -171,13 +177,16 @@ export async function setEventSendingEnabled(
     }
   }
 
-  const ensured = await ensureEventConfigurationSet(slug)
+  const ensured = await ensureEventConfigurationSet(slug, {
+    eventId: opts?.eventId,
+    name,
+  })
   if (!ensured.exists) return ensured
 
   try {
     await client.send(
       new PutConfigurationSetSendingOptionsCommand({
-        ConfigurationSetName: name,
+        ConfigurationSetName: ensured.name,
         SendingEnabled: enabled,
       }),
     )
@@ -195,11 +204,17 @@ export async function setEventSendingEnabled(
 }
 
 /** Convenience: pause outbound mail for one event (reputation / abuse control). */
-export async function pauseEventSending(slug: string): Promise<ConfigurationSetStatus> {
-  return setEventSendingEnabled(slug, false)
+export async function pauseEventSending(
+  slug: string,
+  opts?: { eventId?: string; configurationSetName?: string },
+): Promise<ConfigurationSetStatus> {
+  return setEventSendingEnabled(slug, false, opts)
 }
 
 /** Convenience: re-enable outbound mail for one event. */
-export async function resumeEventSending(slug: string): Promise<ConfigurationSetStatus> {
-  return setEventSendingEnabled(slug, true)
+export async function resumeEventSending(
+  slug: string,
+  opts?: { eventId?: string; configurationSetName?: string },
+): Promise<ConfigurationSetStatus> {
+  return setEventSendingEnabled(slug, true, opts)
 }

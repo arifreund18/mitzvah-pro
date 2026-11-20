@@ -14,7 +14,7 @@ export async function POST(_request: Request, ctx: Ctx) {
   const current = await getEvent(id)
   if (!current) return NextResponse.json({ error: 'Evento não encontrado' }, { status: 404 })
 
-  const mail = await provisionEventMailDomain(current.config)
+  const mail = await provisionEventMailDomain(current.config, id)
   const event = await updateEvent(id, {
     config: {
       ...current.config,

@@ -17,11 +17,16 @@ export function isProductionEnv(): boolean {
   )
 }
 
+/** M7: Preview (or any non-prod) with a real DATABASE_URL must not use default secrets. */
+function requireSecretsWithDatabase(): boolean {
+  return Boolean(process.env.DATABASE_URL) && process.env.MITZVAH_ALLOW_DEFAULT_SECRETS !== '1'
+}
+
 export function dashboardPassword(): string {
   const value = process.env.DASHBOARD_PASSWORD
   if (value) return value
-  if (isProductionEnv()) {
-    throw new Error('DASHBOARD_PASSWORD is required in production')
+  if (isProductionEnv() || requireSecretsWithDatabase()) {
+    throw new Error('DASHBOARD_PASSWORD is required in production (and Preview with DATABASE_URL)')
   }
   return 'mitzvah'
 }
@@ -29,8 +34,8 @@ export function dashboardPassword(): string {
 export function sessionSecret(): string {
   const value = process.env.DASHBOARD_SECRET
   if (value) return value
-  if (isProductionEnv()) {
-    throw new Error('DASHBOARD_SECRET is required in production')
+  if (isProductionEnv() || requireSecretsWithDatabase()) {
+    throw new Error('DASHBOARD_SECRET is required in production (and Preview with DATABASE_URL)')
   }
   return 'mitzvah-local-secret'
 }
