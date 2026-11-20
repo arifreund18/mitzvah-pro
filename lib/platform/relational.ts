@@ -523,6 +523,8 @@ export async function loadEventByCustomHost(
     SELECT * FROM events
     WHERE lower(regexp_replace(coalesce(config->'domain'->>'customHost', ''), '^www\\.', '')) = ${needle}
       AND coalesce(config->'domain'->>'customHostStatus', '') = 'verified'
+      AND status = 'published'
+    ORDER BY id ASC
     LIMIT 1
   `) as unknown as Record<string, unknown>[]
   return loadEventFromRow(db, rows[0])

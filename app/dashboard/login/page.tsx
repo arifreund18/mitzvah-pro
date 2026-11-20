@@ -1,11 +1,9 @@
 import { LoginForm } from '@/components/dashboard/LoginForm'
-import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
-import { isValidSession, SESSION_COOKIE } from '@/lib/platform/auth'
+import { currentActor } from '@/lib/platform/session'
 
 export default async function DashboardLoginPage() {
-  const jar = await cookies()
-  if (isValidSession(jar.get(SESSION_COOKIE)?.value)) {
+  if (await currentActor()) {
     redirect('/dashboard')
   }
   return (

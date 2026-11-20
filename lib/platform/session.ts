@@ -13,7 +13,19 @@ import { getEvent, getUser } from '@/lib/platform/store'
 
 export async function currentActor(): Promise<SessionActor | null> {
   const jar = await cookies()
-  return readSession(jar.get(SESSION_COOKIE)?.value)
+  const raw = readSession(jar.get(SESSION_COOKIE)?.value)
+  if (!raw) return null
+  // Admin cookie is not tied to a DB user.
+  if (raw.kind === 'admin') return raw
+  // C2: role/org always come from the store — deleted/demoted users lose access immediately.
+  const user = await getUser(raw.userId)
+  if (!user) return null
+  return {
+    kind: 'user',
+    userId: user.id,
+    orgId: user.orgId,
+    role: user.role,
+  }
 }
 
 export async function requireSession(): Promise<NextResponse | null> {

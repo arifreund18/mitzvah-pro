@@ -1,5 +1,5 @@
 import { createDefaultConfig } from './defaults'
-import { DEFAULT_ORG_ID } from './auth'
+import { DEFAULT_ORG_ID } from './constants'
 import { slugify, uid } from './ids'
 import { hashPassword } from './password'
 import {
@@ -21,6 +21,7 @@ import { normalizeConfig, normalizeGuest } from './normalize'
 import { applyProducts, parseProductsInput } from './products'
 import { applyScheduleItemInvitations } from './schedule-invite'
 import { normalizeFollowUp } from './follow-up'
+import { emptyMailDomain } from './mail-domain'
 import type {
   EventConfig,
   EventLocale,
@@ -232,8 +233,27 @@ export async function getEventBySlug(slug: string): Promise<PlatformEvent | null
   return store.events.find((event) => event.slug === slug) ?? null
 }
 
+function normalizeCustomHostNeedle(host: string): string {
+  return host.split(':')[0].toLowerCase().replace(/^www\./, '').replace(/\.$/, '')
+}
+
+/** True when another event already claimed this custom host (any status). */
+export async function isCustomHostTaken(
+  host: string,
+  exceptEventId?: string,
+): Promise<boolean> {
+  const needle = normalizeCustomHostNeedle(host)
+  if (!needle) return false
+  const store = await loadStore()
+  return store.events.some((event) => {
+    if (exceptEventId && event.id === exceptEventId) return false
+    const custom = normalizeCustomHostNeedle(event.config.domain.customHost || '')
+    return Boolean(custom && custom === needle)
+  })
+}
+
 export async function getEventByCustomHost(host: string): Promise<PlatformEvent | null> {
-  const needle = host.split(':')[0].toLowerCase().replace(/^www\./, '')
+  const needle = normalizeCustomHostNeedle(host)
   if (!needle) return null
   if (eventScopedReadsEnabled()) {
     try {
@@ -244,12 +264,15 @@ export async function getEventByCustomHost(host: string): Promise<PlatformEvent 
     }
   }
   const store = await loadStorePublic()
-  return (
-    store.events.find((event) => {
-      const custom = event.config.domain.customHost.replace(/^www\./, '')
+  // Deterministic: published only, oldest id wins (avoid "last edited" takeover).
+  const matches = store.events
+    .filter((event) => {
+      if (event.status !== 'published') return false
+      const custom = normalizeCustomHostNeedle(event.config.domain.customHost || '')
       return custom && custom === needle && event.config.domain.customHostStatus === 'verified'
-    }) ?? null
-  )
+    })
+    .sort((a, b) => a.id.localeCompare(b.id))
+  return matches[0] ?? null
 }
 
 export async function getEventByPreviewToken(token: string): Promise<PlatformEvent | null> {
@@ -457,6 +480,11 @@ export async function duplicateEvent(id: string): Promise<PlatformEvent | null> 
       wizard: { currentStep: 'review', completedSteps: source.wizard.completedSteps },
     }
     copy.config.domain.slug = slug
+    // E3: do not inherit mail identity / custom host from the source event.
+    copy.config.domain.mail = emptyMailDomain()
+    copy.config.domain.customHost = ''
+    copy.config.domain.customHostStatus = 'none'
+    copy.config.domain.customHostToken = uid()
     copy.config.story.headline = `${copy.config.story.headline} (cópia)`
     store.events.push(copy)
     await saveStore(store)

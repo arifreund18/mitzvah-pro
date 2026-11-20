@@ -4,7 +4,8 @@ import { redirect } from 'next/navigation'
 import { LogoutButton } from '@/components/dashboard/LogoutButton'
 import { StorageAlert } from '@/components/dashboard/StorageAlert'
 import { StudioLocaleSwitcher } from '@/components/dashboard/StudioLocaleSwitcher'
-import { canManageUsers, readSession, SESSION_COOKIE } from '@/lib/platform/auth'
+import { canManageUsers } from '@/lib/platform/auth'
+import { currentActor } from '@/lib/platform/session'
 import { resolveStudioLocale, STUDIO_LOCALE_COOKIE } from '@/lib/platform/studio-locale'
 import { fillTemplate, studioUi } from '@/lib/platform/studio-ui'
 import { getOrg } from '@/lib/platform/store'
@@ -22,7 +23,7 @@ export async function DashboardShell({
   lockLocale?: boolean
 }) {
   const jar = await cookies()
-  const actor = readSession(jar.get(SESSION_COOKIE)?.value)
+  const actor = await currentActor()
   if (!actor) redirect('/dashboard/login')
 
   const hdrs = await headers()

@@ -5,7 +5,7 @@ import {
   scrubForeignChromeFromDesign,
 } from './guest-locale.ts'
 import { uid } from './ids'
-import { DEFAULT_ORG_ID } from './auth'
+import { DEFAULT_ORG_ID } from './constants'
 import { normalizeFollowUps } from './follow-up.ts'
 import { isReminderAudience, resolveReminderAudience } from './reminder-audience.ts'
 import {

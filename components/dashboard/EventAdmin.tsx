@@ -308,7 +308,14 @@ export function EventAdmin({
       />
       <CustomDomainPanel eventId={event.id} domain={event.config.domain} />
       <div className="mt-8">
-        <EventActions id={event.id} slug={event.slug} status={event.status} previewToken={event.previewToken} locale={locale} />
+        <EventActions
+          id={event.id}
+          slug={event.slug}
+          status={event.status}
+          previewToken={event.previewToken}
+          locale={locale}
+          canHardDelete={canManageOptions}
+        />
       </div>
       <div className="mt-6 flex flex-wrap gap-3 text-sm">
         <a href={stdUrl} className="rounded-full border border-white/20 px-4 py-2 hover:bg-white/10">

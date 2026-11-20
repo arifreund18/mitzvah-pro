@@ -27,6 +27,25 @@ function lockOwnerOnlyOptions(incoming: EventConfig, existing: EventConfig): Eve
   }
 }
 
+/**
+ * E1: mail + custom host are server-managed. Never accept client forgeries of
+ * fromEmail / configurationSetName / verified status / another event's host.
+ * Change these only via provision-mail / custom-domain routes.
+ */
+function lockServerManagedDomain(incoming: EventConfig, existing: EventConfig): EventConfig {
+  return {
+    ...incoming,
+    domain: {
+      ...incoming.domain,
+      slug: existing.domain.slug,
+      mail: existing.domain.mail,
+      customHost: existing.domain.customHost,
+      customHostStatus: existing.domain.customHostStatus,
+      customHostToken: existing.domain.customHostToken,
+    },
+  }
+}
+
 export async function GET(_request: Request, ctx: Ctx) {
   const { id } = await ctx.params
   const denied = await requireEventAccess(id)
@@ -48,10 +67,13 @@ export async function PATCH(request: Request, ctx: Ctx) {
   if (!body) return NextResponse.json({ error: 'JSON inválido' }, { status: 400 })
   try {
     const actor = await currentActor()
-    if (body.config && !canManageEventOptions(actor)) {
+    if (body.config) {
       const existing = await getEvent(id)
       if (!existing) return NextResponse.json({ error: 'Evento não encontrado' }, { status: 404 })
-      body.config = lockOwnerOnlyOptions(body.config, existing.config)
+      body.config = lockServerManagedDomain(body.config, existing.config)
+      if (!canManageEventOptions(actor)) {
+        body.config = lockOwnerOnlyOptions(body.config, existing.config)
+      }
     }
     const event = await updateEvent(id, body)
     if (!event) return NextResponse.json({ error: 'Evento não encontrado' }, { status: 404 })
@@ -61,10 +83,29 @@ export async function PATCH(request: Request, ctx: Ctx) {
   }
 }
 
-export async function DELETE(_request: Request, ctx: Ctx) {
+export async function DELETE(request: Request, ctx: Ctx) {
   const { id } = await ctx.params
   const denied = await requireEventAccess(id)
   if (denied) return denied
+  const actor = await currentActor()
+  if (!canManageEventOptions(actor)) {
+    return NextResponse.json(
+      { error: 'Só o owner ou admin pode apagar o evento permanentemente. Use Arquivar.' },
+      { status: 403 },
+    )
+  }
+  const body = (await request.json().catch(() => null)) as { confirmSlug?: string } | null
+  const event = await getEvent(id)
+  if (!event) return NextResponse.json({ error: 'Evento não encontrado' }, { status: 404 })
+  const confirmSlug = String(body?.confirmSlug || '').trim()
+  if (!confirmSlug || confirmSlug !== event.slug) {
+    return NextResponse.json(
+      {
+        error: `Confirme digitando o slug do evento (${event.slug}) para apagar permanentemente.`,
+      },
+      { status: 400 },
+    )
+  }
   try {
     const ok = await deleteEvent(id)
     if (!ok) return NextResponse.json({ error: 'Evento não encontrado' }, { status: 404 })
