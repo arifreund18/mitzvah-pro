@@ -8,7 +8,8 @@ export const maxDuration = 60
 
 /**
  * M3: resume mail jobs left pending when the dashboard tab closed mid-batch.
- * Hourly on Vercel; only touches jobs stale for ~2 minutes.
+ * Invoked from /api/cron/reminders (and manually with CRON_SECRET).
+ * Only touches jobs stale for ~2 minutes.
  */
 export async function GET(request: Request) {
   if (!authorizeCron(request)) {
