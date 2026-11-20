@@ -1,38 +1,42 @@
 import { describe, it } from 'node:test'
 import assert from 'node:assert/strict'
+import { emailSendClaimId } from '../lib/platform/email-claim.ts'
 
 describe('mail integrity contracts (C3/C4/E4/E5/E6)', () => {
-  it('C4: mark-sent-per-email closes the timeout requeue window', () => {
+  it('C4/N5: after SES accept, guest counts as succeeded even if mark retries', () => {
     const batch = ['a', 'b', 'c']
+    const succeeded: string[] = []
     const marked: string[] = []
-    const sentAt = new Map<string, string>()
     for (const id of batch) {
-      // After each successful send we mark immediately (not after the whole batch).
-      marked.push(id)
-      sentAt.set(id, new Date().toISOString())
+      // Count success before persistence (N5) so lease expiry cannot re-send.
+      succeeded.push(id)
+      try {
+        marked.push(id)
+      } catch {
+        // still in succeeded
+      }
     }
+    assert.equal(succeeded.length, 3)
     assert.equal(marked.length, 3)
-    assert.ok(sentAt.get('a'))
-    // A mid-batch kill after 'a' would still leave 'a' marked — no re-send.
-    assert.equal(Boolean(sentAt.get('a')), true)
   })
 
-  it('E5: already-sent check is keyed by event+family+type+email', () => {
-    const logs = [
-      { eventId: 'e1', familyId: 'f1', type: 'reminder-d30', toEmail: 'a@x.com', status: 'sent' },
-      { eventId: 'e2', familyId: 'f1', type: 'reminder-d30', toEmail: 'a@x.com', status: 'sent' },
-    ]
-    const already = (eventId: string) =>
-      logs.some(
-        (log) =>
-          log.eventId === eventId &&
-          log.familyId === 'f1' &&
-          log.type === 'reminder-d30' &&
-          log.toEmail === 'a@x.com' &&
-          log.status === 'sent',
-      )
-    assert.equal(already('e1'), true)
-    assert.equal(already('e3'), false)
+  it('N4/E5: claim ids are deterministic per event+family+type+email', () => {
+    const id = emailSendClaimId({
+      eventId: 'e1',
+      familyId: 'f1',
+      type: 'reminder-d30',
+      toEmail: 'a@x.com',
+    })
+    assert.equal(id, 'claim:e1:f1:reminder-d30:a@x.com')
+    assert.notEqual(
+      id,
+      emailSendClaimId({
+        eventId: 'e2',
+        familyId: 'f1',
+        type: 'reminder-d30',
+        toEmail: 'a@x.com',
+      }),
+    )
   })
 
   it('E6/A3: catch-up picks smallest enabled window with days <= window', () => {

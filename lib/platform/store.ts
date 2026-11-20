@@ -3,7 +3,11 @@ import { DEFAULT_ORG_ID } from './constants'
 import { slugify, uid } from './ids'
 import { hashPassword } from './password'
 import {
+  claimEmailSend,
+  deletePlatformEventRelational,
+  deletePlatformUserRelational,
   eventScopedReadsEnabled,
+  finalizeEmailSend,
   loadPlatformStore,
   loadScopedEventByApprovalToken,
   loadScopedEventByCustomHost,
@@ -11,7 +15,9 @@ import {
   loadScopedEventBySlug,
   loadScopedFamilyByToken,
   queryHasSentEmailLog,
+  retirePlatformSlug,
   savePlatformStore,
+  savePlatformStoreScopedEvent,
   saveScopedEmailLog,
   saveScopedFamilyUpdate,
   storageDriver,
@@ -213,6 +219,8 @@ export async function deleteUser(id: string): Promise<boolean> {
     store.users = store.users.filter((user) => user.id !== id)
     if (store.users.length === before) return false
     await saveStore(store)
+    // N1: relational tables are the read source — hard-delete the user row.
+    await deletePlatformUserRelational(id)
     return true
   })
 }
@@ -481,7 +489,8 @@ export async function updateEvent(
       if (patch.status === 'published') event.publishedAt = new Date().toISOString()
     }
     event.updatedAt = new Date().toISOString()
-    await saveStore(store)
+    // N2: wizard autosave must not rewrite every event's families.
+    await savePlatformStoreScopedEvent(store, event.id, { syncFamilies: false })
     return event
   })
 }
@@ -529,6 +538,9 @@ export async function deleteEvent(id: string): Promise<boolean> {
     retireSlug(store, existing.slug)
     store.events = store.events.filter((item) => item.id !== id)
     await saveStore(store)
+    // N1: DELETE FROM events (cascade families/guests) — JSON sync alone is not enough.
+    await deletePlatformEventRelational(id)
+    if (existing.slug) await retirePlatformSlug(existing.slug)
     return true
   })
 }
@@ -603,12 +615,12 @@ export async function addGuest(
       })
       event.guests[index] = merged
       event.updatedAt = now
-      await saveStore(store)
+      await savePlatformStoreScopedEvent(store, eventId, { syncFamilies: true })
       return merged
     }
     event.guests.push(incoming)
     event.updatedAt = now
-    await saveStore(store)
+    await savePlatformStoreScopedEvent(store, eventId, { syncFamilies: true })
     return incoming
   })
 }
@@ -636,7 +648,7 @@ export async function deleteGuestPerson(
     if (!personId) {
       event.guests.splice(index, 1)
       event.updatedAt = new Date().toISOString()
-      await saveStore(store)
+      await savePlatformStoreScopedEvent(store, eventId, { syncFamilies: true })
       return { event, deleted: 'family' }
     }
 
@@ -645,14 +657,14 @@ export async function deleteGuestPerson(
     if (people.length === 0) {
       event.guests.splice(index, 1)
       event.updatedAt = new Date().toISOString()
-      await saveStore(store)
+      await savePlatformStoreScopedEvent(store, eventId, { syncFamilies: true })
       return { event, deleted: 'family' }
     }
 
     const guest = normalizeGuest({ ...current, people, partySize: people.length })
     event.guests[index] = guest
     event.updatedAt = new Date().toISOString()
-    await saveStore(store)
+    await savePlatformStoreScopedEvent(store, eventId, { syncFamilies: true })
     return { event, deleted: 'person', guest }
   })
 }
@@ -720,7 +732,7 @@ export async function addGuests(
       }
     }
     event.updatedAt = now
-    await saveStore(store)
+    await savePlatformStoreScopedEvent(store, eventId, { syncFamilies: true })
     return added
   })
 }
@@ -798,7 +810,8 @@ export async function replaceGuests(
     }
     event.guests = reconcileGuestList(event.guests, guests, event.config)
     event.updatedAt = new Date().toISOString()
-    await saveStore(store)
+    // N2: reconcile families for this event only (DELETE missing ids scoped to event).
+    await savePlatformStoreScopedEvent(store, event.id, { syncFamilies: true })
     return event
   })
 }
@@ -824,7 +837,7 @@ export async function replaceScheduleItemInvitations(
       invited,
     ).map((guest) => coerceGuestInviteLocale(normalizeGuest(guest), event.config))
     event.updatedAt = new Date().toISOString()
-    await saveStore(store)
+    await savePlatformStoreScopedEvent(store, eventId, { syncFamilies: true })
     return { event, invitedCount: invited.length }
   })
 }
@@ -1019,6 +1032,28 @@ export async function appendEmailLog(input: {
     store.emailLogs.push(log)
     await saveStore(store)
   })
+}
+
+/**
+ * N4: claim a deterministic send slot before calling the provider.
+ * Returns null when already claimed/sent (skip send).
+ */
+export async function claimOutboundEmail(input: {
+  eventId: string
+  familyId: string
+  type: string
+  toEmail: string
+}): Promise<{ id: string } | null> {
+  const result = await claimEmailSend(input)
+  if (!result?.claimed) return null
+  return { id: result.id }
+}
+
+export async function finalizeOutboundEmail(
+  claimId: string,
+  result: { status: string; messageId?: string | null; error?: string },
+): Promise<void> {
+  await finalizeEmailSend(claimId, result)
 }
 
 /** E5: precise “already sent?” check — avoids the global 5000-log window. */

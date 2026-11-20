@@ -13,8 +13,8 @@ import {
 } from '@/lib/platform/reminder-audience'
 import { mailReminderHtml, mailReminderSubject } from '@/lib/platform/reminder-mail'
 import {
-  appendEmailLog,
-  hasSentEmailLog,
+  claimOutboundEmail,
+  finalizeOutboundEmail,
   loadPlatformStoreForCron,
 } from '@/lib/platform/store'
 import type { Guest, PlatformEvent, ReminderAudience } from '@/lib/platform/types'
@@ -116,14 +116,14 @@ export async function GET(request: NextRequest) {
             break
           }
           const type = `reminder-d${hit.days}`
-          // E5: query by event/family/type/email — not the global 5000-log window.
-          const already = await hasSentEmailLog({
+          // N4: claim before send (idempotent under double cron delivery).
+          const claim = await claimOutboundEmail({
             eventId: event.id,
             familyId: guest.id,
             type,
             toEmail: to,
           })
-          if (already) continue
+          if (!claim) continue
 
           const sent = await sendReminder({ event, guest, to, days: hit.days, emailReady })
           jobs.push({
@@ -133,12 +133,8 @@ export async function GET(request: NextRequest) {
             to,
             status: sent.status,
           })
-          await appendEmailLog({
-            eventId: event.id,
-            familyId: guest.id,
-            type,
+          await finalizeOutboundEmail(claim.id, {
             status: sent.status,
-            toEmail: to,
             messageId: sent.messageId,
             error: sent.error,
           })

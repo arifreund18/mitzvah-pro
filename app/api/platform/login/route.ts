@@ -1,7 +1,9 @@
 import { NextResponse } from 'next/server'
 import {
   dashboardPassword,
+  dashboardSecretsConfigured,
   encodeUserSession,
+  isProductionEnv,
   SESSION_COOKIE,
   sessionToken,
 } from '@/lib/platform/auth'
@@ -37,6 +39,13 @@ export async function POST(request: Request) {
     }
     token = encodeUserSession(user.id, user.orgId, user.role)
   } else {
+    // N7: production / Preview-with-DB must have real secrets (no SHA-derived fallback).
+    if (isProductionEnv() && !dashboardSecretsConfigured()) {
+      return NextResponse.json(
+        { error: 'Login admin indisponível: DASHBOARD_PASSWORD/SECRET não configurados' },
+        { status: 503 },
+      )
+    }
     let expected: string
     try {
       expected = dashboardPassword()

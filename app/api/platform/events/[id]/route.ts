@@ -76,7 +76,12 @@ export async function PATCH(request: Request, ctx: Ctx) {
         body.config = lockOwnerOnlyOptions(body.config, existing.config)
       }
     }
-    const event = await updateEvent(id, body)
+    // N3: never accept client slug renames here — breaks mailed invite links.
+    const event = await updateEvent(id, {
+      config: body.config,
+      wizard: body.wizard,
+      expectedUpdatedAt: body.expectedUpdatedAt,
+    })
     if (!event) return NextResponse.json({ error: 'Evento não encontrado' }, { status: 404 })
     return NextResponse.json({ event })
   } catch (error) {

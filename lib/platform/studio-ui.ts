@@ -128,6 +128,9 @@ export type StudioUi = {
   emailLogType: string
   emailLogTo: string
   emailLogStatus: string
+  emailLogShow: string
+  emailLogHide: string
+  emailLogCollapsedHint: string
   optionsTitle: string
   optionsHint: string
   products: string
@@ -538,6 +541,9 @@ function pack(
     emailLogType: 'Type',
     emailLogTo: 'To',
     emailLogStatus: 'Status',
+    emailLogShow: 'Show log',
+    emailLogHide: 'Hide log',
+    emailLogCollapsedHint: 'Hidden to keep the dashboard readable — open only when you need it.',
     optionsTitle: 'Event options',
     optionsHint: 'Change what the event includes and its languages. The wizard and sends follow these choices.',
     products: 'Products',
@@ -720,6 +726,9 @@ const STUDIO_UI: Record<EventLocale, StudioUi> = {
     emailLogType: 'Tipo',
     emailLogTo: 'Para',
     emailLogStatus: 'Estado',
+    emailLogShow: 'Mostrar log',
+    emailLogHide: 'Ocultar log',
+    emailLogCollapsedHint: 'Oculto para não atrapalhar o dashboard — abra só quando precisar.',
     optionsTitle: 'Opções do evento',
     optionsHint: 'Altere o que o evento inclui e os idiomas. O wizard e os envios adaptam-se a estas escolhas.',
     products: 'Produtos',

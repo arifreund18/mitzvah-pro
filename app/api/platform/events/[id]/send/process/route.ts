@@ -139,22 +139,36 @@ export async function POST(request: Request, ctx: Ctx) {
     })
 
     if (result.ok) {
-      // C4: mark sent immediately so a mid-batch timeout cannot re-queue this guest.
-      await markMailSent(id, job.kind, [guest.id])
+      // N5: SES already accepted — count as succeeded even if persistence fails,
+      // so lease expiry cannot re-send the same guest.
       const now = new Date().toISOString()
       guestById.set(guest.id, {
         ...guest,
         ...(job.kind === 'std' ? { stdSentAt: now } : { inviteSentAt: now }),
       })
       succeeded += 1
-      await appendEmailLog({
-        eventId: id,
-        familyId: guest.id,
-        type: job.kind,
-        status: 'sent',
-        toEmail,
-        messageId: result.messageId,
-      })
+      try {
+        await markMailSent(id, job.kind, [guest.id])
+      } catch (error) {
+        console.error('[send/process] markMailSent failed after SES accept', guest.id, error)
+        try {
+          await markMailSent(id, job.kind, [guest.id])
+        } catch (retryError) {
+          console.error('[send/process] markMailSent retry failed', guest.id, retryError)
+        }
+      }
+      try {
+        await appendEmailLog({
+          eventId: id,
+          familyId: guest.id,
+          type: job.kind,
+          status: 'sent',
+          toEmail,
+          messageId: result.messageId,
+        })
+      } catch (error) {
+        console.error('[send/process] appendEmailLog failed after SES accept', guest.id, error)
+      }
       continue
     }
 

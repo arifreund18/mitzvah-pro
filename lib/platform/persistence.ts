@@ -10,6 +10,10 @@ import { hashPassword } from './password'
 import { normalizeEvent } from './normalize'
 import { oncePerProcess } from './once'
 import {
+  claimEmailSendRow,
+  deleteEventFromRelational,
+  deleteUserFromRelational,
+  finalizeEmailSendClaim,
   loadEventByApprovalToken,
   loadEventByCustomHost,
   loadEventById,
@@ -20,6 +24,8 @@ import {
   insertEmailLogRow,
   loadStoreFromRelational,
   relationalEventCount,
+  retireSlugInRelational,
+  syncEventToRelational,
   syncStoreToRelational,
   upsertFamilyToRelational,
 } from './relational'
@@ -228,13 +234,19 @@ async function savePostgres(store: PlatformStore): Promise<void> {
     VALUES (${PG_ROW_ID}, ${db.json(store as never)}, now())
     ON CONFLICT (id) DO UPDATE SET data = EXCLUDED.data, updated_at = now()
   `
-  // Dual-write operational rows (orgs/users/events/families/logs).
-  try {
-    await syncStoreToRelational(db, store)
-  } catch (error) {
-    // JSON write already succeeded; surface sync failure instead of swallowing.
-    console.error('[persistence] syncStoreToRelational failed', error)
-  }
+  // N2: dual-write must succeed — do not report API success if relational sync fails.
+  await syncStoreToRelational(db, store)
+}
+
+/** Write JSON backup only (caller syncs the touched event/user). */
+async function savePostgresJsonOnly(store: PlatformStore): Promise<void> {
+  await ensurePostgresTable()
+  const db = sql()
+  await db`
+    INSERT INTO platform_store (id, data, updated_at)
+    VALUES (${PG_ROW_ID}, ${db.json(store as never)}, now())
+    ON CONFLICT (id) DO UPDATE SET data = EXCLUDED.data, updated_at = now()
+  `
 }
 
 async function loadBlob(): Promise<PlatformStore> {
@@ -358,6 +370,81 @@ export async function savePlatformStore(store: PlatformStore): Promise<void> {
     // Always drop stale public cache after a write attempt on this instance.
     invalidatePlatformStoreCache()
   }
+}
+
+/**
+ * N2: persist store JSON + sync only one event (optional family reconcile).
+ * Prefer this over full syncStoreToRelational for wizard/guest mutations.
+ */
+export async function savePlatformStoreScopedEvent(
+  store: PlatformStore,
+  eventId: string,
+  opts?: { syncFamilies?: boolean },
+): Promise<void> {
+  assertDurableStorage()
+  try {
+    if (storageDriver() !== 'postgres') {
+      await savePlatformStore(store)
+      return
+    }
+    await savePostgresJsonOnly(store)
+    const event = store.events.find((item) => item.id === eventId)
+    if (event) {
+      await syncEventToRelational(sql(), event, {
+        syncFamilies: opts?.syncFamilies === true,
+      })
+    }
+    for (const slug of store.retiredSlugs || []) {
+      await retireSlugInRelational(sql(), slug)
+    }
+  } finally {
+    invalidatePlatformStoreCache()
+  }
+}
+
+/** N1: delete event from relational tables (cascade). */
+export async function deletePlatformEventRelational(eventId: string): Promise<void> {
+  if (storageDriver() !== 'postgres') return
+  await ensurePostgresTable()
+  await deleteEventFromRelational(sql(), eventId)
+}
+
+/** N1: delete user from relational tables. */
+export async function deletePlatformUserRelational(userId: string): Promise<void> {
+  if (storageDriver() !== 'postgres') return
+  await ensurePostgresTable()
+  await deleteUserFromRelational(sql(), userId)
+}
+
+export async function retirePlatformSlug(slug: string): Promise<void> {
+  if (storageDriver() !== 'postgres') return
+  await ensurePostgresTable()
+  await retireSlugInRelational(sql(), slug)
+}
+
+/** N4: claim a deterministic email_log row before sending (cron idempotency). */
+export async function claimEmailSend(input: {
+  eventId: string
+  familyId: string
+  type: string
+  toEmail: string
+}): Promise<{ claimed: boolean; id: string } | null> {
+  if (storageDriver() !== 'postgres') {
+    // File/blob: no shared claim table — allow send (single instance).
+    return { claimed: true, id: `local:${input.eventId}:${input.familyId}:${input.type}` }
+  }
+  await ensurePostgresTable()
+  return claimEmailSendRow(sql(), input)
+}
+
+export async function finalizeEmailSend(
+  claimId: string,
+  result: { status: string; messageId?: string | null; error?: string },
+): Promise<void> {
+  if (storageDriver() !== 'postgres') return
+  if (claimId.startsWith('local:')) return
+  await ensurePostgresTable()
+  await finalizeEmailSendClaim(sql(), claimId, result)
 }
 
 export { eventScopedReadsEnabled } from './feature-flags'
