@@ -1,5 +1,5 @@
 import { createHmac, timingSafeEqual } from 'node:crypto'
-import { DEFAULT_ORG_ID } from './constants'
+import { DEFAULT_ORG_ID } from './constants.ts'
 
 export const SESSION_COOKIE = 'mitzvah_session'
 export { DEFAULT_ORG_ID }
