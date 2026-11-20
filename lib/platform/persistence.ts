@@ -16,12 +16,15 @@ import {
   loadEventByPreviewToken,
   loadEventBySlug,
   loadFamilyByToken,
+  hasSentEmailLogRow,
+  insertEmailLogRow,
   loadStoreFromRelational,
+  relationalEventCount,
   syncStoreToRelational,
   upsertFamilyToRelational,
 } from './relational'
 import { createStoreReadCache } from './store-read-cache'
-import type { Guest, Organization, PlatformEvent, PlatformStore, PlatformUser } from './types'
+import type { EmailLog, Guest, Organization, PlatformEvent, PlatformStore, PlatformUser } from './types'
 
 export type StorageDriver = 'postgres' | 'blob' | 'file'
 
@@ -180,8 +183,20 @@ async function loadPostgres(): Promise<PlatformStore> {
   try {
     const fromTables = await loadStoreFromRelational(db)
     if (fromTables && fromTables.events.length) return fromTables
-  } catch {
-    // fall through to JSON blob row
+  } catch (error) {
+    // M1: if relational already has rows, do NOT fall through to JSON + sync
+    // (that would overwrite live tables with a possibly stale blob).
+    try {
+      const n = await relationalEventCount(db)
+      if (n > 0) {
+        console.error('[persistence] relational read failed with populated tables', error)
+        throw error
+      }
+    } catch (inner) {
+      if (inner === error) throw error
+      console.error('[persistence] relational read failed; count check also failed', error)
+      throw error
+    }
   }
   const rows = (await db`
     SELECT data FROM platform_store WHERE id = ${PG_ROW_ID} LIMIT 1
@@ -194,9 +209,10 @@ async function loadPostgres(): Promise<PlatformStore> {
   const store = parseStore(rows[0].data)
   // One-shot migrate JSON → relational when tables empty.
   try {
-    await syncStoreToRelational(db, store)
-  } catch {
-    // non-fatal: JSON remains source of truth until schema settles
+    const n = await relationalEventCount(db)
+    if (n === 0) await syncStoreToRelational(db, store)
+  } catch (error) {
+    console.error('[persistence] JSON→relational migrate failed', error)
   }
   return store
 }
@@ -212,8 +228,9 @@ async function savePostgres(store: PlatformStore): Promise<void> {
   // Dual-write operational rows (orgs/users/events/families/logs).
   try {
     await syncStoreToRelational(db, store)
-  } catch {
-    // JSON write already succeeded; relational sync retried on next save
+  } catch (error) {
+    // JSON write already succeeded; surface sync failure instead of swallowing.
+    console.error('[persistence] syncStoreToRelational failed', error)
   }
 }
 
@@ -413,4 +430,57 @@ export async function saveScopedFamilyUpdate(
     }
   }
   invalidatePlatformStoreCache()
+}
+
+/** C3.1: insert one email log without rewriting the whole store. */
+export async function saveScopedEmailLog(log: EmailLog): Promise<void> {
+  assertDurableStorage()
+  if (storageDriver() !== 'postgres') {
+    throw new Error('saveScopedEmailLog requer Postgres')
+  }
+  await ensurePostgresTable()
+  const db = sql()
+  await insertEmailLogRow(db, {
+    id: log.id,
+    eventId: log.eventId,
+    familyId: log.familyId,
+    type: log.type,
+    status: log.status,
+    messageId: log.messageId ?? log.resendId,
+    toEmail: log.toEmail,
+    error: log.error,
+    sentAt: log.sentAt,
+  })
+  // Keep JSON backup in sync without full relational re-sync.
+  const rows = (await db`
+    SELECT data FROM platform_store WHERE id = ${PG_ROW_ID} LIMIT 1
+  `) as unknown as { data: PlatformStore }[]
+  if (rows[0]?.data) {
+    const store = parseStore(rows[0].data)
+    if (!store.emailLogs) store.emailLogs = []
+    if (!store.emailLogs.some((item) => item.id === log.id)) {
+      store.emailLogs.push(log)
+      // Cap JSON backup growth — relational table is source of truth for queries.
+      if (store.emailLogs.length > 2000) {
+        store.emailLogs = store.emailLogs.slice(-2000)
+      }
+      await db`
+        INSERT INTO platform_store (id, data, updated_at)
+        VALUES (${PG_ROW_ID}, ${db.json(store as never)}, now())
+        ON CONFLICT (id) DO UPDATE SET data = EXCLUDED.data, updated_at = now()
+      `
+    }
+  }
+  invalidatePlatformStoreCache()
+}
+
+export async function queryHasSentEmailLog(input: {
+  eventId: string
+  familyId: string
+  type: string
+  toEmail: string
+}): Promise<boolean> {
+  if (storageDriver() !== 'postgres') return false
+  await ensurePostgresTable()
+  return hasSentEmailLogRow(sql(), input)
 }

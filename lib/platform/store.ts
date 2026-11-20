@@ -10,7 +10,9 @@ import {
   loadScopedEventByPreviewToken,
   loadScopedEventBySlug,
   loadScopedFamilyByToken,
+  queryHasSentEmailLog,
   savePlatformStore,
+  saveScopedEmailLog,
   saveScopedFamilyUpdate,
   storageDriver,
 } from './persistence'
@@ -767,12 +769,25 @@ export async function markMailSent(
     const now = new Date().toISOString()
     const selected = new Set(guestIds || event.guests.map((guest) => guest.id))
     let sent = 0
+    const updated: Guest[] = []
     event.guests = event.guests.map((guest) => {
-      if (!selected.has(guest.id) || !guest.email) return guest
+      if (!selected.has(guest.id)) return guest
+      const recipients = guest.email || (guest.emails || []).length
+      if (!recipients) return guest
       sent += 1
-      return kind === 'std' ? { ...guest, stdSentAt: now } : { ...guest, inviteSentAt: now }
+      const next =
+        kind === 'std' ? { ...guest, stdSentAt: now } : { ...guest, inviteSentAt: now }
+      updated.push(next)
+      return next
     })
     event.updatedAt = now
+    // C3.1: scoped family updates avoid full-store sync (and cross-event wipe risk).
+    if (eventScopedReadsEnabled() && storageDriver() === 'postgres' && updated.length) {
+      for (const guest of updated) {
+        await saveScopedFamilyUpdate(eventId, guest)
+      }
+      return { event, sent }
+    }
     await saveStore(store)
     return { event, sent }
   })
@@ -905,23 +920,59 @@ export async function appendEmailLog(input: {
   sentAt?: string
 }): Promise<void> {
   const messageId = input.messageId ?? input.resendId ?? null
+  const log = {
+    id: input.id || uid(),
+    eventId: input.eventId,
+    familyId: input.familyId ?? null,
+    type: input.type,
+    status: input.status,
+    messageId,
+    resendId: messageId,
+    toEmail: input.toEmail,
+    error: input.error || '',
+    sentAt: input.sentAt || new Date().toISOString(),
+  }
+  // C3.1: hot path — INSERT only (no full-store rewrite / sync).
+  if (storageDriver() === 'postgres') {
+    try {
+      await saveScopedEmailLog(log)
+      return
+    } catch (error) {
+      console.error('[store] saveScopedEmailLog failed; falling back to full save', error)
+    }
+  }
   await withLock(async () => {
     const store = await loadStore()
     if (!store.emailLogs) store.emailLogs = []
-    store.emailLogs.push({
-      id: input.id || uid(),
-      eventId: input.eventId,
-      familyId: input.familyId ?? null,
-      type: input.type,
-      status: input.status,
-      messageId,
-      resendId: messageId,
-      toEmail: input.toEmail,
-      error: input.error || '',
-      sentAt: input.sentAt || new Date().toISOString(),
-    })
+    store.emailLogs.push(log)
     await saveStore(store)
   })
+}
+
+/** E5: precise “already sent?” check — avoids the global 5000-log window. */
+export async function hasSentEmailLog(input: {
+  eventId: string
+  familyId: string
+  type: string
+  toEmail: string
+}): Promise<boolean> {
+  if (storageDriver() === 'postgres') {
+    try {
+      return await queryHasSentEmailLog(input)
+    } catch (error) {
+      console.error('[store] queryHasSentEmailLog failed; falling back to JSON', error)
+    }
+  }
+  const store = await loadStore()
+  const to = input.toEmail.trim().toLowerCase()
+  return (store.emailLogs || []).some(
+    (log) =>
+      log.eventId === input.eventId &&
+      log.familyId === input.familyId &&
+      log.type === input.type &&
+      log.toEmail.trim().toLowerCase() === to &&
+      log.status === 'sent',
+  )
 }
 
 /** Read-only store access for cron jobs (no durable-write assert). */

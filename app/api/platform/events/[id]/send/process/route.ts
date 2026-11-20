@@ -18,6 +18,9 @@ type Ctx = { params: Promise<{ id: string }> }
 
 export const maxDuration = 60
 
+/** Leave headroom under Vercel 60s so we can record the batch before the kill. */
+const BATCH_TIME_BUDGET_MS = 40_000
+
 export async function POST(request: Request, ctx: Ctx) {
   const { id } = await ctx.params
   const denied = await requireEventAccess(id)
@@ -77,7 +80,6 @@ export async function POST(request: Request, ctx: Ctx) {
     })
   }
 
-  const deliveredIds: string[] = []
   const deferredGuestIds: string[] = []
   const errors: string[] = []
   let succeeded = 0
@@ -90,9 +92,11 @@ export async function POST(request: Request, ctx: Ctx) {
   const configurationSetName =
     job.configurationSetName || eventMailConfigurationSet(event.config)
   const unsentDueToStop: string[] = []
+  const deadline = Date.now() + BATCH_TIME_BUDGET_MS
 
   for (const guestId of batch) {
-    if (stopEarly) {
+    if (stopEarly || Date.now() >= deadline) {
+      stopEarly = true
       unsentDueToStop.push(guestId)
       continue
     }
@@ -129,7 +133,13 @@ export async function POST(request: Request, ctx: Ctx) {
     })
 
     if (result.ok) {
-      deliveredIds.push(guest.id)
+      // C4: mark sent immediately so a mid-batch timeout cannot re-queue this guest.
+      await markMailSent(id, job.kind, [guest.id])
+      const now = new Date().toISOString()
+      guestById.set(guest.id, {
+        ...guest,
+        ...(job.kind === 'std' ? { stdSentAt: now } : { inviteSentAt: now }),
+      })
       succeeded += 1
       await appendEmailLog({
         eventId: id,
@@ -172,10 +182,6 @@ export async function POST(request: Request, ctx: Ctx) {
       toEmail,
       error: err,
     })
-  }
-
-  if (deliveredIds.length) {
-    await markMailSent(id, job.kind, deliveredIds)
   }
 
   job =
