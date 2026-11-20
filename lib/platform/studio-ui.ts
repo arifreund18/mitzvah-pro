@@ -115,6 +115,17 @@ export type StudioUi = {
   followUpFailures: string
   followUpDeferred: string
   followUpHistory: string
+  followUpBodyRequired: string
+  emailLogTitle: string
+  emailLogHint: string
+  emailLogEmpty: string
+  emailLogRefresh: string
+  emailLogRefreshing: string
+  emailLogLoadFailed: string
+  emailLogWhen: string
+  emailLogType: string
+  emailLogTo: string
+  emailLogStatus: string
   optionsTitle: string
   optionsHint: string
   products: string
@@ -512,6 +523,17 @@ function pack(
     followUpFailures: 'failed',
     followUpDeferred: 'deferred',
     followUpHistory: 'Recent follow-ups',
+    followUpBodyRequired: 'Write a message body before sending.',
+    emailLogTitle: 'Email log',
+    emailLogHint: 'Recent deliveries recorded by the platform (SES/Resend).',
+    emailLogEmpty: 'No emails logged yet for this event.',
+    emailLogRefresh: 'Refresh',
+    emailLogRefreshing: 'Refreshing…',
+    emailLogLoadFailed: 'Could not load the email log',
+    emailLogWhen: 'When',
+    emailLogType: 'Type',
+    emailLogTo: 'To',
+    emailLogStatus: 'Status',
     optionsTitle: 'Event options',
     optionsHint: 'Change what the event includes and its languages. The wizard and sends follow these choices.',
     products: 'Products',
@@ -681,6 +703,17 @@ const STUDIO_UI: Record<EventLocale, StudioUi> = {
     followUpFailures: 'falha(s)',
     followUpDeferred: 'adiado(s)',
     followUpHistory: 'Follow-ups recentes',
+    followUpBodyRequired: 'Escreva o corpo da mensagem antes de enviar.',
+    emailLogTitle: 'Log de emails',
+    emailLogHint: 'Entregas recentes registadas pela plataforma (SES/Resend).',
+    emailLogEmpty: 'Ainda não há emails registados neste evento.',
+    emailLogRefresh: 'Atualizar',
+    emailLogRefreshing: 'A atualizar…',
+    emailLogLoadFailed: 'Não foi possível carregar o log de emails',
+    emailLogWhen: 'Quando',
+    emailLogType: 'Tipo',
+    emailLogTo: 'Para',
+    emailLogStatus: 'Estado',
     optionsTitle: 'Opções do evento',
     optionsHint: 'Altere o que o evento inclui e os idiomas. O wizard e os envios adaptam-se a estas escolhas.',
     products: 'Produtos',

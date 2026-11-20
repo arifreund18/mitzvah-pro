@@ -21,6 +21,7 @@ export function isHostFollowUpAudience(value: unknown): value is HostFollowUpAud
 }
 
 export function normalizeFollowUp(row: Partial<HostFollowUp> & { body?: string }): HostFollowUp {
+  const clientRequestId = String(row.clientRequestId || '').trim()
   return {
     id: row.id || uid(),
     type: isHostFollowUpType(row.type) ? row.type : 'message',
@@ -30,6 +31,7 @@ export function normalizeFollowUp(row: Partial<HostFollowUp> & { body?: string }
     guestIds: Array.isArray(row.guestIds)
       ? [...new Set(row.guestIds.map((id) => String(id || '').trim()).filter(Boolean))]
       : [],
+    clientRequestId: clientRequestId || undefined,
     createdAt: row.createdAt || new Date().toISOString(),
     sentAt: row.sentAt || null,
     sentCount: Math.max(0, Number(row.sentCount) || 0),

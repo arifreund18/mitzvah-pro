@@ -131,6 +131,7 @@ export async function POST(request: Request, ctx: Ctx) {
     audience?: string
     guestIds?: string[]
     dryRun?: boolean
+    clientRequestId?: string
   } | null
 
   if (!isHostFollowUpType(body?.type)) {
@@ -152,6 +153,9 @@ export async function POST(request: Request, ctx: Ctx) {
   const guestIds = Array.isArray(body?.guestIds)
     ? body.guestIds.map((item) => String(item || '').trim()).filter(Boolean)
     : []
+  const clientRequestId =
+    String(body?.clientRequestId || request.headers.get('idempotency-key') || '').trim() ||
+    undefined
 
   const draft: HostFollowUp = {
     id: 'draft',
@@ -160,6 +164,7 @@ export async function POST(request: Request, ctx: Ctx) {
     subject: String(body?.subject || '').trim(),
     audience,
     guestIds,
+    clientRequestId,
     createdAt: new Date().toISOString(),
     sentAt: null,
     sentCount: 0,
@@ -190,8 +195,22 @@ export async function POST(request: Request, ctx: Ctx) {
     subject: draft.subject,
     audience: draft.audience,
     guestIds: draft.guestIds,
+    clientRequestId,
   })
   if (!created) return NextResponse.json({ error: 'Evento não encontrado' }, { status: 404 })
+
+  // Duplicate click / retry with the same Idempotency-Key — do not send again.
+  if (created.replayed) {
+    return NextResponse.json({
+      followUp: created.followUp,
+      sent: created.followUp.sentCount,
+      delivered: created.followUp.sentCount,
+      deferred: created.followUp.deferredCount,
+      failed: created.followUp.failedCount,
+      replayed: true,
+      recipients: targets.length,
+    })
+  }
 
   const host =
     request.headers.get('x-forwarded-host') ||

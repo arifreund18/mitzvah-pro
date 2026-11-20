@@ -137,10 +137,35 @@ export async function PUT(request: Request, ctx: Ctx) {
   const { id } = await ctx.params
   const denied = await requireEventAccess(id)
   if (denied) return denied
-  const body = (await request.json().catch(() => null)) as { guests?: Guest[] } | null
+  const body = (await request.json().catch(() => null)) as {
+    guests?: Guest[]
+    allowEmpty?: boolean
+    allowDrop?: boolean
+  } | null
   if (!body?.guests) return NextResponse.json({ error: 'Lista inválida' }, { status: 400 })
-  const event = await replaceGuests(id, body.guests)
+  const event = await replaceGuests(id, body.guests, {
+    allowEmpty: body.allowEmpty === true,
+    allowDrop: body.allowDrop === true,
+  })
   if (!event) return NextResponse.json({ error: 'Evento não encontrado' }, { status: 404 })
+  if ('error' in event && event.error === 'empty_wipe') {
+    return NextResponse.json(
+      {
+        error:
+          'Recusado: a lista local está vazia mas o evento já tem convidados. Recarregue a página e tente de novo.',
+      },
+      { status: 409 },
+    )
+  }
+  if ('error' in event && event.error === 'stale_drop') {
+    return NextResponse.json(
+      {
+        error: `Recusado: a lista local omitiria ${event.dropped} convidado(s) já guardados. Recarregue a página.`,
+        dropped: event.dropped,
+      },
+      { status: 409 },
+    )
+  }
   return NextResponse.json({ event })
 }
 

@@ -450,6 +450,8 @@ export type HostFollowUp = {
   audience: HostFollowUpAudience
   /** When set, only these family ids are targeted (overrides audience filter). */
   guestIds: string[]
+  /** Client idempotency key — duplicate POSTs replay the same campaign. */
+  clientRequestId?: string
   createdAt: string
   sentAt: string | null
   sentCount: number
@@ -575,6 +577,11 @@ export type MailJob = {
   pendingGuestIds: string[]
   /** Guests held for later (throttle / unverified / daily cap) — not lost. */
   deferredGuestIds?: string[]
+  /**
+   * Batch claimed by a worker but not yet finalized. Recovered into pending
+   * if the worker dies (stale lease).
+   */
+  inFlightGuestIds?: string[]
   processed: number
   succeeded: number
   failed: number

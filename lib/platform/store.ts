@@ -667,11 +667,31 @@ export async function addGuests(
   })
 }
 
-export async function replaceGuests(eventId: string, guests: Guest[]): Promise<PlatformEvent | null> {
+export async function replaceGuests(
+  eventId: string,
+  guests: Guest[],
+  opts?: { allowEmpty?: boolean; allowDrop?: boolean },
+): Promise<
+  PlatformEvent | null | { error: 'empty_wipe' | 'stale_drop'; dropped: number }
+> {
   return withLock(async () => {
     const store = await loadStore()
     const event = store.events.find((item) => item.id === eventId)
     if (!event) return null
+    // Guard against stale wizard/section PUT wiping a real guest list (Adissi).
+    if (!opts?.allowEmpty && guests.length === 0 && event.guests.length > 0) {
+      return { error: 'empty_wipe' as const, dropped: event.guests.length }
+    }
+    // Guard against stale non-empty PUT that silently drops families added elsewhere.
+    if (!opts?.allowDrop) {
+      const incomingIds = new Set(
+        guests.map((guest) => guest.id).filter((id): id is string => Boolean(id?.trim())),
+      )
+      const dropped = event.guests.filter((guest) => !incomingIds.has(guest.id))
+      if (dropped.length > 0) {
+        return { error: 'stale_drop' as const, dropped: dropped.length }
+      }
+    }
     event.guests = guests.map((guest) =>
       coerceGuestInviteLocale(normalizeGuest(guest), event.config),
     )
@@ -771,18 +791,31 @@ export async function createFollowUp(
     subject?: string
     audience?: HostFollowUpAudience
     guestIds?: string[]
+    clientRequestId?: string
   },
-): Promise<{ event: PlatformEvent; followUp: HostFollowUp } | null> {
+): Promise<
+  | { event: PlatformEvent; followUp: HostFollowUp; replayed: false }
+  | { event: PlatformEvent; followUp: HostFollowUp; replayed: true }
+  | null
+> {
   return withLock(async () => {
     const store = await loadStore()
     const event = store.events.find((item) => item.id === eventId)
     if (!event) return null
+    const key = String(input.clientRequestId || '').trim()
+    if (key) {
+      const existing = (event.config.followUps || []).find(
+        (item) => item.clientRequestId && item.clientRequestId === key,
+      )
+      if (existing) return { event, followUp: existing, replayed: true as const }
+    }
     const followUp = normalizeFollowUp({
       type: input.type,
       body: input.body,
       subject: input.subject || '',
       audience: input.audience || 'all',
       guestIds: input.guestIds || [],
+      clientRequestId: key || undefined,
       createdAt: new Date().toISOString(),
       sentAt: null,
       sentCount: 0,
@@ -792,7 +825,7 @@ export async function createFollowUp(
     event.config.followUps = [...(event.config.followUps || []), followUp]
     event.updatedAt = new Date().toISOString()
     await saveStore(store)
-    return { event, followUp }
+    return { event, followUp, replayed: false as const }
   })
 }
 

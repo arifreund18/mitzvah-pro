@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useMemo, useState } from 'react'
 import { EventActions } from '@/components/dashboard/EventActions'
 import { EventOptionsPanel } from '@/components/dashboard/EventOptionsPanel'
+import { EmailLogPanel } from '@/components/dashboard/EmailLogPanel'
 import { FollowUpPanel } from '@/components/dashboard/FollowUpPanel'
 import { GuestAdminPanel } from '@/components/dashboard/GuestAdminPanel'
 import { GuestCsvImport } from '@/components/dashboard/GuestCsvImport'
@@ -122,7 +123,11 @@ export function EventAdmin({
         router.refresh()
         return
       }
-      if ((status?.remaining || 0) > 0) {
+      // Only kick process when the job is idle (`pending`). The process route
+      // self-chains while `processing`; polling it every 1.5s caused overlapping
+      // workers and duplicate SES sends (Adissi: 100+ invites to one address).
+      // If a worker dies, status falls back to `pending` after the batch records.
+      if ((status?.remaining || 0) > 0 && status?.status === 'pending') {
         void fetch(`/api/platform/events/${event.id}/send/process`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -156,17 +161,22 @@ export function EventAdmin({
       jobId?: string
       total?: number
     } | null
+    if (data?.queued && data.jobId) {
+      // 409 with an existing job — attach to that queue instead of failing hard.
+      setMessageTone(res.status === 409 ? 'err' : 'ok')
+      setMessage(
+        res.status === 409
+          ? data.error || 'Envio já em curso — a acompanhar a fila…'
+          : `Fila criada: 0/${data.total || 0} — a processar…`,
+      )
+      await pollSendJob(data.jobId, kind)
+      return
+    }
     if (!res.ok) {
       setBusy('')
       setMessageTone('err')
       setMessage(data?.error || 'Não foi possível enviar')
       router.refresh()
-      return
-    }
-    if (data?.queued && data.jobId) {
-      setMessageTone('ok')
-      setMessage(`Fila criada: 0/${data.total || 0} — a processar…`)
-      await pollSendJob(data.jobId, kind)
       return
     }
     setBusy('')
@@ -310,16 +320,24 @@ export function EventAdmin({
         <button
           type="button"
           disabled={!!busy || !products.saveTheDate}
-          onClick={() => send('std')}
-          className="rounded-full bg-cyan-400 px-4 py-2 font-semibold text-[#0b1020] disabled:opacity-40"
+          aria-busy={busy === 'std'}
+          onClick={() => {
+            if (busy) return
+            void send('std')
+          }}
+          className="rounded-full bg-cyan-400 px-4 py-2 font-semibold text-[#0b1020] disabled:pointer-events-none disabled:opacity-40"
         >
           {busy === 'std' ? ui.sending : ui.sendStd}
         </button>
         <button
           type="button"
           disabled={!!busy || !products.invitation}
-          onClick={() => send('invite')}
-          className="rounded-full bg-white px-4 py-2 font-semibold text-[#0b1020] disabled:opacity-40"
+          aria-busy={busy === 'invite'}
+          onClick={() => {
+            if (busy) return
+            void send('invite')
+          }}
+          className="rounded-full bg-white px-4 py-2 font-semibold text-[#0b1020] disabled:pointer-events-none disabled:opacity-40"
         >
           {busy === 'invite' ? ui.sending : ui.sendInvite}
         </button>
@@ -337,16 +355,22 @@ export function EventAdmin({
         <button
           type="button"
           disabled={!!busy || !products.saveTheDate}
-          onClick={() => void sendTest('std')}
-          className="rounded-full border border-cyan-400/40 px-4 py-2 text-cyan-100 hover:bg-cyan-400/10 disabled:opacity-40"
+          onClick={() => {
+            if (busy) return
+            void sendTest('std')
+          }}
+          className="rounded-full border border-cyan-400/40 px-4 py-2 text-cyan-100 hover:bg-cyan-400/10 disabled:pointer-events-none disabled:opacity-40"
         >
           {busy === 'test-std' ? ui.sending : ui.sendTestStd}
         </button>
         <button
           type="button"
           disabled={!!busy || !products.invitation}
-          onClick={() => void sendTest('invite')}
-          className="rounded-full border border-white/25 px-4 py-2 hover:bg-white/10 disabled:opacity-40"
+          onClick={() => {
+            if (busy) return
+            void sendTest('invite')
+          }}
+          className="rounded-full border border-white/25 px-4 py-2 hover:bg-white/10 disabled:pointer-events-none disabled:opacity-40"
         >
           {busy === 'test-invite' ? ui.sending : ui.sendTestInvite}
         </button>
@@ -405,9 +429,13 @@ export function EventAdmin({
 
       {(products.invitation || products.saveTheDate) ? (
         <div id="follow-ups" className="mt-12">
-          <FollowUpPanel event={event} locale={locale} />
+          <FollowUpPanel event={event} locale={locale} sendLocked={!!busy} />
         </div>
       ) : null}
+
+      <div id="email-log" className="mt-12">
+        <EmailLogPanel eventId={event.id} locale={locale} />
+      </div>
 
       <h2 id="guests" className="font-display mt-12 text-2xl">
         {ui.guestsTitle}
@@ -433,7 +461,7 @@ export function EventAdmin({
           </a>
         </div>
       </div>
-      <GuestAdminPanel event={event} locale={locale} />
+      <GuestAdminPanel event={event} locale={locale} sendLocked={!!busy} />
     </div>
   )
 }

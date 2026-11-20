@@ -14,7 +14,16 @@ function fmt(iso: string | null) {
 
 type SortKey = 'name' | 'rsvp' | 'std' | 'invite'
 
-export function GuestAdminPanel({ event, locale = 'en' }: { event: PlatformEvent; locale?: EventLocale }) {
+export function GuestAdminPanel({
+  event,
+  locale = 'en',
+  sendLocked = false,
+}: {
+  event: PlatformEvent
+  locale?: EventLocale
+  /** When parent is running a bulk send, lock per-guest send buttons. */
+  sendLocked?: boolean
+}) {
   const ui = studioUi(locale)
   const router = useRouter()
   const [query, setQuery] = useState('')
@@ -101,6 +110,7 @@ export function GuestAdminPanel({ event, locale = 'en' }: { event: PlatformEvent
   }
 
   async function sendOne(guest: Guest, kind: 'std' | 'invite') {
+    if (sendLocked || busyId) return
     if (guestMailRecipients(guest).length === 0) {
       setMessageTone('err')
       setMessage(ui.noGuestEmail)
@@ -125,9 +135,21 @@ export function GuestAdminPanel({ event, locale = 'en' }: { event: PlatformEvent
       delivered?: number
       sent?: number
       local?: boolean
+      queued?: boolean
+      jobId?: string
     } | null
     setBusyId('')
     setBusyKind('')
+    if (data?.queued && data.jobId) {
+      setMessageTone(res.status === 409 ? 'err' : 'ok')
+      setMessage(
+        res.status === 409
+          ? data.error || ui.sendOneFailed
+          : fillTemplate(ui.sendOneOk, { name: guest.familyName }),
+      )
+      router.refresh()
+      return
+    }
     if (!res.ok) {
       setMessageTone('err')
       setMessage(data?.error || ui.sendOneFailed)
@@ -309,9 +331,13 @@ export function GuestAdminPanel({ event, locale = 'en' }: { event: PlatformEvent
                         {products.saveTheDate ? (
                           <button
                             type="button"
-                            disabled={busyId === guest.id || guestMailRecipients(guest).length === 0}
+                            disabled={
+                              sendLocked ||
+                              busyId === guest.id ||
+                              guestMailRecipients(guest).length === 0
+                            }
                             onClick={() => void sendOne(guest, 'std')}
-                            className="text-xs text-cyan-200 hover:text-cyan-100 disabled:opacity-40"
+                            className="text-xs text-cyan-200 hover:text-cyan-100 disabled:pointer-events-none disabled:opacity-40"
                           >
                             {busyId === guest.id && busyKind === 'std' ? ui.sending : ui.sendStdOne}
                           </button>
@@ -319,9 +345,13 @@ export function GuestAdminPanel({ event, locale = 'en' }: { event: PlatformEvent
                         {products.invitation ? (
                           <button
                             type="button"
-                            disabled={busyId === guest.id || guestMailRecipients(guest).length === 0}
+                            disabled={
+                              sendLocked ||
+                              busyId === guest.id ||
+                              guestMailRecipients(guest).length === 0
+                            }
                             onClick={() => void sendOne(guest, 'invite')}
-                            className="text-xs text-cyan-200 hover:text-cyan-100 disabled:opacity-40"
+                            className="text-xs text-cyan-200 hover:text-cyan-100 disabled:pointer-events-none disabled:opacity-40"
                           >
                             {busyId === guest.id && busyKind === 'invite'
                               ? ui.sending
