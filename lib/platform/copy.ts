@@ -427,7 +427,7 @@ const WIZARD_UI: Record<EventLocale, WizardUi> = {
     confirmationMessageHint: 'Texto na página depois do RSVP (não é o email).',
     confirmationEmailSection: 'Email de confirmação do RSVP',
     confirmationEmailHint:
-      'Linhas abaixo do cartão no email enviado após o RSVP. Vazio = usa o texto do convite.',
+      'Linhas abaixo do cartão no email enviado após o RSVP. Deixe em branco para omitir a linha.',
     confirmationEmailTitle: 'Título',
     confirmationEmailHosts: 'Anfitriões',
     confirmationEmailBody: 'Texto (ex.: “é chamada à Torah como Bat Mitzvah”)',
@@ -593,7 +593,7 @@ const WIZARD_UI: Record<EventLocale, WizardUi> = {
     confirmationMessageHint: 'Shown on the page after RSVP (not the email).',
     confirmationEmailSection: 'RSVP confirmation email',
     confirmationEmailHint:
-      'Lines under the card in the email sent after RSVP. Leave blank to use invitation copy.',
+      'Lines under the card in the email sent after RSVP. Leave blank to omit that line.',
     confirmationEmailTitle: 'Title',
     confirmationEmailHosts: 'Hosts',
     confirmationEmailBody: 'Body (e.g. “is called to the Torah as a Bat Mitzvah”)',
@@ -759,7 +759,7 @@ const WIZARD_UI: Record<EventLocale, WizardUi> = {
     confirmationMessageHint: 'Texto en la página después del RSVP (no es el email).',
     confirmationEmailSection: 'Email de confirmación del RSVP',
     confirmationEmailHint:
-      'Líneas bajo la tarjeta en el email enviado tras el RSVP. Vacío = usa el texto de la invitación.',
+      'Líneas bajo la tarjeta en el email enviado tras el RSVP. Déjalo vacío para omitir la línea.',
     confirmationEmailTitle: 'Título',
     confirmationEmailHosts: 'Anfitriones',
     confirmationEmailBody: 'Texto (ej.: “es llamada a la Torá como Bat Mitzvá”)',
@@ -925,7 +925,7 @@ const WIZARD_UI: Record<EventLocale, WizardUi> = {
     confirmationMessageHint: 'טקסט בעמוד אחרי ה־RSVP (לא האימייל).',
     confirmationEmailSection: 'אימייל אישור RSVP',
     confirmationEmailHint:
-      'שורות מתחת לכרטיס באימייל שנשלח אחרי RSVP. ריק = משתמש בטקסט ההזמנה.',
+      'שורות מתחת לכרטיס באימייל שנשלח אחרי RSVP. השאירו ריק כדי להסתיר את השורה.',
     confirmationEmailTitle: 'כותרת',
     confirmationEmailHosts: 'מארחים',
     confirmationEmailBody: 'טקסט (למשל “נקראת לתורה כבת מצווה”)',

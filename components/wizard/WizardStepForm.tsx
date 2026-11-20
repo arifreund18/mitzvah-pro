@@ -1058,6 +1058,19 @@ export const WizardStepForm = forwardRef<
   }
 
   if (step === 'rsvp') {
+    const inviteDesign = config.invitation.design
+    const confirmationTitleSuggestion =
+      (inviteDesign.eventName || inviteDesign.title || '').trim() ||
+      (config.basics.honoreeName
+        ? `${config.basics.honoreeName}'s ${typeLabel(config.basics.type, locale)}`
+        : '')
+    const confirmationHostsSuggestion = (
+      inviteDesign.hosts?.trim() ||
+      config.invitation.hostLine ||
+      ''
+    ).trim()
+    const confirmationBodySuggestion = (inviteDesign.message || '').trim()
+
     return (
       <div className="space-y-4">
         <Field label={ui.deadline}>
@@ -1189,6 +1202,7 @@ export const WizardStepForm = forwardRef<
           <Field label={ui.confirmationEmailTitle}>
             <TextInput
               value={config.rsvp.confirmationEmailTitle || ''}
+              placeholder={confirmationTitleSuggestion || undefined}
               onChange={(e) =>
                 set({
                   ...config,
@@ -1200,6 +1214,7 @@ export const WizardStepForm = forwardRef<
           <Field label={ui.confirmationEmailHosts}>
             <TextInput
               value={config.rsvp.confirmationEmailHosts || ''}
+              placeholder={confirmationHostsSuggestion || undefined}
               onChange={(e) =>
                 set({
                   ...config,
@@ -1211,6 +1226,7 @@ export const WizardStepForm = forwardRef<
           <Field label={ui.confirmationEmailBody}>
             <TextArea
               value={config.rsvp.confirmationEmailBody || ''}
+              placeholder={confirmationBodySuggestion || undefined}
               onChange={(e) =>
                 set({
                   ...config,
