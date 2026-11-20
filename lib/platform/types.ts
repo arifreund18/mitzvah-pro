@@ -575,6 +575,11 @@ export type MailJob = {
   pendingGuestIds: string[]
   /** Guests held for later (throttle / unverified / daily cap) — not lost. */
   deferredGuestIds?: string[]
+  /**
+   * Batch claimed by a worker but not yet finalized. Recovered into pending
+   * if the worker dies (stale lease).
+   */
+  inFlightGuestIds?: string[]
   processed: number
   succeeded: number
   failed: number

@@ -122,7 +122,11 @@ export function EventAdmin({
         router.refresh()
         return
       }
-      if ((status?.remaining || 0) > 0) {
+      // Only kick process when the job is idle (`pending`). The process route
+      // self-chains while `processing`; polling it every 1.5s caused overlapping
+      // workers and duplicate SES sends (Adissi: 100+ invites to one address).
+      // If a worker dies, status falls back to `pending` after the batch records.
+      if ((status?.remaining || 0) > 0 && status?.status === 'pending') {
         void fetch(`/api/platform/events/${event.id}/send/process`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },

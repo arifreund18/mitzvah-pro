@@ -6,11 +6,12 @@ import { guestMailRecipients } from '@/lib/platform/family-emails'
 import { eventHostReplyTo, eventMailConfigurationSet } from '@/lib/platform/mail-domain'
 import { mailHtml, mailSubject } from '@/lib/platform/mail'
 import {
+  claimMailJobBatch,
   getLatestMailJobForEvent,
   getMailJob,
   MAIL_BATCH_SIZE,
   mailJobProgress,
-  saveMailJob,
+  recordMailJobBatchResult,
 } from '@/lib/platform/mail-queue'
 
 type Ctx = { params: Promise<{ id: string }> }
@@ -30,58 +31,93 @@ export async function POST(request: Request, ctx: Ctx) {
     /** When true, move deferred guests back to pending (e.g. after leaving sandbox). */
     retryDeferred?: boolean
   } | null
-  const job = body?.jobId
+
+  const jobRef = body?.jobId
     ? await getMailJob(body.jobId)
     : await getLatestMailJobForEvent(id)
 
-  if (!job || job.eventId !== id) {
+  if (!jobRef || jobRef.eventId !== id) {
     return NextResponse.json({ error: 'Job não encontrado' }, { status: 404 })
   }
-  if (job.status === 'completed' && !(body?.retryDeferred && (job.deferredGuestIds?.length || 0) > 0)) {
-    return NextResponse.json({ ...mailJobProgress(job), done: true })
+
+  if (
+    jobRef.status === 'completed' &&
+    !(body?.retryDeferred && (jobRef.deferredGuestIds?.length || 0) > 0)
+  ) {
+    return NextResponse.json({ ...mailJobProgress(jobRef), done: true })
   }
 
   if (!isEmailConfigured()) {
     return NextResponse.json({ error: 'Provedor de email ausente' }, { status: 502 })
   }
-  if (!job.from) {
+  if (!jobRef.from) {
     return NextResponse.json({ error: 'Remetente ausente no job' }, { status: 502 })
   }
 
-  if (!job.deferredGuestIds) job.deferredGuestIds = []
-  if (body?.retryDeferred && job.deferredGuestIds.length) {
-    job.pendingGuestIds = [...job.deferredGuestIds, ...job.pendingGuestIds]
-    job.deferredGuestIds = []
-    job.deferred = 0
-    job.status = 'pending'
+  if (body?.retryDeferred && (jobRef.deferredGuestIds?.length || 0) > 0) {
+    const revived = await recordMailJobBatchResult(jobRef.id, { retryDeferred: true })
+    if (!revived) return NextResponse.json({ error: 'Job não encontrado' }, { status: 404 })
   }
 
-  job.status = 'processing'
-  job.attempts += 1
-  await saveMailJob(job)
+  // Claim batch BEFORE sending so concurrent workers get disjoint IDs (no duplicate SES).
+  const claimed = await claimMailJobBatch(jobRef.id, MAIL_BATCH_SIZE)
+  if (!claimed) return NextResponse.json({ error: 'Job não encontrado' }, { status: 404 })
 
-  const batch = job.pendingGuestIds.slice(0, MAIL_BATCH_SIZE)
-  let remaining = job.pendingGuestIds.slice(MAIL_BATCH_SIZE)
+  const { batch } = claimed
+  let job = claimed.job
+
+  if (batch.length === 0) {
+    // Empty claim: either finished, or another worker holds the in-flight lease.
+    const done = job.status === 'completed' || job.status === 'failed'
+    return NextResponse.json({
+      ...mailJobProgress(job),
+      batchSize: 0,
+      stopEarly: false,
+      done,
+    })
+  }
+
   const deliveredIds: string[] = []
+  const deferredGuestIds: string[] = []
+  const errors: string[] = []
+  let succeeded = 0
+  let failed = 0
+  let lastError = ''
+  let stopEarly = false
+
   const guestById = new Map(event.guests.map((guest) => [guest.id, guest]))
   const replyTo = eventHostReplyTo(event.config)
   const configurationSetName =
     job.configurationSetName || eventMailConfigurationSet(event.config)
-  let stopEarly = false
+  const unsentDueToStop: string[] = []
 
   for (const guestId of batch) {
     if (stopEarly) {
-      remaining = [guestId, ...remaining]
+      unsentDueToStop.push(guestId)
       continue
     }
+
     const guest = guestById.get(guestId)
-    const recipients = guest ? guestMailRecipients(guest) : []
-    if (!guest || recipients.length === 0) {
-      job.processed += 1
-      job.failed += 1
-      job.errors.push(`${guestId}: convidado sem email`)
+    if (!guest) {
+      failed += 1
+      errors.push(`${guestId}: convidado não encontrado`)
       continue
     }
+
+    const alreadySent = job.kind === 'std' ? Boolean(guest.stdSentAt) : Boolean(guest.inviteSentAt)
+    if (alreadySent) {
+      // Idempotent: do not re-send if a parallel worker or prior attempt already marked it.
+      succeeded += 1
+      continue
+    }
+
+    const recipients = guestMailRecipients(guest)
+    if (recipients.length === 0) {
+      failed += 1
+      errors.push(`${guestId}: convidado sem email`)
+      continue
+    }
+
     const toEmail = recipients.join(', ')
     const result = await sendEmail({
       from: job.from,
@@ -93,9 +129,8 @@ export async function POST(request: Request, ctx: Ctx) {
     })
 
     if (result.ok) {
-      job.processed += 1
       deliveredIds.push(guest.id)
-      job.succeeded += 1
+      succeeded += 1
       await appendEmailLog({
         eventId: id,
         familyId: guest.id,
@@ -108,12 +143,10 @@ export async function POST(request: Request, ctx: Ctx) {
     }
 
     const err = result.error || 'send_failed'
-    job.lastError = err
+    lastError = err
 
     if (result.retryable) {
-      // Keep message: defer for later (throttle / daily cap / unverified recipient).
-      job.deferredGuestIds.push(guestId)
-      job.deferred = (job.deferred || 0) + 1
+      deferredGuestIds.push(guestId)
       await appendEmailLog({
         eventId: id,
         familyId: guest.id,
@@ -122,16 +155,15 @@ export async function POST(request: Request, ctx: Ctx) {
         toEmail,
         error: `${result.errorKind || 'retryable'}: ${err}`,
       })
-      job.errors.push(`${toEmail}: deferred (${result.errorKind})`)
+      errors.push(`${toEmail}: deferred (${result.errorKind})`)
       if (result.errorKind === 'throttled' || result.errorKind === 'daily_limit') {
         stopEarly = true
       }
       continue
     }
 
-    job.processed += 1
-    job.failed += 1
-    job.errors.push(`${toEmail}: ${err}`)
+    failed += 1
+    errors.push(`${toEmail}: ${err}`)
     await appendEmailLog({
       eventId: id,
       familyId: guest.id,
@@ -146,20 +178,17 @@ export async function POST(request: Request, ctx: Ctx) {
     await markMailSent(id, job.kind, deliveredIds)
   }
 
-  job.pendingGuestIds = remaining
-  if (remaining.length === 0) {
-    if ((job.deferredGuestIds?.length || 0) > 0) {
-      // Done with ready work; deferred kept for retryDeferred / later process.
-      job.status = 'completed'
-    } else {
-      job.status = job.succeeded === 0 && job.failed > 0 ? 'failed' : 'completed'
-    }
-  } else {
-    job.status = 'pending'
-  }
-  await saveMailJob(job)
+  job =
+    (await recordMailJobBatchResult(job.id, {
+      succeeded,
+      failed,
+      deferredGuestIds,
+      requeueGuestIds: unsentDueToStop,
+      errors,
+      lastError: lastError || undefined,
+    })) || job
 
-  if (remaining.length > 0 && !stopEarly) {
+  if (job.pendingGuestIds.length > 0 && !stopEarly) {
     const processUrl = new URL(`/api/platform/events/${id}/send/process`, request.url)
     const cookie = request.headers.get('cookie') || ''
     void fetch(processUrl.toString(), {
@@ -176,6 +205,6 @@ export async function POST(request: Request, ctx: Ctx) {
     ...mailJobProgress(job),
     batchSize: batch.length,
     stopEarly,
-    done: remaining.length === 0,
+    done: job.status === 'completed' || job.status === 'failed',
   })
 }

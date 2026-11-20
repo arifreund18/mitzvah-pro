@@ -3,9 +3,23 @@ import { uid } from './ids'
 import { oncePerProcess } from './once'
 import { loadPlatformStore, savePlatformStore, storageDriver } from './persistence'
 import type { MailJob, MailJobStatus } from './types'
-import { MAIL_BATCH_SIZE, mailJobProgress } from './mail-job'
+import {
+  MAIL_BATCH_SIZE,
+  MAIL_JOB_IN_FLIGHT_LEASE_MS,
+  applyClaimMailJobBatch,
+  applyRecordMailJobBatchResult,
+  mailJobProgress,
+  type MailJobBatchResultInput,
+} from './mail-job'
 
-export { MAIL_BATCH_SIZE, mailJobProgress }
+export {
+  MAIL_BATCH_SIZE,
+  MAIL_JOB_IN_FLIGHT_LEASE_MS,
+  mailJobProgress,
+  applyClaimMailJobBatch,
+  applyRecordMailJobBatchResult,
+}
+export type { MailJobBatchResultInput }
 
 let pgClient: ReturnType<typeof postgres> | null = null
 let writeChain: Promise<unknown> = Promise.resolve()
@@ -58,6 +72,7 @@ type MailJobPayload = {
   guestIds: string[]
   pendingGuestIds: string[]
   deferredGuestIds?: string[]
+  inFlightGuestIds?: string[]
   processed: number
   succeeded: number
   failed: number
@@ -91,6 +106,7 @@ function jobFromRow(row: {
     guestIds: Array.isArray(payload.guestIds) ? payload.guestIds : [],
     pendingGuestIds: Array.isArray(payload.pendingGuestIds) ? payload.pendingGuestIds : [],
     deferredGuestIds: Array.isArray(payload.deferredGuestIds) ? payload.deferredGuestIds : [],
+    inFlightGuestIds: Array.isArray(payload.inFlightGuestIds) ? payload.inFlightGuestIds : [],
     processed: Number(payload.processed) || 0,
     succeeded: Number(payload.succeeded) || 0,
     failed: Number(payload.failed) || 0,
@@ -111,6 +127,7 @@ function payloadOf(job: MailJob): MailJobPayload {
     guestIds: job.guestIds,
     pendingGuestIds: job.pendingGuestIds,
     deferredGuestIds: job.deferredGuestIds || [],
+    inFlightGuestIds: job.inFlightGuestIds || [],
     processed: job.processed,
     succeeded: job.succeeded,
     failed: job.failed,
@@ -139,6 +156,7 @@ export async function createMailJob(input: {
     guestIds: [...input.guestIds],
     pendingGuestIds: [...input.guestIds],
     deferredGuestIds: [],
+    inFlightGuestIds: [],
     processed: 0,
     succeeded: 0,
     failed: 0,
@@ -240,6 +258,99 @@ export async function saveMailJob(job: MailJob): Promise<MailJob> {
     else store.mailJobs.push(job)
     await savePlatformStore(store)
     return job
+  })
+}
+
+/**
+ * Atomically take the next batch out of `pendingGuestIds` and persist before send.
+ * Concurrent workers get disjoint batches — prevents duplicate SES sends (Adissi flood).
+ */
+export async function claimMailJobBatch(
+  jobId: string,
+  batchSize: number = MAIL_BATCH_SIZE,
+  nowMs: number = Date.now(),
+): Promise<{ job: MailJob; batch: string[] } | null> {
+  if (usePostgresTable()) {
+    await ensureMailJobsTable()
+    const db = pg()!
+    return db.begin(async (tx) => {
+      const rows = (await tx`
+        SELECT id, event_id, kind, payload, status, attempts, last_error, created_at, updated_at
+        FROM mail_jobs WHERE id = ${jobId} LIMIT 1 FOR UPDATE
+      `) as unknown as Parameters<typeof jobFromRow>[0][]
+      if (!rows[0]) return null
+      const result = applyClaimMailJobBatch(jobFromRow(rows[0]), batchSize, nowMs)
+      await tx`
+        UPDATE mail_jobs
+        SET
+          payload = ${tx.json(payloadOf(result.job) as never)},
+          status = ${result.job.status},
+          attempts = ${result.job.attempts},
+          last_error = ${result.job.lastError || null},
+          updated_at = ${result.job.updatedAt}
+        WHERE id = ${result.job.id}
+      `
+      return result
+    })
+  }
+
+  return withLock(async () => {
+    const store = await loadPlatformStore()
+    const job = store.mailJobs?.find((item) => item.id === jobId)
+    if (!job) return null
+    const result = applyClaimMailJobBatch(job, batchSize, nowMs)
+    if (!store.mailJobs) store.mailJobs = []
+    const idx = store.mailJobs.findIndex((item) => item.id === jobId)
+    if (idx >= 0) store.mailJobs[idx] = result.job
+    await savePlatformStore(store)
+    return result
+  })
+}
+
+export type MailJobBatchResult = MailJobBatchResultInput
+
+/**
+ * Persist counters/errors after a claimed batch was sent.
+ * Never rewrites `pendingGuestIds` from a stale in-memory snapshot.
+ */
+export async function recordMailJobBatchResult(
+  jobId: string,
+  result: MailJobBatchResult,
+): Promise<MailJob | null> {
+  if (usePostgresTable()) {
+    await ensureMailJobsTable()
+    const db = pg()!
+    return db.begin(async (tx) => {
+      const rows = (await tx`
+        SELECT id, event_id, kind, payload, status, attempts, last_error, created_at, updated_at
+        FROM mail_jobs WHERE id = ${jobId} LIMIT 1 FOR UPDATE
+      `) as unknown as Parameters<typeof jobFromRow>[0][]
+      if (!rows[0]) return null
+      const job = applyRecordMailJobBatchResult(jobFromRow(rows[0]), result)
+      await tx`
+        UPDATE mail_jobs
+        SET
+          payload = ${tx.json(payloadOf(job) as never)},
+          status = ${job.status},
+          attempts = ${job.attempts},
+          last_error = ${job.lastError || null},
+          updated_at = ${job.updatedAt}
+        WHERE id = ${job.id}
+      `
+      return job
+    })
+  }
+
+  return withLock(async () => {
+    const store = await loadPlatformStore()
+    const job = store.mailJobs?.find((item) => item.id === jobId)
+    if (!job) return null
+    const next = applyRecordMailJobBatchResult(job, result)
+    if (!store.mailJobs) store.mailJobs = []
+    const idx = store.mailJobs.findIndex((item) => item.id === jobId)
+    if (idx >= 0) store.mailJobs[idx] = next
+    await savePlatformStore(store)
+    return next
   })
 }
 
