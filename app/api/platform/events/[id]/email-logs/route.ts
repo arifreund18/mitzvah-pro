@@ -13,9 +13,14 @@ export async function GET(request: Request, ctx: Ctx) {
 
   const limitRaw = Number(new URL(request.url).searchParams.get('limit') || '100')
   const limit = Math.min(300, Math.max(1, Number.isFinite(limitRaw) ? limitRaw : 100))
+  // Sort by real time (newest first). localeCompare on String(Date) from Postgres is wrong.
   const logs = (await listEmailLogs(id))
     .slice()
-    .sort((a, b) => b.sentAt.localeCompare(a.sentAt))
+    .sort((a, b) => {
+      const ta = Date.parse(a.sentAt) || 0
+      const tb = Date.parse(b.sentAt) || 0
+      return tb - ta
+    })
     .slice(0, limit)
 
   return NextResponse.json({ logs, total: logs.length })

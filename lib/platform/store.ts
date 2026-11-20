@@ -908,7 +908,12 @@ export async function markGuestOpened(
 export async function listEmailLogs(eventId?: string) {
   const store = await loadStore()
   const logs = store.emailLogs || []
-  return eventId ? logs.filter((log) => log.eventId === eventId) : logs
+  const filtered = eventId ? logs.filter((log) => log.eventId === eventId) : logs
+  return filtered.slice().sort((a, b) => {
+    const ta = Date.parse(a.sentAt) || 0
+    const tb = Date.parse(b.sentAt) || 0
+    return tb - ta
+  })
 }
 
 export async function createFollowUp(
