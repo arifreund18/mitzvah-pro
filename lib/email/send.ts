@@ -136,23 +136,40 @@ function configurationSetMissing(message: string): boolean {
   return /configuration set .+ does not exist/i.test(message)
 }
 
+type ConfigSetCacheEntry = { name: string | null; error?: string; at: number }
+const CONFIG_SET_CACHE = new Map<string, ConfigSetCacheEntry>()
+const CONFIG_SET_CACHE_TTL_MS = 5 * 60_000
+
 /**
- * Create the per-event configuration set if needed (lazy).
- * If IAM cannot create it, return undefined so SendEmail still works.
+ * M2: resolve (and cache) the per-event configuration set.
+ * When a set name is requested, failure is retryable — never send without the set.
  */
 async function resolveSesConfigurationSet(
   configurationSetName: string | undefined,
-): Promise<string | undefined> {
+): Promise<{ name: string | undefined; error?: string }> {
   const name = (configurationSetName || '').trim()
-  if (!name) return undefined
+  if (!name) return { name: undefined }
+  const cached = CONFIG_SET_CACHE.get(name)
+  if (cached && Date.now() - cached.at < CONFIG_SET_CACHE_TTL_MS) {
+    if (cached.name) return { name: cached.name }
+    return { name: undefined, error: cached.error || 'configuration_set_unavailable' }
+  }
   try {
     // Dynamic import avoids circular dependency with ses-config-set → send.
     const { ensureEventConfigurationSet } = await import('@/lib/email/ses-config-set')
     const slug = name.replace(/^mitzvah-/i, '') || 'event'
     const ensured = await ensureEventConfigurationSet(slug)
-    return ensured.exists ? ensured.name : undefined
-  } catch {
-    return undefined
+    if (ensured.exists) {
+      CONFIG_SET_CACHE.set(name, { name: ensured.name, at: Date.now() })
+      return { name: ensured.name }
+    }
+    const error = ensured.error || 'configuration_set_missing'
+    CONFIG_SET_CACHE.set(name, { name: null, error, at: Date.now() })
+    return { name: undefined, error }
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'configuration_set_error'
+    CONFIG_SET_CACHE.set(name, { name: null, error: message, at: Date.now() })
+    return { name: undefined, error: message }
   }
 }
 
@@ -169,15 +186,26 @@ async function sendWithSes(input: SendEmailInput): Promise<SendEmailResult> {
 
   const to = asList(input.to)
   const replyTo = asList(input.replyTo)
-  let configurationSetName = await resolveSesConfigurationSet(input.configurationSetName)
+  const requestedSet = (input.configurationSetName || '').trim()
+  const resolved = await resolveSesConfigurationSet(input.configurationSetName)
+  // M2: if the caller asked for a set, do not send without it (reputation / pause isolation).
+  if (requestedSet && !resolved.name) {
+    return fail(
+      'ses',
+      resolved.error || `Configuration set indisponível: ${requestedSet}`,
+      'other',
+      true,
+    )
+  }
+  const configurationSetName = resolved.name
 
-  const sendOnce = async (configSet: string | undefined) =>
-    client.send(
+  try {
+    const out = await client.send(
       new SendEmailCommand({
         FromEmailAddress: input.from,
         Destination: { ToAddresses: to },
         ReplyToAddresses: replyTo.length ? replyTo : undefined,
-        ConfigurationSetName: configSet || undefined,
+        ConfigurationSetName: configurationSetName || undefined,
         Content: {
           Simple: {
             Subject: { Data: input.subject, Charset: 'UTF-8' },
@@ -191,9 +219,6 @@ async function sendWithSes(input: SendEmailInput): Promise<SendEmailResult> {
         },
       }),
     )
-
-  try {
-    const out = await sendOnce(configurationSetName)
     noteSuccessfulSend()
     return {
       ok: true,
@@ -205,23 +230,10 @@ async function sendWithSes(input: SendEmailInput): Promise<SendEmailResult> {
     }
   } catch (error) {
     const classified = classifySendError(error)
-    // Race / stale name: drop ConfigurationSetName and retry once.
-    if (configurationSetName && configurationSetMissing(classified.message)) {
-      try {
-        const out = await sendOnce(undefined)
-        noteSuccessfulSend()
-        return {
-          ok: true,
-          messageId: out.MessageId || null,
-          error: null,
-          provider: 'ses',
-          retryable: false,
-          errorKind: null,
-        }
-      } catch (retryError) {
-        const retryClassified = classifySendError(retryError)
-        return fail('ses', retryClassified.message, retryClassified.kind, retryClassified.retryable)
-      }
+    // Invalidate cache so the next attempt re-provisions; do not send without the set.
+    if (requestedSet && configurationSetMissing(classified.message)) {
+      CONFIG_SET_CACHE.delete(requestedSet)
+      return fail('ses', classified.message, 'other', true)
     }
     return fail('ses', classified.message, classified.kind, classified.retryable)
   }

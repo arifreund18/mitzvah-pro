@@ -138,112 +138,146 @@ export async function relationalEventCount(db: Sql): Promise<number> {
 export async function syncStoreToRelational(db: Sql, store: PlatformStore): Promise<void> {
   await ensureRelationalSchema(db)
 
-  for (const org of store.orgs) {
-    await db`
-      INSERT INTO orgs (id, name, created_at)
-      VALUES (${org.id}, ${org.name}, ${org.createdAt})
-      ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name
-    `
-  }
+  // E4: wrap in a transaction + advisory lock so concurrent saves cannot wipe each other.
+  await db.begin(async (tx) => {
+    await tx`SELECT pg_advisory_xact_lock(${879_314_201})`
 
-  for (const user of store.users) {
-    await db`
-      INSERT INTO users (id, org_id, email, name, password_hash, role, event_ids, created_at)
-      VALUES (
-        ${user.id}, ${user.orgId}, ${user.email}, ${user.name}, ${user.passwordHash}, ${user.role},
-        ${user.eventIds || []}, ${user.createdAt}
-      )
-      ON CONFLICT (id) DO UPDATE SET
-        org_id = EXCLUDED.org_id,
-        email = EXCLUDED.email,
-        name = EXCLUDED.name,
-        password_hash = EXCLUDED.password_hash,
-        role = EXCLUDED.role,
-        event_ids = EXCLUDED.event_ids
-    `
-  }
-
-  const keepEventIds = store.events.map((e) => e.id)
-  if (keepEventIds.length) {
-    await db`DELETE FROM events WHERE id <> ALL(${keepEventIds}::text[])`
-  } else {
-    await db`DELETE FROM events`
-  }
-
-  for (const event of store.events) {
-    await db`
-      INSERT INTO events (
-        id, org_id, slug, status, template_id, config, wizard,
-        preview_token, approval_token, published_at, created_at, updated_at
-      ) VALUES (
-        ${event.id}, ${event.orgId}, ${event.slug}, ${event.status}, ${event.templateId},
-        ${db.json(event.config as never)}, ${db.json(event.wizard as never)},
-        ${event.previewToken}, ${event.approvalToken}, ${event.publishedAt},
-        ${event.createdAt}, ${event.updatedAt}
-      )
-      ON CONFLICT (id) DO UPDATE SET
-        org_id = EXCLUDED.org_id,
-        slug = EXCLUDED.slug,
-        status = EXCLUDED.status,
-        config = EXCLUDED.config,
-        wizard = EXCLUDED.wizard,
-        preview_token = EXCLUDED.preview_token,
-        approval_token = EXCLUDED.approval_token,
-        published_at = EXCLUDED.published_at,
-        updated_at = EXCLUDED.updated_at
-    `
-
-    await db`DELETE FROM guests WHERE event_id = ${event.id}`
-    await db`DELETE FROM families WHERE event_id = ${event.id}`
-    for (const guest of event.guests) {
-      await db`
-        INSERT INTO families (
-          id, event_id, family_name, emails, invite_locale, schedule_invite_mode,
-          schedule_item_ids, open_rsvp, notes, message, token, people, party_size,
-          status, meal, dietary, std_sent_at, invite_sent_at, std_opened_at,
-          invitation_opened_at, created_at
-        ) VALUES (
-          ${guest.id}, ${event.id}, ${guest.familyName}, ${guest.emails},
-          ${guest.inviteLocale}, ${guest.scheduleInviteMode}, ${guest.scheduleItemIds},
-          ${guest.openRsvp}, ${guest.notes}, ${guest.message}, ${guest.token},
-          ${db.json(guest.people as never)}, ${guest.partySize}, ${guest.status},
-          ${guest.meal}, ${guest.dietary}, ${guest.stdSentAt}, ${guest.inviteSentAt},
-          ${guest.stdOpenedAt}, ${guest.invitationOpenedAt}, ${guest.createdAt}
-        )
+    for (const org of store.orgs) {
+      await tx`
+        INSERT INTO orgs (id, name, created_at)
+        VALUES (${org.id}, ${org.name}, ${org.createdAt})
+        ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name
       `
-      for (let i = 0; i < guest.people.length; i += 1) {
-        const person = guest.people[i]
-        const personId = person.id || `${guest.id}-p${i}`
-        await db`
-          INSERT INTO guests (
-            id, family_id, event_id, name, type, meal_choice, dietary_restrictions,
-            rsvp_status, sort_order
-          ) VALUES (
-            ${personId}, ${guest.id}, ${event.id}, ${person.name}, ${person.type},
-            ${person.meal || ''}, ${person.dietary || ''}, ${person.status || 'pending'}, ${i}
-          )
-          ON CONFLICT (id) DO UPDATE SET
-            name = EXCLUDED.name,
-            type = EXCLUDED.type,
-            meal_choice = EXCLUDED.meal_choice,
-            dietary_restrictions = EXCLUDED.dietary_restrictions,
-            rsvp_status = EXCLUDED.rsvp_status,
-            sort_order = EXCLUDED.sort_order
+    }
+
+    for (const user of store.users) {
+      await tx`
+        INSERT INTO users (id, org_id, email, name, password_hash, role, event_ids, created_at)
+        VALUES (
+          ${user.id}, ${user.orgId}, ${user.email}, ${user.name}, ${user.passwordHash}, ${user.role},
+          ${user.eventIds || []}, ${user.createdAt}
+        )
+        ON CONFLICT (id) DO UPDATE SET
+          org_id = EXCLUDED.org_id,
+          email = EXCLUDED.email,
+          name = EXCLUDED.name,
+          password_hash = EXCLUDED.password_hash,
+          role = EXCLUDED.role,
+          event_ids = EXCLUDED.event_ids
+      `
+    }
+
+    // E4: never DELETE events missing from this snapshot — stale writers must not erase
+    // events created on another instance. Hard deletes go through deleteEvent only.
+    const usedTokens = new Set<string>()
+
+    for (const event of store.events) {
+      await tx`
+        INSERT INTO events (
+          id, org_id, slug, status, template_id, config, wizard,
+          preview_token, approval_token, published_at, created_at, updated_at
+        ) VALUES (
+          ${event.id}, ${event.orgId}, ${event.slug}, ${event.status}, ${event.templateId},
+          ${tx.json(event.config as never)}, ${tx.json(event.wizard as never)},
+          ${event.previewToken}, ${event.approvalToken}, ${event.publishedAt},
+          ${event.createdAt}, ${event.updatedAt}
+        )
+        ON CONFLICT (id) DO UPDATE SET
+          org_id = EXCLUDED.org_id,
+          slug = EXCLUDED.slug,
+          status = EXCLUDED.status,
+          config = EXCLUDED.config,
+          wizard = EXCLUDED.wizard,
+          preview_token = EXCLUDED.preview_token,
+          approval_token = EXCLUDED.approval_token,
+          published_at = EXCLUDED.published_at,
+          updated_at = EXCLUDED.updated_at
+      `
+
+      const keepFamilyIds = event.guests.map((guest) => guest.id)
+      if (keepFamilyIds.length) {
+        await tx`
+          DELETE FROM families
+          WHERE event_id = ${event.id}
+            AND id <> ALL(${keepFamilyIds}::text[])
         `
+      } else {
+        await tx`DELETE FROM families WHERE event_id = ${event.id}`
+      }
+
+      for (const guest of event.guests) {
+        let token = String(guest.token || '').trim()
+        if (!token || usedTokens.has(token)) {
+          token = `t${guest.id.replace(/-/g, '').slice(0, 10)}${Math.random().toString(36).slice(2, 8)}`
+          guest.token = token
+        }
+        const clash = (await tx`
+          SELECT id FROM families WHERE token = ${token} AND id <> ${guest.id} LIMIT 1
+        `) as unknown as { id: string }[]
+        if (clash.length) {
+          token = `t${guest.id.replace(/-/g, '').slice(0, 10)}${Date.now().toString(36)}`
+          guest.token = token
+        }
+        usedTokens.add(token)
+        await upsertFamilyToRelational(tx as unknown as Sql, event.id, { ...guest, token })
       }
     }
-  }
 
-  for (const log of store.emailLogs || []) {
-    await db`
-      INSERT INTO email_logs (id, event_id, family_id, type, status, resend_id, to_email, error, sent_at)
-      VALUES (
-        ${log.id}, ${log.eventId}, ${log.familyId}, ${log.type}, ${log.status},
-        ${log.messageId ?? log.resendId}, ${log.toEmail}, ${log.error}, ${log.sentAt}
-      )
-      ON CONFLICT (id) DO NOTHING
-    `
-  }
+    for (const log of store.emailLogs || []) {
+      await tx`
+        INSERT INTO email_logs (id, event_id, family_id, type, status, resend_id, to_email, error, sent_at)
+        VALUES (
+          ${log.id}, ${log.eventId}, ${log.familyId}, ${log.type}, ${log.status},
+          ${log.messageId ?? log.resendId}, ${log.toEmail}, ${log.error}, ${log.sentAt}
+        )
+        ON CONFLICT (id) DO NOTHING
+      `
+    }
+  })
+}
+
+export async function insertEmailLogRow(
+  db: Sql,
+  log: {
+    id: string
+    eventId: string
+    familyId?: string | null
+    type: string
+    status: string
+    messageId?: string | null
+    toEmail: string
+    error?: string
+    sentAt: string
+  },
+): Promise<void> {
+  await ensureRelationalSchema(db)
+  await db`
+    INSERT INTO email_logs (id, event_id, family_id, type, status, resend_id, to_email, error, sent_at)
+    VALUES (
+      ${log.id}, ${log.eventId}, ${log.familyId ?? null}, ${log.type}, ${log.status},
+      ${log.messageId ?? null}, ${log.toEmail}, ${log.error || ''}, ${log.sentAt}
+    )
+    ON CONFLICT (id) DO NOTHING
+  `
+}
+
+export async function hasSentEmailLogRow(
+  db: Sql,
+  input: { eventId: string; familyId: string; type: string; toEmail: string },
+): Promise<boolean> {
+  await ensureRelationalSchema(db)
+  const to = input.toEmail.trim().toLowerCase()
+  const rows = (await db`
+    SELECT 1
+    FROM email_logs
+    WHERE event_id = ${input.eventId}
+      AND family_id = ${input.familyId}
+      AND type = ${input.type}
+      AND lower(to_email) = ${to}
+      AND status = 'sent'
+    LIMIT 1
+  `) as unknown as { '?column?'?: number }[]
+  return rows.length > 0
 }
 
 export async function loadStoreFromRelational(db: Sql): Promise<PlatformStore | null> {
