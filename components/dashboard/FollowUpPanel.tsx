@@ -51,6 +51,7 @@ export function FollowUpPanel({
   }
 
   async function send() {
+    if (busy) return
     setBusy(true)
     setMessage('')
     const res = await fetch(`/api/platform/events/${event.id}/follow-ups`, {
@@ -159,8 +160,12 @@ export function FollowUpPanel({
         <button
           type="button"
           disabled={busy || body.trim().length < 3}
-          onClick={() => void send()}
-          className="rounded-full bg-cyan-400 px-5 py-2 text-sm font-semibold text-[#0b1020] disabled:opacity-40"
+          aria-busy={busy}
+          onClick={() => {
+            if (busy) return
+            void send()
+          }}
+          className="rounded-full bg-cyan-400 px-5 py-2 text-sm font-semibold text-[#0b1020] disabled:pointer-events-none disabled:opacity-40"
         >
           {busy ? ui.sending : ui.followUpSend}
         </button>

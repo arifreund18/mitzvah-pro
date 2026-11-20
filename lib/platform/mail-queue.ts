@@ -233,6 +233,59 @@ export async function getLatestMailJobForEvent(eventId: string): Promise<MailJob
   return [...jobs].sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0] || null
 }
 
+/** Active = still has work (pending/processing). Blocks creating a second bulk job. */
+export async function getActiveMailJobForEvent(
+  eventId: string,
+  kind?: 'std' | 'invite',
+): Promise<MailJob | null> {
+  if (usePostgresTable()) {
+    await ensureMailJobsTable()
+    const db = pg()!
+    const rows = (
+      kind
+        ? await db`
+            SELECT id, event_id, kind, payload, status, attempts, last_error, created_at, updated_at
+            FROM mail_jobs
+            WHERE event_id = ${eventId}
+              AND kind = ${kind}
+              AND status IN ('pending', 'processing')
+            ORDER BY created_at DESC
+            LIMIT 20
+          `
+        : await db`
+            SELECT id, event_id, kind, payload, status, attempts, last_error, created_at, updated_at
+            FROM mail_jobs
+            WHERE event_id = ${eventId}
+              AND status IN ('pending', 'processing')
+            ORDER BY created_at DESC
+            LIMIT 20
+          `
+    ) as unknown as Parameters<typeof jobFromRow>[0][]
+    for (const row of rows) {
+      const job = jobFromRow(row)
+      const remaining =
+        job.pendingGuestIds.length +
+        (job.inFlightGuestIds?.length || 0) +
+        (job.deferredGuestIds?.length || 0)
+      if (remaining > 0 || job.status === 'processing') return job
+    }
+    return null
+  }
+  const store = await loadPlatformStore()
+  const jobs = (store.mailJobs || [])
+    .filter((job) => job.eventId === eventId && (!kind || job.kind === kind))
+    .filter((job) => job.status === 'pending' || job.status === 'processing')
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+  for (const job of jobs) {
+    const remaining =
+      job.pendingGuestIds.length +
+      (job.inFlightGuestIds?.length || 0) +
+      (job.deferredGuestIds?.length || 0)
+    if (remaining > 0 || job.status === 'processing') return job
+  }
+  return null
+}
+
 export async function saveMailJob(job: MailJob): Promise<MailJob> {
   job.updatedAt = new Date().toISOString()
   if (usePostgresTable()) {

@@ -10,7 +10,11 @@ import {
   eventSendFrom,
 } from '@/lib/platform/mail-domain'
 import { mailHtml, mailSubject } from '@/lib/platform/mail'
-import { createMailJob, MAIL_BATCH_SIZE } from '@/lib/platform/mail-queue'
+import {
+  createMailJob,
+  getActiveMailJobForEvent,
+  MAIL_BATCH_SIZE,
+} from '@/lib/platform/mail-queue'
 import { mailTargetsEmptyReason, selectMailTargets } from '@/lib/platform/mail-targets'
 import type { EventConfig, Guest } from '@/lib/platform/types'
 
@@ -175,6 +179,22 @@ export async function POST(request: Request, ctx: Ctx) {
 
   // Large sends: enqueue and kick background processor (rate-limited in process).
   if (targets.length > MAIL_BATCH_SIZE) {
+    // Double-click / second tab must not open a parallel job for the same kind
+    // (claim is per-job; two jobs would both email the same guests).
+    const active = await getActiveMailJobForEvent(id, kind)
+    if (active) {
+      return NextResponse.json(
+        {
+          error: 'Já existe um envio em curso para este evento. Aguarde terminar ou cancele a fila.',
+          queued: true,
+          jobId: active.id,
+          total: active.guestIds.length,
+          from,
+          mail: config.domain.mail,
+        },
+        { status: 409 },
+      )
+    }
     const job = await createMailJob({
       eventId: id,
       kind,
