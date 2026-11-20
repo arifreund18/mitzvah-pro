@@ -1,5 +1,5 @@
 import { createDefaultConfig } from './defaults'
-import { DEFAULT_ORG_ID } from './auth'
+import { DEFAULT_ORG_ID } from './constants'
 import { slugify, uid } from './ids'
 import { hashPassword } from './password'
 import {

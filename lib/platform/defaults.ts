@@ -1,6 +1,6 @@
 import type { CardDesign, EventConfig, EventLocale, EventType, PlatformEvent } from './types'
 import { generatedCopy } from './copy'
-import { DEFAULT_ORG_ID } from './auth'
+import { DEFAULT_ORG_ID } from './constants'
 import { uid } from './ids'
 import { emptyMailDomain } from './mail-domain'
 

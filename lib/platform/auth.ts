@@ -1,7 +1,8 @@
 import { createHmac, timingSafeEqual } from 'node:crypto'
+import { DEFAULT_ORG_ID } from './constants'
 
 export const SESSION_COOKIE = 'mitzvah_session'
-export const DEFAULT_ORG_ID = 'org-mitzvah'
+export { DEFAULT_ORG_ID }
 /** Signed session lifetime (matches cookie maxAge). */
 export const SESSION_TTL_SECONDS = 60 * 60 * 24 * 30
 
