@@ -17,6 +17,7 @@ export function EventActions({
   previewToken,
   compact = false,
   locale = 'en',
+  canHardDelete = false,
 }: {
   id: string
   slug: string
@@ -24,6 +25,8 @@ export function EventActions({
   previewToken?: string
   compact?: boolean
   locale?: EventLocale
+  /** Owners/admins only — members should archive instead. */
+  canHardDelete?: boolean
 }) {
   const router = useRouter()
   const ui = studioUi(locale)
@@ -58,9 +61,19 @@ export function EventActions({
 
   async function remove() {
     if (!window.confirm(ui.deleteConfirm)) return
+    const typed = window.prompt(ui.deleteSlugPrompt.replace('{slug}', slug), '')
+    if (typed === null) return
+    if (typed.trim() !== slug) {
+      setError(ui.deleteSlugMismatch)
+      return
+    }
     setError('')
     setBusy('delete')
-    const res = await fetch(`/api/platform/events/${id}`, { method: 'DELETE' })
+    const res = await fetch(`/api/platform/events/${id}`, {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ confirmSlug: typed.trim() }),
+    })
     setBusy('')
     if (!res.ok) {
       const data = (await res.json().catch(() => null)) as { error?: string } | null
@@ -152,14 +165,16 @@ export function EventActions({
           {ui.archive}
         </button>
       )}
-      <button
-        type="button"
-        className={`${btn} border-rose-400/40 text-rose-200 hover:bg-rose-400/10`}
-        disabled={!!busy}
-        onClick={remove}
-      >
-        {busy === 'delete' ? '…' : ui.delete}
-      </button>
+      {canHardDelete ? (
+        <button
+          type="button"
+          className={`${btn} border-rose-400/40 text-rose-200 hover:bg-rose-400/10`}
+          disabled={!!busy}
+          onClick={remove}
+        >
+          {busy === 'delete' ? '…' : ui.delete}
+        </button>
+      ) : null}
       {error ? <p className="w-full text-sm text-rose-300">{error}</p> : null}
     </div>
   )

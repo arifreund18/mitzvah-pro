@@ -61,6 +61,8 @@ export type StudioUi = {
   archive: string
   delete: string
   deleteConfirm: string
+  deleteSlugPrompt: string
+  deleteSlugMismatch: string
   actionFailed: string
   deleteFailed: string
   approvalPrompt: string
@@ -464,7 +466,9 @@ function pack(
     unarchive: 'Unarchive',
     archive: 'Archive',
     delete: 'Delete',
-    deleteConfirm: 'Permanently delete this event?',
+    deleteConfirm: 'Permanently delete this event? Prefer Archive when possible.',
+    deleteSlugPrompt: 'Type the event slug to confirm permanent delete: {slug}',
+    deleteSlugMismatch: 'Slug does not match — delete cancelled.',
     actionFailed: 'Action failed',
     deleteFailed: 'Could not delete',
     approvalPrompt: 'Send this link to the client for approval:',
@@ -644,7 +648,9 @@ const STUDIO_UI: Record<EventLocale, StudioUi> = {
     unarchive: 'Restaurar',
     archive: 'Arquivar',
     delete: 'Apagar',
-    deleteConfirm: 'Apagar este evento de forma permanente?',
+    deleteConfirm: 'Apagar este evento de forma permanente? Prefira Arquivar quando possível.',
+    deleteSlugPrompt: 'Digite o slug do evento para confirmar a exclusão permanente: {slug}',
+    deleteSlugMismatch: 'Slug não confere — exclusão cancelada.',
     actionFailed: 'Falha na ação',
     deleteFailed: 'Não foi possível apagar',
     approvalPrompt: 'Envie este link ao cliente para aprovar:',

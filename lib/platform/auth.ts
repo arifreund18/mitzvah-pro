@@ -1,14 +1,9 @@
+import { createHmac, timingSafeEqual } from 'node:crypto'
+
 export const SESSION_COOKIE = 'mitzvah_session'
 export const DEFAULT_ORG_ID = 'org-mitzvah'
-
-function fnv1a(value: string): string {
-  let hash = 0x811c9dc5
-  for (let i = 0; i < value.length; i++) {
-    hash ^= value.charCodeAt(i)
-    hash = Math.imul(hash, 0x01000193)
-  }
-  return (hash >>> 0).toString(16).padStart(8, '0')
-}
+/** Signed session lifetime (matches cookie maxAge). */
+export const SESSION_TTL_SECONDS = 60 * 60 * 24 * 30
 
 /**
  * True for the Vercel Production target (or explicit override).
@@ -48,41 +43,91 @@ export function sessionSecretOrFallback(): string {
   }
 }
 
+function signPayload(payload: string): string {
+  return createHmac('sha256', sessionSecretOrFallback()).update(payload).digest('base64url')
+}
+
+function safeEqual(a: string, b: string): boolean {
+  const left = Buffer.from(a)
+  const right = Buffer.from(b)
+  if (left.length !== right.length) return false
+  return timingSafeEqual(left, right)
+}
+
+function verifySigned(value: string): string | null {
+  const dot = value.lastIndexOf('.')
+  if (dot <= 0) return null
+  const payload = value.slice(0, dot)
+  const sig = value.slice(dot + 1)
+  if (!payload || !sig) return null
+  const expected = signPayload(payload)
+  if (!safeEqual(expected, sig)) return null
+  return payload
+}
+
+function sessionExpiryUnix(): number {
+  return Math.floor(Date.now() / 1000) + SESSION_TTL_SECONDS
+}
+
+function parseExpiry(raw: string | undefined): number | null {
+  if (!raw || !/^\d+$/.test(raw)) return null
+  const exp = Number(raw)
+  if (!Number.isFinite(exp)) return null
+  return exp
+}
+
+/**
+ * Platform-admin cookie: `a.<exp>.<hmac>`.
+ * Not derived from the password (avoids brute-forcing a short hash of the password).
+ */
 export function sessionToken(): string {
-  const secret = sessionSecretOrFallback()
   const password = process.env.DASHBOARD_PASSWORD
   if (!password && isProductionEnv()) {
-    // Unusable token when password missing — login route still refuses admin login.
-    return fnv1a(`${secret}:unconfigured-admin:v1`)
+    // Expired payload — unusable until DASHBOARD_PASSWORD is set (login still refuses).
+    const payload = 'a.0'
+    return `${payload}.${signPayload(payload)}`
   }
-  return fnv1a(`${secret}:${password || dashboardPassword()}:v1`)
+  const payload = `a.${sessionExpiryUnix()}`
+  return `${payload}.${signPayload(payload)}`
 }
 
 export type SessionActor =
   | { kind: 'admin'; orgId: string; role: 'platform_admin' }
   | { kind: 'user'; userId: string; orgId: string; role: 'org_owner' | 'org_member' | 'platform_admin' }
 
+/**
+ * User cookie: `u.<userId>.<orgId>.<role>.<exp>.<hmac>`.
+ * Role/org in the cookie are hints only — `currentActor()` reloads them from the DB.
+ */
 export function encodeUserSession(userId: string, orgId: string, role: SessionActor['role']): string {
-  const payload = `u.${userId}.${orgId}.${role}`
-  return `${payload}.${fnv1a(`${sessionSecretOrFallback()}:${payload}`)}`
+  const payload = `u.${userId}.${orgId}.${role}.${sessionExpiryUnix()}`
+  return `${payload}.${signPayload(payload)}`
 }
 
 export function readSession(value: string | undefined | null): SessionActor | null {
   if (!value) return null
-  const adminToken = sessionToken()
-  if (adminToken && value === adminToken) {
+
+  // Legacy fnv1a cookies (8 hex chars) are rejected — rotate DASHBOARD_SECRET on deploy.
+  const payload = verifySigned(value)
+  if (!payload) return null
+
+  if (payload.startsWith('a.')) {
+    const parts = payload.split('.')
+    if (parts.length !== 2) return null
+    const exp = parseExpiry(parts[1])
+    if (exp === null || exp < Math.floor(Date.now() / 1000)) return null
     return { kind: 'admin', orgId: DEFAULT_ORG_ID, role: 'platform_admin' }
   }
-  const dot = value.lastIndexOf('.')
-  if (dot <= 0) return null
-  const sig = value.slice(dot + 1)
-  const payload = value.slice(0, dot)
+
   if (!payload.startsWith('u.')) return null
-  if (fnv1a(`${sessionSecretOrFallback()}:${payload}`) !== sig) return null
   const parts = payload.split('.')
-  if (parts.length !== 4) return null
-  const [, userId, orgId, role] = parts
+  // u / userId / orgId / role / exp  — userId is a UUID (no dots)
+  if (parts.length !== 5) return null
+  const [, userId, orgId, role, expRaw] = parts
+  if (!userId || !orgId) return null
   if (role !== 'org_owner' && role !== 'org_member' && role !== 'platform_admin') return null
+  const exp = parseExpiry(expRaw)
+  if (exp === null || exp < Math.floor(Date.now() / 1000)) return null
   return { kind: 'user', userId, orgId, role }
 }
 

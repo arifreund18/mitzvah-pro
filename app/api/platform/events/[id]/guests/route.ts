@@ -77,13 +77,28 @@ export async function POST(request: Request, ctx: Ctx) {
 
   const status: GuestRsvp =
     body?.status === 'no' ? 'no' : body?.status === 'pending' ? 'pending' : 'yes'
-  const partySize = Math.max(1, Number(body?.partySize) || 1)
+  const MAX_PARTY = 20
+  const rawParty = Math.max(1, Number(body?.partySize) || 1)
+  if (rawParty > MAX_PARTY) {
+    return NextResponse.json(
+      { error: `Máximo de ${MAX_PARTY} pessoas por família` },
+      { status: 400 },
+    )
+  }
+  const partySize = Math.min(MAX_PARTY, rawParty)
   const meal = body?.meal?.trim() || ''
   const dietary = body?.dietary?.trim() || ''
 
+  if (Array.isArray(body?.people) && body.people.length > MAX_PARTY) {
+    return NextResponse.json(
+      { error: `Máximo de ${MAX_PARTY} pessoas por família` },
+      { status: 400 },
+    )
+  }
+
   const people: GuestPerson[] =
     Array.isArray(body?.people) && body.people.length
-      ? body.people.map((person) =>
+      ? body.people.slice(0, MAX_PARTY).map((person) =>
           normalizePerson({
             ...person,
             status: person.status || status,
@@ -109,13 +124,26 @@ export async function POST(request: Request, ctx: Ctx) {
   )
   const email = emails[0] || ''
   const existing =
-    emails.length > 0 &&
-    event.guests.find((item) => {
-      return emails.some((needle) => {
-        if (item.email.trim().toLowerCase() === needle) return true
-        return (item.emails || []).some((value) => value.trim().toLowerCase() === needle)
-      })
-    })
+    emails.length > 0
+      ? event.guests.find((item) => {
+          return emails.some((needle) => {
+            if (item.email.trim().toLowerCase() === needle) return true
+            return (item.emails || []).some((value) => value.trim().toLowerCase() === needle)
+          })
+        })
+      : undefined
+
+  // Public RSVP must not rename/extend an invited family by guessing their email.
+  if (body?.fromPublic && existing) {
+    return NextResponse.json(
+      {
+        error:
+          'Este email já está na lista de convidados. Use o link do convite para confirmar o RSVP.',
+        existing: true,
+      },
+      { status: 409 },
+    )
+  }
 
   const guest = await addGuest(id, {
     familyName,

@@ -55,7 +55,25 @@ async function readImportPayload(request: Request): Promise<{
     if (file && typeof file === 'object' && 'arrayBuffer' in file) {
       const blob = file as File
       const name = blob.name || ''
+      // Cap spreadsheet/CSV size (xlsx has known advisories; keep blast radius small).
+      const maxBytes = 2 * 1024 * 1024
+      if (typeof blob.size === 'number' && blob.size > maxBytes) {
+        return {
+          previewMode,
+          parsed: null,
+          confirmRows: null,
+          error: 'Arquivo demasiado grande (máx. 2 MB)',
+        }
+      }
       const buffer = Buffer.from(await blob.arrayBuffer())
+      if (buffer.length > maxBytes) {
+        return {
+          previewMode,
+          parsed: null,
+          confirmRows: null,
+          error: 'Arquivo demasiado grande (máx. 2 MB)',
+        }
+      }
       if (isXlsxName(name) || contentType.includes('spreadsheet')) {
         return { previewMode, parsed: parseGuestXlsx(buffer), confirmRows: null }
       }

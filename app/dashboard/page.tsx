@@ -9,7 +9,7 @@ import { listEvents, getOrg, getUser } from '@/lib/platform/store'
 import { typeLabel } from '@/lib/platform/defaults'
 import { eventPublicHostLabel, hostFromHeaders } from '@/lib/platform/site-url'
 import { actorOrgId, currentActor } from '@/lib/platform/session'
-import { isPlatformAdmin } from '@/lib/platform/auth'
+import { canManageEventOptions, isPlatformAdmin } from '@/lib/platform/auth'
 import { resolveStudioLocale, STUDIO_LOCALE_COOKIE } from '@/lib/platform/studio-locale'
 import { studioUi } from '@/lib/platform/studio-ui'
 
@@ -105,6 +105,7 @@ export default async function DashboardPage() {
                   previewToken={event.previewToken}
                   compact
                   locale={locale}
+                  canHardDelete={canManageEventOptions(actor)}
                 />
               </div>
             </div>

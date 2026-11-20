@@ -4,10 +4,28 @@ import {
   MITZVAH_CONTACT_EMAIL,
   MITZVAH_CONTACT_FORWARD_TO,
 } from '@/lib/contact'
+import { consumeRateLimit } from '@/lib/platform/rate-limit'
 import { contactSchema } from '@/lib/validations'
 
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+}
+
 export async function POST(request: NextRequest) {
-  const body = await request.json()
+  const ip =
+    request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
+    request.headers.get('x-real-ip') ||
+    'unknown'
+  const limited = await consumeRateLimit(`site-contact:${ip}`, 5, 60 * 60 * 1000)
+  if (!limited.ok) {
+    return NextResponse.json({ ok: false, error: 'rate_limited' }, { status: 429 })
+  }
+
+  const body = await request.json().catch(() => null)
   const parsed = contactSchema.safeParse(body)
   if (!parsed.success) {
     return NextResponse.json({ ok: false, error: 'invalid' }, { status: 400 })
@@ -23,15 +41,15 @@ export async function POST(request: NextRequest) {
     from,
     to: MITZVAH_CONTACT_FORWARD_TO,
     replyTo: email,
-    subject: `[Mitzvah.pro] ${name}`,
+    subject: `[Mitzvah.pro] ${name.replace(/[\r\n]+/g, ' ').slice(0, 80)}`,
     html: `
       <p><strong>Novo contato pelo site Mitzvah.pro</strong></p>
-      <p><strong>Nome:</strong> ${name}</p>
-      <p><strong>Email:</strong> ${email}</p>
+      <p><strong>Nome:</strong> ${escapeHtml(name)}</p>
+      <p><strong>Email:</strong> ${escapeHtml(email)}</p>
       <p><strong>Mensagem:</strong></p>
-      <p>${message.replace(/\n/g, '<br>')}</p>
+      <p>${escapeHtml(message).replace(/\n/g, '<br>')}</p>
       <hr>
-      <p style="color:#666;font-size:12px">Encaminhado de ${MITZVAH_CONTACT_EMAIL}</p>
+      <p style="color:#666;font-size:12px">Encaminhado de ${escapeHtml(MITZVAH_CONTACT_EMAIL)}</p>
     `,
   })
 

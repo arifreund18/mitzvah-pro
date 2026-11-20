@@ -1,9 +1,7 @@
 import { WizardStudio } from '@/components/wizard/WizardStudio'
-import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
-import { isValidSession, SESSION_COOKIE } from '@/lib/platform/auth'
 import { getEvent } from '@/lib/platform/store'
-import { assertEventPageAccess } from '@/lib/platform/session'
+import { assertEventPageAccess, currentActor } from '@/lib/platform/session'
 
 export const dynamic = 'force-dynamic'
 
@@ -12,8 +10,7 @@ export default async function WizardPage({
 }: {
   params: Promise<{ id: string }>
 }) {
-  const jar = await cookies()
-  if (!isValidSession(jar.get(SESSION_COOKIE)?.value)) {
+  if (!(await currentActor())) {
     redirect('/dashboard/login')
   }
   const { id } = await params

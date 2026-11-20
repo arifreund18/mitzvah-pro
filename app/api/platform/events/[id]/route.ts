@@ -61,10 +61,29 @@ export async function PATCH(request: Request, ctx: Ctx) {
   }
 }
 
-export async function DELETE(_request: Request, ctx: Ctx) {
+export async function DELETE(request: Request, ctx: Ctx) {
   const { id } = await ctx.params
   const denied = await requireEventAccess(id)
   if (denied) return denied
+  const actor = await currentActor()
+  if (!canManageEventOptions(actor)) {
+    return NextResponse.json(
+      { error: 'Só o owner ou admin pode apagar o evento permanentemente. Use Arquivar.' },
+      { status: 403 },
+    )
+  }
+  const body = (await request.json().catch(() => null)) as { confirmSlug?: string } | null
+  const event = await getEvent(id)
+  if (!event) return NextResponse.json({ error: 'Evento não encontrado' }, { status: 404 })
+  const confirmSlug = String(body?.confirmSlug || '').trim()
+  if (!confirmSlug || confirmSlug !== event.slug) {
+    return NextResponse.json(
+      {
+        error: `Confirme digitando o slug do evento (${event.slug}) para apagar permanentemente.`,
+      },
+      { status: 400 },
+    )
+  }
   try {
     const ok = await deleteEvent(id)
     if (!ok) return NextResponse.json({ error: 'Evento não encontrado' }, { status: 404 })
