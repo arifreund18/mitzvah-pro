@@ -52,10 +52,12 @@ export const WizardStepForm = forwardRef<
     config: EventConfig
     guests: Guest[]
     onChange: (next: EventConfig) => void
-    onGuests: (next: Guest[]) => void
+    onGuests: (next: Guest[], opts?: { persist?: boolean }) => void
+    /** After server-side import: reload guests without a full PUT replace. */
+    onGuestsReload?: () => void | Promise<void>
     eventId?: string
   }
->(function WizardStepForm({ step, config, guests, onChange, onGuests, eventId }, ref) {
+>(function WizardStepForm({ step, config, guests, onChange, onGuests, onGuestsReload, eventId }, ref) {
   const ui = wizardUi(config.locales.default)
   const studio = studioUi(config.locales.default)
   const locale = config.locales.default
@@ -1508,7 +1510,12 @@ export const WizardStepForm = forwardRef<
           }}
         />
         <GuestCsvImport
+          eventId={eventId}
           onImported={(rows) => {
+            if (eventId && onGuestsReload) {
+              void onGuestsReload()
+              return
+            }
             if (!rows.length) return
             onGuests([...guests, ...rows])
           }}

@@ -667,11 +667,19 @@ export async function addGuests(
   })
 }
 
-export async function replaceGuests(eventId: string, guests: Guest[]): Promise<PlatformEvent | null> {
+export async function replaceGuests(
+  eventId: string,
+  guests: Guest[],
+  opts?: { allowEmpty?: boolean },
+): Promise<PlatformEvent | null | { error: 'empty_wipe' }> {
   return withLock(async () => {
     const store = await loadStore()
     const event = store.events.find((item) => item.id === eventId)
     if (!event) return null
+    // Guard against stale wizard/section PUT wiping a real guest list (Adissi).
+    if (!opts?.allowEmpty && guests.length === 0 && event.guests.length > 0) {
+      return { error: 'empty_wipe' as const }
+    }
     event.guests = guests.map((guest) =>
       coerceGuestInviteLocale(normalizeGuest(guest), event.config),
     )

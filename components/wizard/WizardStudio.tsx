@@ -79,13 +79,22 @@ export function WizardStudio({ event }: { event: PlatformEvent }) {
     setStep(nextStep)
   }
 
-  async function persistGuests(nextGuests: Guest[]) {
+  async function persistGuests(nextGuests: Guest[], opts?: { persist?: boolean }) {
     setGuests(nextGuests)
+    if (opts?.persist === false) return
     await fetch(`/api/platform/events/${event.id}/guests`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ guests: nextGuests }),
     })
+  }
+
+  async function reloadGuestsFromServer() {
+    const res = await fetch(`/api/platform/events/${event.id}/guests`)
+    const data = (await res.json().catch(() => null)) as { guests?: Guest[] } | null
+    if (res.ok && Array.isArray(data?.guests)) {
+      setGuests(data.guests)
+    }
   }
 
   async function publish() {
@@ -233,6 +242,7 @@ export function WizardStudio({ event }: { event: PlatformEvent }) {
               eventId={event.id}
               onChange={setConfig}
               onGuests={persistGuests}
+              onGuestsReload={reloadGuestsFromServer}
             />
             {step === 'review' && (
               <div className="mt-6 space-y-3">

@@ -51,13 +51,22 @@ export function SectionEditor({
     return () => window.removeEventListener('beforeunload', onBeforeUnload)
   }, [saveState])
 
-  async function persistGuests(next: Guest[]) {
+  async function persistGuests(next: Guest[], opts?: { persist?: boolean }) {
     setGuests(next)
+    if (opts?.persist === false) return
     await fetch(`/api/platform/events/${event.id}/guests`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ guests: next }),
     })
+  }
+
+  async function reloadGuestsFromServer() {
+    const res = await fetch(`/api/platform/events/${event.id}/guests`)
+    const data = (await res.json().catch(() => null)) as { guests?: Guest[] } | null
+    if (res.ok && Array.isArray(data?.guests)) {
+      setGuests(data.guests)
+    }
   }
 
   const statusLabel =
@@ -110,7 +119,8 @@ export function SectionEditor({
             setSaveState('dirty')
             setConfig(next)
           }}
-          onGuests={(next) => void persistGuests(next)}
+          onGuests={(next, opts) => void persistGuests(next, opts)}
+          onGuestsReload={reloadGuestsFromServer}
         />
       </div>
     </div>

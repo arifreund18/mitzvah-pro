@@ -314,16 +314,24 @@ export function EventAdmin({
         <button
           type="button"
           disabled={!!busy || !products.saveTheDate}
-          onClick={() => send('std')}
-          className="rounded-full bg-cyan-400 px-4 py-2 font-semibold text-[#0b1020] disabled:opacity-40"
+          aria-busy={busy === 'std'}
+          onClick={() => {
+            if (busy) return
+            void send('std')
+          }}
+          className="rounded-full bg-cyan-400 px-4 py-2 font-semibold text-[#0b1020] disabled:pointer-events-none disabled:opacity-40"
         >
           {busy === 'std' ? ui.sending : ui.sendStd}
         </button>
         <button
           type="button"
           disabled={!!busy || !products.invitation}
-          onClick={() => send('invite')}
-          className="rounded-full bg-white px-4 py-2 font-semibold text-[#0b1020] disabled:opacity-40"
+          aria-busy={busy === 'invite'}
+          onClick={() => {
+            if (busy) return
+            void send('invite')
+          }}
+          className="rounded-full bg-white px-4 py-2 font-semibold text-[#0b1020] disabled:pointer-events-none disabled:opacity-40"
         >
           {busy === 'invite' ? ui.sending : ui.sendInvite}
         </button>
@@ -341,16 +349,22 @@ export function EventAdmin({
         <button
           type="button"
           disabled={!!busy || !products.saveTheDate}
-          onClick={() => void sendTest('std')}
-          className="rounded-full border border-cyan-400/40 px-4 py-2 text-cyan-100 hover:bg-cyan-400/10 disabled:opacity-40"
+          onClick={() => {
+            if (busy) return
+            void sendTest('std')
+          }}
+          className="rounded-full border border-cyan-400/40 px-4 py-2 text-cyan-100 hover:bg-cyan-400/10 disabled:pointer-events-none disabled:opacity-40"
         >
           {busy === 'test-std' ? ui.sending : ui.sendTestStd}
         </button>
         <button
           type="button"
           disabled={!!busy || !products.invitation}
-          onClick={() => void sendTest('invite')}
-          className="rounded-full border border-white/25 px-4 py-2 hover:bg-white/10 disabled:opacity-40"
+          onClick={() => {
+            if (busy) return
+            void sendTest('invite')
+          }}
+          className="rounded-full border border-white/25 px-4 py-2 hover:bg-white/10 disabled:pointer-events-none disabled:opacity-40"
         >
           {busy === 'test-invite' ? ui.sending : ui.sendTestInvite}
         </button>
@@ -437,7 +451,7 @@ export function EventAdmin({
           </a>
         </div>
       </div>
-      <GuestAdminPanel event={event} locale={locale} />
+      <GuestAdminPanel event={event} locale={locale} sendLocked={!!busy} />
     </div>
   )
 }

@@ -261,6 +261,24 @@ export async function saveMailJob(job: MailJob): Promise<MailJob> {
   })
 }
 
+/** Stop a queued/processing job — clears pending/in-flight so workers cannot resume. */
+export async function cancelMailJob(
+  jobId: string,
+  reason: string = 'cancelled',
+): Promise<MailJob | null> {
+  const job = await getMailJob(jobId)
+  if (!job) return null
+  if (job.status === 'completed' || job.status === 'failed') return job
+  job.pendingGuestIds = []
+  job.inFlightGuestIds = []
+  job.deferredGuestIds = []
+  job.deferred = 0
+  job.status = 'failed'
+  job.lastError = reason
+  job.errors.push(reason)
+  return saveMailJob(job)
+}
+
 /**
  * Atomically take the next batch out of `pendingGuestIds` and persist before send.
  * Concurrent workers get disjoint batches — prevents duplicate SES sends (Adissi flood).
