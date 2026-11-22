@@ -5,6 +5,7 @@ import {
   guestRsvpNames,
   mailRsvpConfirmationHtml,
   mailRsvpConfirmationSubject,
+  RSVP_CONFIRMATION_WEBSITE_CTA_SUGGESTION,
 } from '../lib/platform/mail.ts'
 import { normalizeGuest } from '../lib/platform/normalize-guest.ts'
 import type { CardDesign, EventConfig } from '../lib/platform/types.ts'
@@ -164,10 +165,12 @@ describe('mailRsvpConfirmationHtml', () => {
     assert.match(html, /Temple Emanu-El of Atlanta/)
     assert.match(html, /1580 Spalding Dr/)
     assert.match(html, /VIEW LOCATION/)
-    assert.match(html, /VIEW CARD/)
+    assert.match(html, new RegExp(RSVP_CONFIRMATION_WEBSITE_CTA_SUGGESTION.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')))
+    assert.doesNotMatch(html, /VIEW CARD/)
     assert.match(html, /cdn\.example\/seal\.png/)
     assert.match(html, /background-color:#1a2033/)
-    assert.match(html, /\/card\/tok123/)
+    assert.doesNotMatch(html, /\/card\/tok123/)
+    assert.match(html, /\/e\/beni\/\?guest=tok123/)
     assert.match(html, /\/rsvp\/tok123/)
     assert.match(html, /maps\.example\/venue/)
     assert.match(html, /calendar\.google|\/api\/platform\/calendar\//)
@@ -231,6 +234,7 @@ describe('mailRsvpConfirmationHtml', () => {
         confirmationEmailTitle: "Laura Adissi's Bat Mitzvah",
         confirmationEmailHosts: 'Tati and Rodrigo',
         confirmationEmailBody: 'is called to the Torah as a Bat Mitzvah',
+        confirmationEmailWebsiteCta: 'Visit our celebration site',
       },
     } as Partial<EventConfig>)
 
@@ -246,6 +250,8 @@ describe('mailRsvpConfirmationHtml', () => {
     assert.match(html, /Laura Adissi/)
     assert.match(html, /Tati and Rodrigo/)
     assert.match(html, /is called to the Torah as a Bat Mitzvah/)
+    assert.match(html, /Visit our celebration site/)
+    assert.doesNotMatch(html, new RegExp(RSVP_CONFIRMATION_WEBSITE_CTA_SUGGESTION.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')))
     assert.doesNotMatch(html, /Come join us to celebrate our MVP/)
     assert.doesNotMatch(html, /Hosted by Gen and Sam Katz/)
   })
@@ -302,7 +308,8 @@ describe('mailRsvpConfirmationHtml', () => {
     assert.doesNotMatch(html, /Família Freund/)
     assert.doesNotMatch(html, /Venha celebrar conosco!/)
     assert.match(html, /\/rsvp\/pt-tok/)
-    assert.match(html, /\/card\/pt-tok/)
+    assert.match(html, /\/e\/beni\/\?guest=pt-tok/)
+    assert.doesNotMatch(html, /\/card\/pt-tok/)
     assert.equal(mailRsvpConfirmationSubject(config, guest), 'RSVP confirmado — Beni Freund')
   })
 
@@ -325,9 +332,10 @@ describe('mailRsvpConfirmationHtml', () => {
     const html = mailRsvpConfirmationHtml(config, 'mitzvah.pro', guest)
     assert.match(html, /You're attending\./)
     assert.match(html, /EDIT RESPONSE/)
-    assert.match(html, /VIEW CARD/)
+    assert.match(html, new RegExp(RSVP_CONFIRMATION_WEBSITE_CTA_SUGGESTION.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')))
     assert.match(html, /ADD TO CALENDAR/)
     assert.match(html, /VIEW LOCATION/)
+    assert.doesNotMatch(html, /VIEW CARD/)
     assert.doesNotMatch(html, /VER O CONVITE/)
     assert.doesNotMatch(html, /Adicionar ao calendário/)
     assert.doesNotMatch(html, /Ver mapa/)

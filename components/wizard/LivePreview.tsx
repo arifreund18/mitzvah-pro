@@ -262,7 +262,7 @@ export function LivePreview({
                 ) : null}
               </div>
               <iframe
-                key={`rsvp-${rsvpMailSrcDoc.length}-${config.rsvp.confirmationEmailTitle}-${config.rsvp.confirmationEmailHosts}-${config.rsvp.confirmationEmailBody}`}
+                key={`rsvp-${rsvpMailSrcDoc.length}-${config.rsvp.confirmationEmailTitle}-${config.rsvp.confirmationEmailHosts}-${config.rsvp.confirmationEmailBody}-${config.rsvp.confirmationEmailWebsiteCta}`}
                 title={mail.emailRsvp}
                 className="block h-[760px] w-full border-0 bg-white"
                 srcDoc={rsvpMailSrcDoc}

@@ -7,7 +7,10 @@ import { Field, TextArea, TextInput } from '@/components/wizard/fields'
 import { applyGeneratedPatch, typeLabel, wizardUi } from '@/lib/platform/copy'
 import { getLocalized } from '@/lib/platform/i18n-content'
 import { uid } from '@/lib/platform/ids'
-import { defaultMailSubject } from '@/lib/platform/mail'
+import {
+  defaultMailSubject,
+  RSVP_CONFIRMATION_WEBSITE_CTA_SUGGESTION,
+} from '@/lib/platform/mail'
 import {
   EVENT_TYPES,
   NOTIFY_MODES,
@@ -1265,6 +1268,19 @@ export const WizardStepForm = forwardRef<
                 set((prev) => ({
                   ...prev,
                   rsvp: { ...prev.rsvp, confirmationEmailBody: value },
+                }))
+              }}
+            />
+          </Field>
+          <Field label={ui.confirmationEmailWebsiteCta}>
+            <TextInput
+              value={config.rsvp.confirmationEmailWebsiteCta || ''}
+              placeholder={RSVP_CONFIRMATION_WEBSITE_CTA_SUGGESTION}
+              onChange={(e) => {
+                const value = e.target.value
+                set((prev) => ({
+                  ...prev,
+                  rsvp: { ...prev.rsvp, confirmationEmailWebsiteCta: value },
                 }))
               }}
             />

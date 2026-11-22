@@ -64,6 +64,7 @@ function minimalConfig(overrides: Partial<EventConfig> = {}): EventConfig {
       confirmationEmailTitle: '',
       confirmationEmailHosts: '',
       confirmationEmailBody: '',
+      confirmationEmailWebsiteCta: '',
     },
     reminders: {
       enabled: true,
