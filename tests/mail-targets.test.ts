@@ -1,6 +1,10 @@
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
-import { mailTargetsEmptyReason, selectMailTargets } from '../lib/platform/mail-targets.ts'
+import {
+  mailTargetsEmptyReason,
+  selectMailTargets,
+  shouldSkipAlreadySent,
+} from '../lib/platform/mail-targets.ts'
 import type { Guest } from '../lib/platform/types.ts'
 
 function guest(partial: Partial<Guest> & Pick<Guest, 'id' | 'familyName'>): Guest {
@@ -73,5 +77,23 @@ describe('mailTargetsEmptyReason', () => {
   it('explains missing email on individual send', () => {
     const list = [guest({ id: 'c', familyName: 'C', email: '' })]
     assert.match(mailTargetsEmptyReason(list, 'invite', ['c']), /não tem email/)
+  })
+})
+
+describe('shouldSkipAlreadySent', () => {
+  const jobCreatedAt = '2026-11-21T20:00:00.000Z'
+
+  it('does not skip when never sent (first bulk/individual send)', () => {
+    assert.equal(shouldSkipAlreadySent(null, jobCreatedAt), false)
+    assert.equal(shouldSkipAlreadySent(undefined, jobCreatedAt), false)
+  })
+
+  it('does not skip prior campaign — allows intentional individual re-send', () => {
+    assert.equal(shouldSkipAlreadySent('2026-11-21T12:00:00.000Z', jobCreatedAt), false)
+  })
+
+  it('skips when this job already marked the guest (lease reclaim)', () => {
+    assert.equal(shouldSkipAlreadySent('2026-11-21T20:00:01.000Z', jobCreatedAt), true)
+    assert.equal(shouldSkipAlreadySent(jobCreatedAt, jobCreatedAt), true)
   })
 })

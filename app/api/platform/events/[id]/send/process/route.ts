@@ -6,6 +6,7 @@ import { isEmailConfigured, sendEmail } from '@/lib/email/send'
 import { guestMailRecipients } from '@/lib/platform/family-emails'
 import { eventHostReplyTo, eventMailConfigurationSet } from '@/lib/platform/mail-domain'
 import { mailHtml, mailSubject } from '@/lib/platform/mail'
+import { shouldSkipAlreadySent } from '@/lib/platform/mail-targets'
 import {
   claimMailJobBatch,
   getLatestMailJobForEvent,
@@ -114,9 +115,10 @@ export async function POST(request: Request, ctx: Ctx) {
       continue
     }
 
-    const alreadySent = job.kind === 'std' ? Boolean(guest.stdSentAt) : Boolean(guest.inviteSentAt)
-    if (alreadySent) {
-      // Idempotent: do not re-send if a parallel worker or prior attempt already marked it.
+    const sentAt = job.kind === 'std' ? guest.stdSentAt : guest.inviteSentAt
+    // Only skip when *this* job already marked the guest (lease reclaim). A prior
+    // campaign's timestamp must still send — individual "Send invite" re-sends.
+    if (shouldSkipAlreadySent(sentAt, job.createdAt)) {
       succeeded += 1
       continue
     }

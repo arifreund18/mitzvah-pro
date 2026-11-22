@@ -11,6 +11,7 @@ import { GuestAdminPanel } from '@/components/dashboard/GuestAdminPanel'
 import { GuestCsvImport } from '@/components/dashboard/GuestCsvImport'
 import { GuestManualAdd } from '@/components/dashboard/GuestManualAdd'
 import { ScheduleGuestsPanel } from '@/components/dashboard/ScheduleGuestsPanel'
+import { selectMailTargets } from '@/lib/platform/mail-targets'
 import { normalizeProducts } from '@/lib/platform/products'
 import { SECTION_EDITOR_IDS } from '@/lib/platform/section-editor'
 import { fillTemplate, sectionLabelsFor, studioUi } from '@/lib/platform/studio-ui'
@@ -85,6 +86,9 @@ export function EventAdmin({
     const invite = guests.filter((g) => g.inviteSentAt).length
     return { yes, no, pending, people, std, invite, total: guests.length }
   }, [guests])
+  /** Bulk send targets = same filter as POST /send (email + not yet sent). */
+  const pendingStdSends = useMemo(() => selectMailTargets(guests, 'std').length, [guests])
+  const pendingInviteSends = useMemo(() => selectMailTargets(guests, 'invite').length, [guests])
 
   async function pollSendJob(jobId: string, kind: 'std' | 'invite') {
     const maxAttempts = 120
@@ -326,7 +330,7 @@ export function EventAdmin({
         </a>
         <button
           type="button"
-          disabled={!!busy || !products.saveTheDate}
+          disabled={!!busy || !products.saveTheDate || pendingStdSends === 0}
           aria-busy={busy === 'std'}
           onClick={() => {
             if (busy) return
@@ -334,11 +338,11 @@ export function EventAdmin({
           }}
           className="rounded-full bg-cyan-400 px-4 py-2 font-semibold text-[#0b1020] disabled:pointer-events-none disabled:opacity-40"
         >
-          {busy === 'std' ? ui.sending : ui.sendStd}
+          {busy === 'std' ? ui.sending : `${ui.sendStd} (${pendingStdSends})`}
         </button>
         <button
           type="button"
-          disabled={!!busy || !products.invitation}
+          disabled={!!busy || !products.invitation || pendingInviteSends === 0}
           aria-busy={busy === 'invite'}
           onClick={() => {
             if (busy) return
@@ -346,7 +350,7 @@ export function EventAdmin({
           }}
           className="rounded-full bg-white px-4 py-2 font-semibold text-[#0b1020] disabled:pointer-events-none disabled:opacity-40"
         >
-          {busy === 'invite' ? ui.sending : ui.sendInvite}
+          {busy === 'invite' ? ui.sending : `${ui.sendInvite} (${pendingInviteSends})`}
         </button>
       </div>
       <div className="mt-4 flex flex-wrap items-end gap-3 text-sm">
