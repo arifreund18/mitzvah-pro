@@ -2,6 +2,21 @@ import { guestMailRecipients } from './family-emails.ts'
 import type { Guest } from './types.ts'
 
 /**
+ * Idempotency for /send/process: skip SES only when *this job* already marked
+ * the guest (crash / lease reclaim after a successful send).
+ *
+ * A prior campaign's `stdSentAt` / `inviteSentAt` (before `job.createdAt`) must
+ * still send — that is the intentional per-family re-send path from the admin UI.
+ */
+export function shouldSkipAlreadySent(
+  sentAt: string | null | undefined,
+  jobCreatedAt: string,
+): boolean {
+  if (!sentAt) return false
+  return sentAt >= jobCreatedAt
+}
+
+/**
  * Guests eligible for a mail send.
  * - With `guestIds`: those ids that have email (allows re-send).
  * - Without: everyone with email who has not yet received this kind.
