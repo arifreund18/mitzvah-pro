@@ -326,6 +326,9 @@ export function mailHtml(
 </html>`
 }
 
+/** Default / suggested CTA for the RSVP confirmation email website button. */
+export const RSVP_CONFIRMATION_WEBSITE_CTA_SUGGESTION = "Don't forget to check my website"
+
 const RSVP_CONFIRM: Record<
   EventLocale,
   {
@@ -336,7 +339,6 @@ const RSVP_CONFIRM: Record<
     editResponse: string
     calendar: string
     map: string
-    viewCard: string
     subject: string
   }
 > = {
@@ -348,7 +350,6 @@ const RSVP_CONFIRM: Record<
     editResponse: 'EDIT RESPONSE',
     calendar: 'ADD TO CALENDAR',
     map: 'VIEW LOCATION',
-    viewCard: 'VIEW CARD',
     subject: 'RSVP confirmed',
   },
   pt: {
@@ -359,7 +360,6 @@ const RSVP_CONFIRM: Record<
     editResponse: 'EDITAR RESPOSTA',
     calendar: 'ADICIONAR AO CALENDÁRIO',
     map: 'VER LOCAL',
-    viewCard: 'VER O CONVITE',
     subject: 'RSVP confirmado',
   },
   es: {
@@ -370,7 +370,6 @@ const RSVP_CONFIRM: Record<
     editResponse: 'EDITAR RESPUESTA',
     calendar: 'AÑADIR AL CALENDARIO',
     map: 'VER UBICACIÓN',
-    viewCard: 'VER LA INVITACIÓN',
     subject: 'RSVP confirmado',
   },
   he: {
@@ -381,7 +380,6 @@ const RSVP_CONFIRM: Record<
     editResponse: 'עריכת תשובה',
     calendar: 'הוספה ליומן',
     map: 'צפייה במקום',
-    viewCard: 'לצפייה בכרטיס',
     subject: 'RSVP אושר',
   },
 }
@@ -421,8 +419,8 @@ export function mailRsvpConfirmationSubject(config: EventConfig, guest: Guest): 
 }
 
 /**
- * RSVP confirmation email: status header, same invite card visual, hosts/body,
- * detail rows (edit / calendar / map), view-card CTA. Token links only.
+ * RSVP confirmation email: status header, invite card visual, hosts/body,
+ * detail rows (edit / calendar / map), website CTA. Card was already in the invite email.
  */
 export function mailRsvpConfirmationHtml(
   config: EventConfig,
@@ -437,7 +435,11 @@ export function mailRsvpConfirmationHtml(
   const token = guest.token
   const attending = guestHasYesRsvp(guest)
 
-  const cardHref = eventApexPathUrl(config.domain.slug, `/card/${token}`, { host })
+  const siteQuery = new URLSearchParams()
+  if (token) siteQuery.set('guest', token)
+  if (locale) siteQuery.set('lang', locale)
+  const siteQs = siteQuery.toString()
+  const siteHref = eventApexPathUrl(config.domain.slug, siteQs ? `?${siteQs}` : '', { host })
   const rsvpHref = eventApexPathUrl(config.domain.slug, `/rsvp/${token}`, { host })
   const apex = apexHost(host)
   const icsHref = `${protocolFor(apex)}://${apex}/api/platform/calendar/${encodeURIComponent(token)}`
@@ -453,7 +455,7 @@ export function mailRsvpConfirmationHtml(
 
   const cardColor = design.cardColor || config.branding.primaryColor || '#1a2033'
   const cardTextColor = design.cardTextColor || '#ffffff'
-  const viewCardTextColor = design.ctaRsvpColor || '#ffffff'
+  const websiteCtaTextColor = design.ctaRsvpColor || '#ffffff'
   const textColor = design.bodyColor || design.headingColor || '#111111'
   const mutedColor = textColor === '#FFFFFF' || textColor === '#ffffff' ? '#EEEEEE' : '#666666'
   const titleColor = design.headingColor || design.nameColor || textColor
@@ -461,7 +463,9 @@ export function mailRsvpConfirmationHtml(
   const linkMuted = mutedColor
   const actionColor = '#888888'
 
-  const viewCard = chromeCtaText(config, locale, 'invite', 'ctaView', labels.viewCard)
+  const websiteCta =
+    (config.rsvp?.confirmationEmailWebsiteCta || '').trim() ||
+    RSVP_CONFIRMATION_WEBSITE_CTA_SUGGESTION
   const calendarLabel = chromeCtaText(
     config,
     locale,
@@ -611,7 +615,7 @@ export function mailRsvpConfirmationHtml(
           </tr>
           <tr>
             <td align="center">
-              <a href="${escapeHtml(cardHref)}" style="text-decoration:none;color:inherit;">
+              <a href="${escapeHtml(siteHref)}" style="text-decoration:none;color:inherit;">
                 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:400px;background-color:${escapeHtml(cardColor)};border-radius:2px;">
                   <tr>
                     <td width="*" style="font-size:0;line-height:0;">&nbsp;</td>
@@ -656,7 +660,7 @@ export function mailRsvpConfirmationHtml(
           </tr>
           <tr>
             <td align="center" style="padding:28px 8px 0;">
-              <a href="${escapeHtml(cardHref)}" style="display:inline-block;font-family:${font};font-size:13px;font-weight:bold;letter-spacing:0.06em;color:${escapeHtml(viewCardTextColor)};background-color:${escapeHtml(cardColor)};text-decoration:none;padding:14px 36px;border-radius:999px;">${escapeHtml(viewCard)}</a>
+              <a href="${escapeHtml(siteHref)}" style="display:inline-block;font-family:${font};font-size:13px;font-weight:bold;letter-spacing:0.06em;color:${escapeHtml(websiteCtaTextColor)};background-color:${escapeHtml(cardColor)};text-decoration:none;padding:14px 36px;border-radius:999px;">${escapeHtml(websiteCta)}</a>
             </td>
           </tr>
         </table>

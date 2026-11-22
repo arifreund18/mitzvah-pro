@@ -207,6 +207,7 @@ export function createDefaultConfig(partial?: {
       confirmationEmailTitle: '',
       confirmationEmailHosts: '',
       confirmationEmailBody: '',
+      confirmationEmailWebsiteCta: '',
     },
     reminders: {
       enabled: true,

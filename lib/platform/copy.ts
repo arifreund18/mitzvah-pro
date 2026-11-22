@@ -296,6 +296,7 @@ export type WizardUi = {
   confirmationEmailTitle: string
   confirmationEmailHosts: string
   confirmationEmailBody: string
+  confirmationEmailWebsiteCta: string
   enableReminders: string
   reminderDays30: string
   reminderDays7: string
@@ -431,6 +432,7 @@ const WIZARD_UI: Record<EventLocale, WizardUi> = {
     confirmationEmailTitle: 'Título',
     confirmationEmailHosts: 'Anfitriões',
     confirmationEmailBody: 'Texto (ex.: “é chamada à Torah como Bat Mitzvah”)',
+    confirmationEmailWebsiteCta: 'Texto do botão (site)',
     enableReminders: 'Ativar emails de lembrete',
     reminderDays30: '30 dias antes',
     reminderDays7: '7 dias antes',
@@ -597,6 +599,7 @@ const WIZARD_UI: Record<EventLocale, WizardUi> = {
     confirmationEmailTitle: 'Title',
     confirmationEmailHosts: 'Hosts',
     confirmationEmailBody: 'Body (e.g. “is called to the Torah as a Bat Mitzvah”)',
+    confirmationEmailWebsiteCta: 'Website button text',
     enableReminders: 'Enable reminder emails',
     reminderDays30: '30 days before',
     reminderDays7: '7 days before',
@@ -763,6 +766,7 @@ const WIZARD_UI: Record<EventLocale, WizardUi> = {
     confirmationEmailTitle: 'Título',
     confirmationEmailHosts: 'Anfitriones',
     confirmationEmailBody: 'Texto (ej.: “es llamada a la Torá como Bat Mitzvá”)',
+    confirmationEmailWebsiteCta: 'Texto del botón (sitio)',
     enableReminders: 'Activar emails de recordatorio',
     reminderDays30: '30 días antes',
     reminderDays7: '7 días antes',
@@ -929,6 +933,7 @@ const WIZARD_UI: Record<EventLocale, WizardUi> = {
     confirmationEmailTitle: 'כותרת',
     confirmationEmailHosts: 'מארחים',
     confirmationEmailBody: 'טקסט (למשל “נקראת לתורה כבת מצווה”)',
+    confirmationEmailWebsiteCta: 'טקסט כפתור (אתר)',
     enableReminders: 'הפעלת תזכורות במייל',
     reminderDays30: '30 ימים לפני',
     reminderDays7: '7 ימים לפני',

@@ -386,6 +386,11 @@ export type EventConfig = {
     confirmationEmailHosts: string
     /** RSVP confirmation email: body under hosts (empty = omit the line). */
     confirmationEmailBody: string
+    /**
+     * RSVP confirmation email: CTA button label linking to the event website.
+     * Empty = use the default suggestion (“Don't forget to check my website”).
+     */
+    confirmationEmailWebsiteCta: string
   }
   reminders: {
     enabled: boolean

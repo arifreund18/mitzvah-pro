@@ -236,6 +236,8 @@ export function normalizeConfig(raw: EventConfig | null | undefined): EventConfi
       confirmationEmailTitle: raw.rsvp?.confirmationEmailTitle ?? base.rsvp.confirmationEmailTitle ?? '',
       confirmationEmailHosts: raw.rsvp?.confirmationEmailHosts ?? base.rsvp.confirmationEmailHosts ?? '',
       confirmationEmailBody: raw.rsvp?.confirmationEmailBody ?? base.rsvp.confirmationEmailBody ?? '',
+      confirmationEmailWebsiteCta:
+        raw.rsvp?.confirmationEmailWebsiteCta ?? base.rsvp.confirmationEmailWebsiteCta ?? '',
     },
     reminders: normalizeReminders(raw.reminders, base.reminders),
     followUpSchedule: normalizeScheduledGuestMail(

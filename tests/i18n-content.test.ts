@@ -63,6 +63,7 @@ function minimalConfig(partial?: {
       confirmationEmailTitle: '',
       confirmationEmailHosts: '',
       confirmationEmailBody: '',
+      confirmationEmailWebsiteCta: '',
     },
     reminders: {
       enabled: false,
