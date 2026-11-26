@@ -101,16 +101,27 @@ function digestHtml(event: PlatformEvent, changes: Guest[]): string {
   const no = event.guests.filter((g) => g.status === 'no').length
   const pending = event.guests.filter((g) => g.status === 'pending').length
   const rows = changes
-    .map((guest) => {
-      const adults = (guest.people || []).filter((p) => p.type === 'adult').length
-      const children = (guest.people || []).filter((p) => p.type === 'child').length
-      return `<tr>
-        <td style="padding:6px 8px;border-bottom:1px solid #eee">${escape(guest.familyName)}</td>
-        <td style="padding:6px 8px;border-bottom:1px solid #eee">${guest.status}</td>
-        <td style="padding:6px 8px;border-bottom:1px solid #eee">${guest.partySize}</td>
-        <td style="padding:6px 8px;border-bottom:1px solid #eee">${adults}/${children}</td>
-        <td style="padding:6px 8px;border-bottom:1px solid #eee">${escape(guest.email || '—')}</td>
-      </tr>`
+    .flatMap((guest) => {
+      const people = guest.people?.length
+        ? guest.people
+        : [
+            {
+              name: guest.familyName,
+              type: 'adult' as const,
+              status: guest.status,
+            },
+          ]
+      return people.map((person) => {
+        const msg = guest.message?.trim()
+        return `<tr>
+          <td style="padding:6px 8px;border-bottom:1px solid #eee">${escape(guest.familyName)}</td>
+          <td style="padding:6px 8px;border-bottom:1px solid #eee">${escape(person.name || guest.familyName)}</td>
+          <td style="padding:6px 8px;border-bottom:1px solid #eee">${person.status}</td>
+          <td style="padding:6px 8px;border-bottom:1px solid #eee">${person.type}</td>
+          <td style="padding:6px 8px;border-bottom:1px solid #eee">${escape(guest.email || '—')}</td>
+          <td style="padding:6px 8px;border-bottom:1px solid #eee">${msg ? escape(msg) : '—'}</td>
+        </tr>`
+      })
     })
     .join('')
   return `<div style="font-family:Georgia,serif;line-height:1.5">
@@ -121,13 +132,14 @@ function digestHtml(event: PlatformEvent, changes: Guest[]): string {
       <thead>
         <tr>
           <th align="left" style="padding:6px 8px;border-bottom:2px solid #ccc">Família</th>
+          <th align="left" style="padding:6px 8px;border-bottom:2px solid #ccc">Convidado</th>
           <th align="left" style="padding:6px 8px;border-bottom:2px solid #ccc">RSVP</th>
-          <th align="left" style="padding:6px 8px;border-bottom:2px solid #ccc">Pessoas</th>
-          <th align="left" style="padding:6px 8px;border-bottom:2px solid #ccc">A/C</th>
+          <th align="left" style="padding:6px 8px;border-bottom:2px solid #ccc">Tipo</th>
           <th align="left" style="padding:6px 8px;border-bottom:2px solid #ccc">Email</th>
+          <th align="left" style="padding:6px 8px;border-bottom:2px solid #ccc">Mensagem</th>
         </tr>
       </thead>
-      <tbody>${rows || '<tr><td colspan="5" style="padding:6px 8px">Sem alterações</td></tr>'}</tbody>
+      <tbody>${rows || '<tr><td colspan="6" style="padding:6px 8px">Sem alterações</td></tr>'}</tbody>
     </table>
   </div>`
 }
@@ -152,7 +164,14 @@ export async function GET(request: NextRequest) {
     if (event.status !== 'published' && event.status !== 'approved') continue
     const mode = event.config.rsvp.notifyMode
     if (mode !== 'daily' && mode !== 'weekly' && mode !== 'monthly') continue
-    const recipients = event.config.rsvp.notifyEmails.map((e) => e.trim()).filter(Boolean)
+    const recipients = Array.from(
+      new Set(
+        event.config.rsvp.notifyEmails
+          .flatMap((entry) => String(entry).split(/[\n,;]+/))
+          .map((e) => e.trim())
+          .filter(Boolean),
+      ),
+    )
     if (!recipients.length) continue
 
     const type = periodType(mode)

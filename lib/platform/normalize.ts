@@ -226,12 +226,19 @@ export function normalizeConfig(raw: EventConfig | null | undefined): EventConfi
     rsvp: {
       ...base.rsvp,
       ...raw.rsvp,
-      meals: raw.rsvp?.meals || base.rsvp.meals,
+      meals: (raw.rsvp?.meals || base.rsvp.meals).map((m) => String(m).trim()).filter(Boolean),
       collectMeal: raw.rsvp?.collectMeal ?? true,
       publicFormEnabled: raw.rsvp?.publicFormEnabled ?? false,
       openRsvpDefault: raw.rsvp?.openRsvpDefault ?? false,
       notifyMode: raw.rsvp?.notifyMode || 'instant',
-      notifyEmails: raw.rsvp?.notifyEmails || [],
+      notifyEmails: Array.from(
+        new Set(
+          (raw.rsvp?.notifyEmails || [])
+            .flatMap((entry) => String(entry).split(/[\n,;]+/))
+            .map((entry) => entry.trim())
+            .filter(Boolean),
+        ),
+      ),
       confirmationMessage: raw.rsvp?.confirmationMessage || base.rsvp.confirmationMessage,
       confirmationEmailTitle: raw.rsvp?.confirmationEmailTitle ?? base.rsvp.confirmationEmailTitle ?? '',
       confirmationEmailHosts: raw.rsvp?.confirmationEmailHosts ?? base.rsvp.confirmationEmailHosts ?? '',
