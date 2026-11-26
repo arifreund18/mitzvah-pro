@@ -126,9 +126,12 @@ export async function POST(request: Request, ctx: Ctx) {
   const { resolveGuestLocale } = await import('@/lib/platform/guest-locale')
   const locale = resolveGuestLocale(updated.guest, event.config)
   const { rsvpConfirmationText } = await import('@/lib/platform/guest-ui')
-  const { mailRsvpConfirmationHtml, mailRsvpConfirmationSubject } = await import(
-    '@/lib/platform/mail'
-  )
+  const {
+    mailRsvpConfirmationHtml,
+    mailRsvpConfirmationSubject,
+    mailRsvpHostNotifyHtml,
+    mailRsvpHostNotifySubject,
+  } = await import('@/lib/platform/mail')
   const confirmBody = rsvpConfirmationText(
     locale,
     updated.guest.familyName,
@@ -171,17 +174,26 @@ export async function POST(request: Request, ctx: Ctx) {
 
   const notify =
     event.config.rsvp.notifyMode === 'instant'
-      ? event.config.rsvp.notifyEmails.filter(Boolean)
+      ? Array.from(
+          new Set(
+            event.config.rsvp.notifyEmails
+              .flatMap((entry) => String(entry).split(/[\n,;]+/))
+              .map((e) => e.trim())
+              .filter(Boolean),
+          ),
+        )
       : []
   if (emailReady && from) {
+    const notifySubject = mailRsvpHostNotifySubject(updated.guest)
+    const notifyHtml = mailRsvpHostNotifyHtml(updated.guest)
     for (const to of notify) {
       await sendEmail({
         from,
         to,
         replyTo,
         configurationSetName,
-        subject: `Novo RSVP — ${updated.guest.familyName}`,
-        html: `<p>Família ${updated.guest.familyName} atualizou o RSVP.</p>`,
+        subject: notifySubject,
+        html: notifyHtml,
       }).catch(() => null)
     }
   }

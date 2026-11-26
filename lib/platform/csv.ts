@@ -3,7 +3,16 @@ import { normalizeGuest } from './normalize-guest.ts'
 import type { EventLocale, Guest, GuestRsvp, PersonType } from './types.ts'
 import { EVENT_LOCALES } from './types.ts'
 
-const HEADER = ['familyName', 'email', 'partySize', 'status', 'meal', 'dietary', 'message'] as const
+const HEADER = [
+  'familyName',
+  'guestName',
+  'type',
+  'email',
+  'status',
+  'meal',
+  'dietary',
+  'message',
+] as const
 
 export const IMPORT_COLUMNS = [
   'family_name',
@@ -375,28 +384,51 @@ export function parseGuestCsvPreview(text: string): GuestImportPreview {
 export function exportGuestCsv(guests: Guest[]): string {
   const lines = [HEADER.join(',')]
   for (const guest of guests) {
-    lines.push(
-      [
-        csvCell(guest.familyName),
-        csvCell(guest.email),
-        String(guest.partySize),
-        guest.status,
-        csvCell(guest.meal),
-        csvCell(guest.dietary),
-        csvCell(guest.message),
-      ].join(','),
-    )
+    const people = guest.people?.length
+      ? guest.people
+      : [
+          {
+            name: guest.familyName,
+            type: 'adult' as const,
+            status: guest.status,
+            meal: guest.meal,
+            dietary: guest.dietary,
+          },
+        ]
+    for (const person of people) {
+      lines.push(
+        [
+          csvCell(guest.familyName),
+          csvCell(person.name || guest.familyName),
+          person.type || 'adult',
+          csvCell(guest.email),
+          person.status || guest.status,
+          csvCell(person.meal || ''),
+          csvCell(person.dietary || ''),
+          csvCell(guest.message),
+        ].join(','),
+      )
+    }
   }
   return `${lines.join('\n')}\n`
 }
 
 export function guestsToImportRows(guests: Guest[]): GuestImportRow[] {
-  return guests.map((guest) => ({
-    family_name: guest.familyName,
-    email: guest.email,
-    guest_name: guest.people[0]?.name || guest.familyName,
-    type: guest.people[0]?.type || 'adult',
-    notes: guest.notes || guest.message || '',
-    language: guest.inviteLocale || '',
-  }))
+  const rows: GuestImportRow[] = []
+  for (const guest of guests) {
+    const people = guest.people?.length
+      ? guest.people
+      : [{ name: guest.familyName, type: 'adult' as const }]
+    for (const person of people) {
+      rows.push({
+        family_name: guest.familyName,
+        email: guest.email,
+        guest_name: person.name || guest.familyName,
+        type: person.type || 'adult',
+        notes: guest.notes || guest.message || '',
+        language: guest.inviteLocale || '',
+      })
+    }
+  }
+  return rows
 }

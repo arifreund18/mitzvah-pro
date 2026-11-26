@@ -1123,7 +1123,8 @@ export const WizardStepForm = forwardRef<
                 ...config,
                 rsvp: {
                   ...config.rsvp,
-                  meals: e.target.value.split('\n').map((line) => line.trim()).filter(Boolean),
+                  // Keep empty trailing lines so Enter can start a new meal option.
+                  meals: e.target.value.split('\n').map((line) => line.trim()),
                 },
               })
             }
@@ -1197,7 +1198,10 @@ export const WizardStepForm = forwardRef<
             ))}
           </select>
         </Field>
-        <Field label="Notify emails (one per line)">
+        <Field
+          label="Notify emails (one per line)"
+          hint="Press Enter for each address. Commas on the same line also work."
+        >
           <TextArea
             value={config.rsvp.notifyEmails.join('\n')}
             onChange={(e) =>
@@ -1205,10 +1209,8 @@ export const WizardStepForm = forwardRef<
                 ...config,
                 rsvp: {
                   ...config.rsvp,
-                  notifyEmails: e.target.value
-                    .split('\n')
-                    .map((line) => line.trim())
-                    .filter(Boolean),
+                  // Keep empty trailing lines so Enter can start the next email.
+                  notifyEmails: e.target.value.split('\n').map((line) => line.trim()),
                 },
               })
             }

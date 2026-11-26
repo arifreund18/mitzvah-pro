@@ -406,9 +406,58 @@ export function guestRsvpNames(guest: Guest, status: 'yes' | 'no'): string[] {
   return []
 }
 
+function guestPendingNames(guest: Guest): string[] {
+  return (guest.people || [])
+    .filter((person) => person.status === 'pending')
+    .map((person) => person.name.trim())
+    .filter(Boolean)
+}
+
 function formatRsvpStatusLine(label: string, names: string[]): string {
   if (!names.length) return label
   return `${label} ${names.join(', ')}`
+}
+
+/** Subject for instant host notification when a family submits RSVP. */
+export function mailRsvpHostNotifySubject(guest: Guest): string {
+  const family = guest.familyName.trim() || 'Convidado'
+  return `Novo RSVP — ${family}`
+}
+
+/**
+ * Instant host notification body: who confirmed, who declined, and the family message.
+ */
+export function mailRsvpHostNotifyHtml(guest: Guest): string {
+  const family = guest.familyName.trim() || 'Convidado'
+  const yes = guestRsvpNames(guest, 'yes')
+  const no = guestRsvpNames(guest, 'no')
+  const pending = guestPendingNames(guest)
+  const message = (guest.message || '').trim()
+
+  const lines: string[] = [
+    `<p><strong>Família ${escapeHtml(family)}</strong> atualizou o RSVP.</p>`,
+  ]
+  if (yes.length) {
+    lines.push(
+      `<p><strong>Confirmados:</strong> ${escapeHtml(yes.join(', '))}</p>`,
+    )
+  }
+  if (no.length) {
+    lines.push(
+      `<p><strong>Não podem ir:</strong> ${escapeHtml(no.join(', '))}</p>`,
+    )
+  }
+  if (pending.length) {
+    lines.push(
+      `<p><strong>Pendentes:</strong> ${escapeHtml(pending.join(', '))}</p>`,
+    )
+  }
+  if (message) {
+    lines.push(
+      `<p><strong>Mensagem:</strong> ${escapeHtml(message).replace(/\n/g, '<br/>')}</p>`,
+    )
+  }
+  return lines.join('\n')
 }
 
 export function mailRsvpConfirmationSubject(config: EventConfig, guest: Guest): string {
