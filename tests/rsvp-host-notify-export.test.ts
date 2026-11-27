@@ -6,9 +6,14 @@ import {
   mailRsvpHostNotifySubject,
 } from '../lib/platform/mail.ts'
 import { normalizeGuest, normalizePerson } from '../lib/platform/normalize-guest.ts'
+import type { EventConfig } from '../lib/platform/types.ts'
+
+function configWithLocale(locale: 'en' | 'pt' | 'es' | 'he'): EventConfig {
+  return { locales: { default: locale, enabled: [locale] } } as EventConfig
+}
 
 describe('RSVP host notify email', () => {
-  it('lists confirmed names, declined names, and the family message', () => {
+  it('lists confirmed names, declined names, and the family message in event locale', () => {
     const guest = normalizeGuest({
       familyName: 'Familia 1',
       people: [
@@ -16,15 +21,22 @@ describe('RSVP host notify email', () => {
         normalizePerson({ name: 'B', status: 'yes' }),
         normalizePerson({ name: 'C', status: 'no' }),
       ],
-      message: 'C nao pode ir.',
+      message: 'C cannot attend.',
     })
 
-    assert.equal(mailRsvpHostNotifySubject(guest), 'Novo RSVP — Familia 1')
-    const html = mailRsvpHostNotifyHtml(guest)
-    assert.match(html, /Família Familia 1/)
-    assert.match(html, /Confirmados:<\/strong> A, B/)
-    assert.match(html, /Não podem ir:<\/strong> C/)
-    assert.match(html, /Mensagem:<\/strong> C nao pode ir\./)
+    const en = configWithLocale('en')
+    assert.equal(mailRsvpHostNotifySubject(en, guest), 'New RSVP — Familia 1')
+    const enHtml = mailRsvpHostNotifyHtml(en, guest)
+    assert.match(enHtml, /Family <strong>Familia 1<\/strong> updated their RSVP\./)
+    assert.match(enHtml, /Confirmed:<\/strong> A, B/)
+    assert.match(enHtml, /Cannot attend:<\/strong> C/)
+    assert.match(enHtml, /Message:<\/strong> C cannot attend\./)
+
+    const pt = configWithLocale('pt')
+    assert.equal(mailRsvpHostNotifySubject(pt, guest), 'Novo RSVP — Familia 1')
+    const ptHtml = mailRsvpHostNotifyHtml(pt, guest)
+    assert.match(ptHtml, /Família <strong>Familia 1<\/strong> atualizou o RSVP\./)
+    assert.match(ptHtml, /Confirmados:<\/strong> A, B/)
   })
 })
 
