@@ -8,6 +8,8 @@ import {
   isoWeekKeyInTz,
   yearMonthInTz,
 } from '@/lib/platform/event-tz'
+import { primaryEventLocale } from '@/lib/platform/guest-locale'
+import { countGuestPeople } from '@/lib/platform/guest-stats'
 import {
   eventHostReplyTo,
   eventMailConfigurationSet,
@@ -18,7 +20,7 @@ import {
   listEmailLogs,
   loadPlatformStoreForCron,
 } from '@/lib/platform/store'
-import type { EmailLog, Guest, PlatformEvent } from '@/lib/platform/types'
+import type { EmailLog, EventLocale, Guest, PlatformEvent } from '@/lib/platform/types'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
@@ -96,10 +98,82 @@ function escape(value: string): string {
   return value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
 }
 
+const DIGEST_COPY: Record<
+  EventLocale,
+  {
+    totals: string
+    changes: string
+    family: string
+    guest: string
+    rsvp: string
+    type: string
+    email: string
+    message: string
+    empty: string
+    subject: string
+  }
+> = {
+  en: {
+    totals: 'Totals: Yes {yes} · No {no} · Pending {pending}',
+    changes: '{count} RSVP update(s) since the last digest:',
+    family: 'Family',
+    guest: 'Guest',
+    rsvp: 'RSVP',
+    type: 'Type',
+    email: 'Email',
+    message: 'Message',
+    empty: 'No changes',
+    subject: 'RSVP digest ({mode}) — {name}',
+  },
+  pt: {
+    totals: 'Totais: Sim {yes} · Não {no} · Pendente {pending}',
+    changes: '{count} atualização(ões) de RSVP desde o último digest:',
+    family: 'Família',
+    guest: 'Convidado',
+    rsvp: 'RSVP',
+    type: 'Tipo',
+    email: 'Email',
+    message: 'Mensagem',
+    empty: 'Sem alterações',
+    subject: 'Digest RSVP ({mode}) — {name}',
+  },
+  es: {
+    totals: 'Totales: Sí {yes} · No {no} · Pendiente {pending}',
+    changes: '{count} actualización(es) de RSVP desde el último digest:',
+    family: 'Familia',
+    guest: 'Invitado',
+    rsvp: 'RSVP',
+    type: 'Tipo',
+    email: 'Email',
+    message: 'Mensaje',
+    empty: 'Sin cambios',
+    subject: 'Digest RSVP ({mode}) — {name}',
+  },
+  he: {
+    totals: 'סה״כ: כן {yes} · לא {no} · ממתין {pending}',
+    changes: '{count} עדכוני RSVP מאז הדיג׳סט הקודם:',
+    family: 'משפחה',
+    guest: 'אורח',
+    rsvp: 'RSVP',
+    type: 'סוג',
+    email: 'אימייל',
+    message: 'הודעה',
+    empty: 'אין שינויים',
+    subject: 'דיג׳סט RSVP ({mode}) — {name}',
+  },
+}
+
+function fill(template: string, vars: Record<string, string | number>): string {
+  return Object.entries(vars).reduce(
+    (text, [key, value]) => text.replaceAll(`{${key}}`, String(value)),
+    template,
+  )
+}
+
 function digestHtml(event: PlatformEvent, changes: Guest[]): string {
-  const yes = event.guests.filter((g) => g.status === 'yes').length
-  const no = event.guests.filter((g) => g.status === 'no').length
-  const pending = event.guests.filter((g) => g.status === 'pending').length
+  const locale = primaryEventLocale(event.config)
+  const copy = DIGEST_COPY[locale] || DIGEST_COPY.en
+  const stats = countGuestPeople(event.guests)
   const rows = changes
     .flatMap((guest) => {
       const people = guest.people?.length
@@ -126,22 +200,31 @@ function digestHtml(event: PlatformEvent, changes: Guest[]): string {
     .join('')
   return `<div style="font-family:Georgia,serif;line-height:1.5">
     <p><strong>${escape(event.config.basics.honoreeName || event.slug)}</strong></p>
-    <p>Totais: Sim ${yes} · Não ${no} · Pendente ${pending}</p>
-    <p>${changes.length} RSVP(s) desde o último digest:</p>
+    <p>${escape(fill(copy.totals, { yes: stats.yes, no: stats.no, pending: stats.pending }))}</p>
+    <p>${escape(fill(copy.changes, { count: changes.length }))}</p>
     <table style="border-collapse:collapse;width:100%;font-size:14px">
       <thead>
         <tr>
-          <th align="left" style="padding:6px 8px;border-bottom:2px solid #ccc">Família</th>
-          <th align="left" style="padding:6px 8px;border-bottom:2px solid #ccc">Convidado</th>
-          <th align="left" style="padding:6px 8px;border-bottom:2px solid #ccc">RSVP</th>
-          <th align="left" style="padding:6px 8px;border-bottom:2px solid #ccc">Tipo</th>
-          <th align="left" style="padding:6px 8px;border-bottom:2px solid #ccc">Email</th>
-          <th align="left" style="padding:6px 8px;border-bottom:2px solid #ccc">Mensagem</th>
+          <th align="left" style="padding:6px 8px;border-bottom:2px solid #ccc">${escape(copy.family)}</th>
+          <th align="left" style="padding:6px 8px;border-bottom:2px solid #ccc">${escape(copy.guest)}</th>
+          <th align="left" style="padding:6px 8px;border-bottom:2px solid #ccc">${escape(copy.rsvp)}</th>
+          <th align="left" style="padding:6px 8px;border-bottom:2px solid #ccc">${escape(copy.type)}</th>
+          <th align="left" style="padding:6px 8px;border-bottom:2px solid #ccc">${escape(copy.email)}</th>
+          <th align="left" style="padding:6px 8px;border-bottom:2px solid #ccc">${escape(copy.message)}</th>
         </tr>
       </thead>
-      <tbody>${rows || '<tr><td colspan="6" style="padding:6px 8px">Sem alterações</td></tr>'}</tbody>
+      <tbody>${rows || `<tr><td colspan="6" style="padding:6px 8px">${escape(copy.empty)}</td></tr>`}</tbody>
     </table>
   </div>`
+}
+
+export function digestSubject(event: PlatformEvent, mode: string): string {
+  const locale = primaryEventLocale(event.config)
+  const copy = DIGEST_COPY[locale] || DIGEST_COPY.en
+  return fill(copy.subject, {
+    mode,
+    name: event.config.basics.honoreeName || event.slug,
+  })
 }
 
 export async function GET(request: NextRequest) {
@@ -194,7 +277,7 @@ export async function GET(request: NextRequest) {
       process.env.RESEND_FROM_EMAIL
     const html = digestHtml(event, changes)
     const metaJson = JSON.stringify(meta)
-    const subject = `Digest RSVP (${mode}) — ${event.config.basics.honoreeName || event.slug}`
+    const subject = digestSubject(event, mode)
     const replyTo = eventHostReplyTo(event.config)
     const configurationSetName = eventMailConfigurationSet(event.config)
 

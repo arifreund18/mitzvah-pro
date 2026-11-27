@@ -184,8 +184,8 @@ export async function POST(request: Request, ctx: Ctx) {
         )
       : []
   if (emailReady && from) {
-    const notifySubject = mailRsvpHostNotifySubject(updated.guest)
-    const notifyHtml = mailRsvpHostNotifyHtml(updated.guest)
+    const notifySubject = mailRsvpHostNotifySubject(event.config, updated.guest)
+    const notifyHtml = mailRsvpHostNotifyHtml(event.config, updated.guest)
     for (const to of notify) {
       await sendEmail({
         from,

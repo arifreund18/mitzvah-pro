@@ -11,6 +11,7 @@ import { GuestAdminPanel } from '@/components/dashboard/GuestAdminPanel'
 import { GuestCsvImport } from '@/components/dashboard/GuestCsvImport'
 import { GuestManualAdd } from '@/components/dashboard/GuestManualAdd'
 import { ScheduleGuestsPanel } from '@/components/dashboard/ScheduleGuestsPanel'
+import { countGuestPeople } from '@/lib/platform/guest-stats'
 import { selectMailTargets } from '@/lib/platform/mail-targets'
 import { normalizeProducts } from '@/lib/platform/products'
 import { SECTION_EDITOR_IDS } from '@/lib/platform/section-editor'
@@ -66,25 +67,21 @@ export function EventAdmin({
   const locale = event.config.locales.default
   const ui = studioUi(locale)
   const sectionLabels = sectionLabelsFor(locale)
-  const peopleCounts = useMemo(() => {
-    let adults = 0
-    let children = 0
-    for (const guest of guests) {
-      for (const person of guest.people || []) {
-        if (person.type === 'child') children += 1
-        else adults += 1
-      }
-    }
-    return { adults, children }
-  }, [guests])
   const stats = useMemo(() => {
-    const yes = guests.filter((g) => g.status === 'yes').length
-    const no = guests.filter((g) => g.status === 'no').length
-    const pending = guests.filter((g) => g.status === 'pending').length
-    const people = guests.reduce((sum, g) => sum + (g.status === 'no' ? 0 : g.partySize), 0)
+    const people = countGuestPeople(guests)
     const std = guests.filter((g) => g.stdSentAt).length
     const invite = guests.filter((g) => g.inviteSentAt).length
-    return { yes, no, pending, people, std, invite, total: guests.length }
+    return {
+      yes: people.yes,
+      no: people.no,
+      pending: people.pending,
+      people: people.peopleYesPending,
+      adults: people.adults,
+      children: people.children,
+      std,
+      invite,
+      total: people.total,
+    }
   }, [guests])
   /** Bulk send targets = same filter as POST /send (email + not yet sent). */
   const pendingStdSends = useMemo(() => selectMailTargets(guests, 'std').length, [guests])
@@ -394,7 +391,7 @@ export function EventAdmin({
         {[
           [ui.guests, String(stats.total)],
           [ui.peopleYesPending, String(stats.people)],
-          [ui.adultsChildren, `${peopleCounts.adults} / ${peopleCounts.children}`],
+          [ui.adultsChildren, `${stats.adults} / ${stats.children}`],
           [ui.rsvpBreakdown, `${stats.yes} / ${stats.no} / ${stats.pending}`],
           [ui.stdSent, String(stats.std)],
           [ui.invitesSent, String(stats.invite)],

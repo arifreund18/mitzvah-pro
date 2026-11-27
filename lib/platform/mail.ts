@@ -7,7 +7,12 @@ import {
   pageBackgroundCss,
 } from './card-background.ts'
 import { formatEventDate, typeLabel } from './copy.ts'
-import { chromeCtaText, inviteRsvpLabel, resolveGuestLocale } from './guest-locale.ts'
+import {
+  chromeCtaText,
+  inviteRsvpLabel,
+  primaryEventLocale,
+  resolveGuestLocale,
+} from './guest-locale.ts'
 import { getLocalizedCardDesign } from './i18n-content.ts'
 import { apexHost, eventApexPathUrl, protocolFor } from './site-url.ts'
 import {
@@ -418,43 +423,108 @@ function formatRsvpStatusLine(label: string, names: string[]): string {
   return `${label} ${names.join(', ')}`
 }
 
+const RSVP_HOST_NOTIFY: Record<
+  EventLocale,
+  {
+    subject: string
+    guestFallback: string
+    updated: string
+    confirmed: string
+    declined: string
+    pending: string
+    message: string
+  }
+> = {
+  en: {
+    subject: 'New RSVP — {family}',
+    guestFallback: 'Guest',
+    updated: 'Family {family} updated their RSVP.',
+    confirmed: 'Confirmed',
+    declined: 'Cannot attend',
+    pending: 'Pending',
+    message: 'Message',
+  },
+  pt: {
+    subject: 'Novo RSVP — {family}',
+    guestFallback: 'Convidado',
+    updated: 'Família {family} atualizou o RSVP.',
+    confirmed: 'Confirmados',
+    declined: 'Não podem ir',
+    pending: 'Pendentes',
+    message: 'Mensagem',
+  },
+  es: {
+    subject: 'Nuevo RSVP — {family}',
+    guestFallback: 'Invitado',
+    updated: 'La familia {family} actualizó el RSVP.',
+    confirmed: 'Confirmados',
+    declined: 'No pueden asistir',
+    pending: 'Pendientes',
+    message: 'Mensaje',
+  },
+  he: {
+    subject: 'RSVP חדש — {family}',
+    guestFallback: 'אורח',
+    updated: 'המשפחה {family} עדכנה את ה-RSVP.',
+    confirmed: 'מגיעים',
+    declined: 'לא מגיעים',
+    pending: 'ממתינים',
+    message: 'הודעה',
+  },
+}
+
+function hostNotifyLabels(config: EventConfig) {
+  const locale = primaryEventLocale(config)
+  return { locale, labels: RSVP_HOST_NOTIFY[locale] || RSVP_HOST_NOTIFY.en }
+}
+
+function withFamily(template: string, family: string): string {
+  return template.replaceAll('{family}', family)
+}
+
 /** Subject for instant host notification when a family submits RSVP. */
-export function mailRsvpHostNotifySubject(guest: Guest): string {
-  const family = guest.familyName.trim() || 'Convidado'
-  return `Novo RSVP — ${family}`
+export function mailRsvpHostNotifySubject(config: EventConfig, guest: Guest): string {
+  const { labels } = hostNotifyLabels(config)
+  const family = guest.familyName.trim() || labels.guestFallback
+  return withFamily(labels.subject, family)
 }
 
 /**
  * Instant host notification body: who confirmed, who declined, and the family message.
+ * Copy follows the event's official language.
  */
-export function mailRsvpHostNotifyHtml(guest: Guest): string {
-  const family = guest.familyName.trim() || 'Convidado'
+export function mailRsvpHostNotifyHtml(config: EventConfig, guest: Guest): string {
+  const { labels } = hostNotifyLabels(config)
+  const family = guest.familyName.trim() || labels.guestFallback
   const yes = guestRsvpNames(guest, 'yes')
   const no = guestRsvpNames(guest, 'no')
   const pending = guestPendingNames(guest)
   const message = (guest.message || '').trim()
 
   const lines: string[] = [
-    `<p><strong>Família ${escapeHtml(family)}</strong> atualizou o RSVP.</p>`,
+    `<p>${escapeHtml(labels.updated).replaceAll(
+      '{family}',
+      `<strong>${escapeHtml(family)}</strong>`,
+    )}</p>`,
   ]
   if (yes.length) {
     lines.push(
-      `<p><strong>Confirmados:</strong> ${escapeHtml(yes.join(', '))}</p>`,
+      `<p><strong>${escapeHtml(labels.confirmed)}:</strong> ${escapeHtml(yes.join(', '))}</p>`,
     )
   }
   if (no.length) {
     lines.push(
-      `<p><strong>Não podem ir:</strong> ${escapeHtml(no.join(', '))}</p>`,
+      `<p><strong>${escapeHtml(labels.declined)}:</strong> ${escapeHtml(no.join(', '))}</p>`,
     )
   }
   if (pending.length) {
     lines.push(
-      `<p><strong>Pendentes:</strong> ${escapeHtml(pending.join(', '))}</p>`,
+      `<p><strong>${escapeHtml(labels.pending)}:</strong> ${escapeHtml(pending.join(', '))}</p>`,
     )
   }
   if (message) {
     lines.push(
-      `<p><strong>Mensagem:</strong> ${escapeHtml(message).replace(/\n/g, '<br/>')}</p>`,
+      `<p><strong>${escapeHtml(labels.message)}:</strong> ${escapeHtml(message).replace(/\n/g, '<br/>')}</p>`,
     )
   }
   return lines.join('\n')
